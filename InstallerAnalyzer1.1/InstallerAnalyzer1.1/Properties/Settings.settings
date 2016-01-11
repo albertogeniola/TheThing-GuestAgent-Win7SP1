@@ -1,0 +1,21 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="InstallerAnalyzer1_Guest.Properties" GeneratedClassName="Settings">
+  <Profiles />
+  <Settings>
+    <Setting Name="INJECTOR_PATH" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">Injector.exe</Value>
+    </Setting>
+    <Setting Name="DLL_PATH" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">CHookingDll.dll</Value>
+    </Setting>
+    <Setting Name="VBOX_ADDITIONS_BIN_PATH" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">C:\Program Files\Oracle\VirtualBox Guest Additions\VBoxControl.exe</Value>
+    </Setting>
+    <Setting Name="ApplicationLogFile" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">c:\users\bot\Desktop\AppOutput.log</Value>
+    </Setting>
+    <Setting Name="GuestAdditionPath" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">C:\Program Files\Oracle\VirtualBox Guest Additions\VBoxControl.exe</Value>
+    </Setting>
+  </Settings>
+</SettingsFile>

@@ -1,0 +1,57 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="InstallerAnalyzer1_Host.Properties" GeneratedClassName="Settings">
+  <Profiles />
+  <Settings>
+    <Setting Name="REPORT_BASE_FOLDER" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">\\192.168.56.1\Reports</Value>
+    </Setting>
+    <Setting Name="VM_DIR_PATH" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">C:\VMs</Value>
+    </Setting>
+    <Setting Name="VBOX_BIN_PATH" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">C:\Program Files\Oracle\VirtualBox\VBoxManage.exe</Value>
+    </Setting>
+    <Setting Name="VM_VDI_DIR_PATH" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">C:\VDIs</Value>
+    </Setting>
+    <Setting Name="VM_BASE_VDI_PATH" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">C:\VMs\base.vdi</Value>
+    </Setting>
+    <Setting Name="VM_HOST_PATH" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">C:\Users\webking\Desktop\InstallerAnalyzer1.1\InstallerAnalyzer1.1\bin\Debug</Value>
+    </Setting>
+    <Setting Name="MAC_VENDORS_PATH" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">C:\VMs\vendors.txt</Value>
+    </Setting>
+    <Setting Name="BASE_NAME" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">POOL_VM_</Value>
+    </Setting>
+    <Setting Name="BASE_VM_NAME" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">BASE_VM</Value>
+    </Setting>
+    <Setting Name="GUEST_USERNAME" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">bot</Value>
+    </Setting>
+    <Setting Name="GUEST_PASSWORD" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">bot</Value>
+    </Setting>
+    <Setting Name="INSTALLER_ANALYZER_EXECUTABLE_NAME" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">InstallerAnalyzer1_Guest.exe</Value>
+    </Setting>
+    <Setting Name="HOST_SERVER_IP" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">192.168.56.1</Value>
+    </Setting>
+    <Setting Name="HOST_SERVER_PORT" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">9000</Value>
+    </Setting>
+    <Setting Name="INSTALLER_ANALYZER_NETWORK_DRIVE" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">z:</Value>
+    </Setting>
+    <Setting Name="THREAD_LOGS_DIR" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">C:\threads_logs</Value>
+    </Setting>
+    <Setting Name="VM_TO_SPAWN" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">1</Value>
+    </Setting>
+  </Settings>
+</SettingsFile>
