@@ -33,8 +33,7 @@ namespace InstallerAnalyzer1_Guest
                 _xmlRoot = _xmlLog.CreateElement("ROOT");
                 _xmlLog.AppendChild(_xmlRoot);
 
-
-                // Argoument checking...
+                // Argument checking...
                 #region Arguments checking
                 // Read from the command line the server which connect to:
                 if (args.Length != 2)
@@ -74,22 +73,30 @@ namespace InstallerAnalyzer1_Guest
 
                 #endregion
 
-            
+                // Visual Conf
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
+
+                // Prepare main window
                 mw = new AnalyzerMainWindow(_remoteIp, _remotePort);
                 mw.TopMost = true;
+
+                // Create and register the logger
                 pl = new ProgramLogger(Settings.Default.ApplicationLogFile);
                 pl.setTextBox(mw.getConsoleBox());
                 Console.SetOut(pl);
                 Console.SetError(pl);
                 Console.ForegroundColor = ConsoleColor.Cyan;
+
+                // Run the application
                 Application.Run(mw);
             }
             catch (Exception e)
             {
                 Console.Error.WriteLine(e.Message+Console.Error.NewLine+e.StackTrace);
                 MessageBox.Show("UNHANDLED ERROR OCCURRED\nMessage:\n"+e.Message+"\nStackTrace:\n"+e.StackTrace);
+
+                // TODO: need to reboot? What to do with the log file?
             }
 
         }

@@ -23,9 +23,11 @@ namespace InstallerAnalyzer1_Guest
 
         private IntPtr handle;
         private bool disposed;
+        private Process _proc;
 
-        public ProcessContainer()
+        public ProcessContainer(Process p)
         {
+            _proc = p;
             handle = CreateJobObject(IntPtr.Zero, null);
 
             var info = new JOBOBJECT_BASIC_LIMIT_INFORMATION
@@ -69,12 +71,19 @@ namespace InstallerAnalyzer1_Guest
             handle = IntPtr.Zero;
         }
 
-        public bool AddProcess(IntPtr processHandle)
+        public readonly Process Process { get {return _proc;} }
+
+        public void Start() {
+            _proc.Start();
+            AddProcess(_proc.Handle);
+        }
+
+        private bool AddProcess(IntPtr processHandle)
         {
             return AssignProcessToJobObject(handle, processHandle);
         }
 
-        public bool AddProcess(int processId)
+        private bool AddProcess(int processId)
         {
             return AddProcess(Process.GetProcessById(processId).Handle);
         }

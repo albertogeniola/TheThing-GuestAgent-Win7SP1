@@ -17,148 +17,279 @@ using System.Windows.Forms;
 using System.Xml;
 using InstallerAnalyzer1_Guest.Properties;
 using System.Windows;
+using System.Net.NetworkInformation;
+using InstallerAnalyzer1_Guest.Protocol;
+using Newtonsoft.Json;
 
 namespace InstallerAnalyzer1_Guest
 {
     class LogicThread
     {
+        const int ACQUIRE_WORK_SLEEP_SECS = 10;
+
         private int _getWorkPollingTime = 5000; // Poll every 5 secs
         
-        private string _installerPath;
-        private Process _proc;
-        private ProcessContainer _procJob;
-
         // Network objects
         private IPAddress _remoteIp;
         private int _remotePort;
-        private TcpClient _tcpEndpoint;
-        private BinaryWriter _nW;
-        private BinaryReader _nR;
-        private string _vmName;
+        private string _mac;
+
+        #region Network Methods
+        private TcpClient ConnectToHost()
+        {
+            TcpClient _tcpEndpoint = null;
+            while (_tcpEndpoint == null || !_tcpEndpoint.Connected)
+            {
+                try
+                {
+                    _tcpEndpoint = new TcpClient(_remoteIp.ToString(), _remotePort);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e.Message);
+                    Console.WriteLine(e.StackTrace);
+                    _tcpEndpoint = null;
+                    Console.WriteLine(String.Format("The remote node <{0}:{1}> seems to be down. Waiting...", _remoteIp, _remotePort));
+                    Thread.Sleep(5000);
+                }
+            }
+            Console.WriteLine("Connected to " + _remoteIp + " : " + _remotePort);
+            return _tcpEndpoint;
+
+        }
+        private void __send(NetworkStream ns, byte[] data) {
+            ns.Write(data, 0, data.Length);
+        }
+        private void __recv(NetworkStream ns, ref byte[] buf)
+        {
+            ns.Read(buf, 0, buf.Length);
+        }
+        private void __recvFile(NetworkStream ns, FileStream fs, int dim)
+        {
+            byte[] buff = new byte[8192];
+            int tot = 0;
+
+            while (tot < dim) {
+                int toread = ((dim - tot) > buff.Length ) ? buff.Length : (dim - tot);
+                int r = ns.Read(buff, 0, toread);
+                fs.Write(buff, 0, r);
+                tot += r;
+            }
+        }
+        private void _send_message(NetworkStream ns, string msg) { 
+            // Encode the string and get its byte length
+            var utf8 = Encoding.UTF8;
+            byte[] utfBytes = utf8.GetBytes(msg);
+
+            // Convert byte length to network unsigned int
+            int len = IPAddress.HostToNetworkOrder(utfBytes.Length);
+
+            // now send the len
+            __send(ns,BitConverter.GetBytes(len));
+
+            // finally send binary data
+            __send(ns,utfBytes);
+
+        }
+        private string _recv_message(NetworkStream ns)
+        {
+            byte[] i = new byte[4];
+            // Read the length
+            __recv(ns, ref i);
+
+            UInt32 nlen = BitConverter.ToUInt32(i, 0);
+            int len = IPAddress.NetworkToHostOrder((int)nlen);
+            
+            // Now read the rest of message
+            byte[] raw = new byte[len];
+            __recv(ns, ref raw);
+            var utf8 = Encoding.UTF8;
+            return utf8.GetString(raw);
+        }
+        #endregion
+
+        #region Communication with HostController
+        private ResponseGetWork RequestWork(NetworkStream ns)
+        {
+            RequestGetWork req = new RequestGetWork();
+            req.Mac = _mac;
+            _send_message(ns,JsonConvert.SerializeObject(req));
+            return JsonConvert.DeserializeObject<ResponseGetWork>(_recv_message(ns));
+        }
+        #endregion
+
+        /// <summary>
+        /// This function connects to the Host controller and asks for a job to be executed locally.
+        /// In case there are jobs to be executed, this method also takes care of installer download.
+        /// If no jobs have to be performed, this method return null.
+        /// Please note that calling this method may block the caller because file transfer and network
+        /// operations may happen.
+        /// </summary>
+        /// <returns>A Job or null in case no job is available.</returns>
+        private Job AcquireWork()
+        {
+            // Connect to the remote host  
+            var client = ConnectToHost();
+            try
+            {
+                Console.WriteLine("Requesting a job from Host Controller");
+                var ns = client.GetStream();
+
+                string err;
+                // Send a RequestGetWork
+                var res = RequestWork(ns);
+                if (!res.isValid(out err))
+                    throw new ProtocolException("Received response by Host Controller was not valid. " + err);
+
+                if (res.WorkId == null)
+                {
+                    // This means the server has nothing to do atm. Let the caller decide what to do.
+                    return null;
+                }
+
+                // Let's get the data from the server. We need to allocate the space locally and then send an ACK
+                // to the server, so it will start outputting data.
+                string path = Path.Combine(System.IO.Path.GetTempPath(), res.FileName);
+                FileStream fs = File.Create(path);
+                try
+                {
+                    fs.SetLength(res.FileDim);
+                    // Now we send an ACK to the HostController, so it starts sending data through the socket
+                    RequestGetWorkFile r = new RequestGetWorkFile();
+                    _send_message(ns, JsonConvert.SerializeObject(r));
+                    __recvFile(ns, fs, (int)res.FileDim);
+                }
+                catch (IOException e)
+                {
+                    // If an error occurs, drop the file and let the parent handle the exception.
+                    fs.SetLength(0);
+                    fs.Close();
+                    File.Delete(path);
+
+                    throw e;
+                }
+
+                fs.Close();
+                fs.Dispose();
+
+                // File received. Let the HostController we will work on it
+                RequestGetWorkFileReceived rr = new RequestGetWorkFileReceived();
+                _send_message(ns, JsonConvert.SerializeObject(rr));
+
+                // Hopefully everything went ok, it's now time to build up the Job object.
+                Job j = new Job(res.WorkId, path);
+                return j;
+            }
+            finally
+            {
+                client.Close();
+            }
+
+        }
+
+        private void ExecuteJob(Job j, InteractionPolicy policy) {
+            // Start the process by injecting our DLL pointed by the settings file.
+            var proc = StartProcessWithInjector(j);
+            Console.WriteLine("Installer started.");
+
+            // Continue until the process exits.
+            while (!proc.Process.HasExited)
+            {
+                Console.WriteLine("Installer process still running...");
+                Window waitingWindnow = null;
+                
+                // Wait for inputrequested
+                try
+                {
+                    Console.WriteLine("Waiting for windows to be stable...");
+                    waitingWindnow = WaitForInputRequested();
+                    Console.WriteLine("Ok, ready for user input. ");
+                }
+                catch (ProcessExitedException e)
+                {
+                    break;
+                }
+
+                // Now let the interaction happen. The way our monkey chooses the buttons to press
+                // depends on the policy passed as argument.
+                policy.Interact(waitingWindnow);
+
+                // At this point we reiterate again, untile the pocess runs.
+            }
+        }
 
         public LogicThread(IPAddress remoteIp, int remotePort)
         {
             _remoteIp = remoteIp;
             _remotePort = remotePort;
-            _vmName = GetVMName();
-            // Network setup: this will also connect to the remote host
+            _mac = GetMACAddr();
         }
 
         public void Start()
         {
-            SetupNetwork();
             Thread t = new Thread(new ThreadStart(work));
             t.Start();
         }
 
+        /// <summary>
+        /// This method represents the entry point for the thread work.
+        /// </summary>
         private void work()
         {
+            InteractionPolicy policy = new BasicInteractionPolicy();
+            bool keepRunning = true;
             try
             {
-                Console.WriteLine("Sending Call for work");
-                // Ask for work
-                SendCallForWork();
-                // Wait until a positive answer arrives...
-                while (!ServerHasWork())
+                while (keepRunning)
                 {
-                    Console.WriteLine("The remote server hasn't work for me. I sleep...");
-                    Thread.Sleep(_getWorkPollingTime);
-                    SendCallForWork();
-                }
-
-                Console.WriteLine("Getting work from remote server...");
-                // Retrive the work from the remote machine: ends with the ACK meaning File has been correctly read
-                GetWork();
-
-                Program.setSockAddr(((IPEndPoint)_tcpEndpoint.Client.LocalEndPoint).Address.ToString() + ":" + ((IPEndPoint)_tcpEndpoint.Client.LocalEndPoint).Port);
-                Console.WriteLine("Starting installer...");
-                // Start the process: ends with an ACK meaning the process has been correctly started
-                StartProcess();
-                SendAck();
-                //Console.WriteLine("Sending ACK, process started correctly");
-                Console.WriteLine("Installer started.");
-
-                // Continue until the process exits.
-                while (!IsProcessEnded())
-                {
-                    Console.WriteLine("Installer process still running...");
-                    Window waitingWindnow = null;
-                    // Wait for inputrequested
-                    try
+                    // Acquire the job from the server.
+                    // This may return null in case the server has nothing to do.
+                    Job j = AcquireWork();
+                    
+                    // If there is nothing to do, sleep and run again. Otherwise keep going.
+                    if (j == null)
                     {
-                        Console.WriteLine("Waiting for windows to be stable...");
-                        waitingWindnow = WaitForInputRequested();
-                        // Send PROCESS_GOING command
-                        Console.WriteLine("Ok, ready for user input. Sending Process still running...");
-                        SendProcessGoing();
+                        Console.WriteLine("There is nothing to do at the moment. We sleep and retry in " + ACQUIRE_WORK_SLEEP_SECS + " seconds.");
+                        Thread.Sleep(ACQUIRE_WORK_SLEEP_SECS * 1000);
+                        continue;
                     }
-                    catch (ProcessExitedException e)
+                    else
                     {
-                        break;
+                        Console.WriteLine(String.Format("Job acquired from controller. Job ID {0}, file name {1}.", j.Id, j.LocalFullPath));
                     }
 
-                    Console.WriteLine("Sending possible UI interactions -- ...");
-                    // Now inform the remote machine about possible interactions
-                    SendPossibleInteractions(waitingWindnow);
-                    Console.WriteLine("Waiting for a command to perform from the remote server...");
-                    // Wait for the remote decision
-                    Int16 cmd = ReceiveCommand();
-                    Console.WriteLine("Command received from remote server");
-                    // Now execute command
-                    try
+                    // Time to play with the installer!
+                    ExecuteJob(j, policy);
+                    Console.WriteLine("Installer process ended. ");
+
+                    // Collect info of the system and send them to the remote machine
+                    Console.WriteLine("Sending info to the remote server...");
+                    SendInfoToMachine();
+                    Console.WriteLine("Done.");
+
+                    // Reboot
+                    //Console.Write("Remote has asked for reboot.");
+                    // Check if I am a virtual machine. If yes, ask the HOST to reboot me.
+                    if (IsVM())
                     {
-                        Console.WriteLine("Executing command...");
-                        ExecuteCommand(cmd, waitingWindnow);
-                        Console.WriteLine("Command executed correctly.");
+                        Console.WriteLine("I am a VM, ask the remote host to revert me.");
+                        RemoteReboot();
+                        Console.WriteLine("Done");
                     }
-                    catch (Exception e)
+                    else
                     {
-                        Console.WriteLine("Exception happened.");
-                        using (StringWriter sw = new StringWriter())
-                        {
-                            // Build the XML Error element
-                            using (XmlTextWriter xtw = new XmlTextWriter(sw))
-                            {
-                                xtw.WriteStartElement("ERROR");
-                                xtw.WriteAttributeString("ExceptionMessage", e.Message);
-                                xtw.WriteAttributeString("ExceptionStackTrace", e.StackTrace);
-                                xtw.WriteEndElement();
-                                xtw.Flush();
-                            }
-                            sw.Flush();
-                            // Append that element to the log
-                            Console.WriteLine(sw.ToString());
-                            // Break the current while and send info to the host
-                            break;
-                        }
+                        Console.WriteLine("I am a physical VM, notify the remote server and reboot.");
+                        // Tell Remote I'm a physical Machine
+                        Console.WriteLine("Done. Rebooting...");
+                        SendLocalRebootACK(); // This will drop connection.
+                        LocalReboot();
                     }
+                    // Send the report to the HostController
+                    //SendReport();
 
-                }
+                    // Done!
+                    Console.WriteLine("Job completed!");
 
-                Console.WriteLine("Installer process ended. Sending info to remote server");
-                SendProcessEnded();
-                
-                // Collect info of the system and send them to the remote machine
-                Console.WriteLine("Sending info to the remote server...");
-                SendInfoToMachine();
-                Console.WriteLine("Done.");
-
-                // Reboot
-                //Console.Write("Remote has asked for reboot.");
-                // Check if I am a virtual machine. If yes, ask the HOST to reboot me.
-                if (IsVM())
-                {
-                    Console.WriteLine("I am a VM, ask the remote host to revert me.");
-                    RemoteReboot();
-                    Console.WriteLine("Done");
-                }
-                else
-                {
-                    Console.WriteLine("I am a physical VM, notify the remote server and reboot.");
-                    // Tell Remote I'm a physical Machine
-                    Console.WriteLine("Done. Rebooting...");
-                    SendLocalRebootACK(); // This will drop connection.
-                    LocalReboot();
                 }
             }
             catch (Exception e)
@@ -167,19 +298,16 @@ namespace InstallerAnalyzer1_Guest
             }
         }
 
-        private void SendInfoToMachine()
+        private string PrepareReport(ProcessContainer p)
         {
-            // Is everything ok?
-            string errors = _proc.StandardError.ReadToEnd();
-            int rtnCode = _proc.ExitCode;
+            // Start collecting info and produce a nice report
+            string errors = p.Process.StandardError.ReadToEnd();
+            string output = p.Process.StandardOutput.ReadToEnd();
+            int rtnCode = p.Process.ExitCode;
 
-            // 1. Send the exit code
-            _nW.Write(rtnCode);
-
-            // 2. Send STD ERROR
-            _nW.Write(errors);
-
-            // 3. Send the whole log
+            // START AGAIN FROM HERE
+            asdasdsadsdas das
+            
             using (StringWriter tw = new StringWriter())
             {
                 using (XmlWriter xmlWriter = new XmlTextWriter(tw))
@@ -198,123 +326,27 @@ namespace InstallerAnalyzer1_Guest
             }
         }
 
-        /*
-        private static void SetupHeader()
-        {
-            IntPtr consolehandle = GetConsoleWindow();
-            Screen s = Screen.PrimaryScreen;
-            WINDOWPLACEMENT place = new WINDOWPLACEMENT();
-            GetWindowPlacement(consolehandle, ref place);
-
-            SetWindowPos(consolehandle, IntPtr.Zero, s.Bounds.Width - place.rcNormalPosition.Width, 0, 0, 0, SetWindowPosFlags.NOSIZE);
-            Console.WindowHeight = Console.LargestWindowHeight;
-            
-            Console.ForegroundColor = ConsoleColor.DarkYellow;
-            //******************************************
-            Console.CursorTop = 0; Console.CursorLeft = 0;
-            Console.Write("******************************************");
-            // Server Address: 
-            Console.CursorTop = 1; Console.CursorLeft = 0;
-            Console.Write(" Server Address: ");
-            // Installer:
-            Console.CursorTop = 2; Console.CursorLeft = 0;
-            Console.Write(" Installer: ");
-            // Process spawned:
-            Console.CursorTop = 3; Console.CursorLeft = 0;
-            Console.Write(" Process spawned: ");
-            // Last Protocol Command:
-            Console.CursorTop = 4; Console.CursorLeft = 0;
-            Console.Write(" Last Protocol Command: ");
-            //******************************************
-            Console.CursorTop = 5; Console.CursorLeft = 0;
-            Console.Write("******************************************");
-
-            Console.CursorTop = 6;
-            Console.CursorLeft = 0;
-
-            Console.ResetColor();
-        }
-        */
-        private void SendCallForWork()
-        {
-            _nW.Write(Protocol.JOB_POLL_MSG);
-            //Console.WriteLine("I asked for work...");
-            _nW.Write(_vmName);
-        }
-
-        private bool ServerHasWork()
-        {
-            // Receive feedback
-            Int16 wr = _nR.ReadInt16();
-            if (wr == Protocol.JOB_READY)
-            {
-                return true;
-            }
-            else if (wr == Protocol.NO_JOBS)
-            {
-                return false;
-            }
-            else
-            {
-                throw new ProtocolException("Invalid answer from host.");
-            }
-        }
-
-        private bool IsVM()
-        {
-            Process p = new Process();
-            p.StartInfo.FileName = "cmd";
-            p.StartInfo.Arguments = "/c \"C:\\Program Files\\Oracle\\VirtualBox Guest Additions\\VBoxControl.exe\" guestproperty get VMNAME";
-            p.StartInfo.RedirectStandardError = true;
-            p.StartInfo.RedirectStandardOutput = true;
-            p.StartInfo.RedirectStandardInput = true;
-            p.StartInfo.CreateNoWindow = true;
-            p.StartInfo.UseShellExecute = false;
-            p.Start();
-            p.WaitForExit();
-
-            return p.ExitCode==0;
-        }
 
         private void RemoteReboot()
         {
             // 1. Send RemoteRebootACK
             _nW.Write(Protocol.ACK_REMOTE_REBOOT);
             // 2. Send VMName
-            _nW.Write(_vmName);
-            // I won't close anything because an Hard Reboot is happening...
-            //TODO: after a while local reboot if nothing happened.
+            //_nW.Write(_vmName);
+            _nW.Write(_mac);
         }
 
-        private string GetVMName()
-        {
-            Process p = new Process();
-            p.StartInfo.FileName = "cmd";
-            p.StartInfo.Arguments = "/c \""+Settings.Default.GuestAdditionPath+"\" guestproperty get VMNAME";
-            p.StartInfo.RedirectStandardError = true;
-            p.StartInfo.RedirectStandardOutput = true;
-            p.StartInfo.RedirectStandardInput = true;
-            p.StartInfo.CreateNoWindow = true;
-            p.StartInfo.UseShellExecute = false;
-            p.Start();
-            p.WaitForExit();
+        private string GetMACAddr() {
 
-            string output = p.StandardOutput.ReadToEnd();
+            string macAddr =
+                (
+                    from nic in NetworkInterface.GetAllNetworkInterfaces()
+                    where nic.OperationalStatus == OperationalStatus.Up
+                    select nic.GetPhysicalAddress().ToString()
+                ).FirstOrDefault();
 
-            if (!output.Contains("Value: "))
-            {
-                Console.WriteLine("OUTPUT: \""+output+"\"");
-                throw new ApplicationException("Error: I am unable to find the VMName!");
-            }
-            else
-            {
-                string val = output.Split(new string[] {"Value: "},StringSplitOptions.None)[1];
-                val = val.Replace("\"", "");
-                val = val.Trim();
-                return val;
-            }
-
-
+            return macAddr;
+        
         }
 
         private void SendLocalRebootACK()
@@ -334,92 +366,6 @@ namespace InstallerAnalyzer1_Guest
             p.WaitForExit();
 
             //throw new Exception("NO REBOOT NOW!");
-        }
-        
-        private void SendProcessGoing()
-        {
-            _nW.Write(Protocol.PROCESS_GOING);
-        }
-
-        private void SendProcessEnded()
-        {
-            _nW.Write(Protocol.PROCESS_ENDED);
-        }
-
-        private void SendCmdAck()
-        {
-            _nW.Write(Protocol.CMD_OK_ACK);
-        }
-
-        private void SendCmdNoAck()
-        {
-            _nW.Write(Protocol.CMD_NO_ACK);
-        }
-
-        private void SetupNetwork()
-        {
-            // This will also connect.
-            while (_tcpEndpoint == null || !_tcpEndpoint.Connected)
-            {
-                try
-                {
-                    _tcpEndpoint = new TcpClient(_remoteIp.ToString(), _remotePort);
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine(e.Message);
-                    Console.WriteLine(e.StackTrace);
-                    _tcpEndpoint = null;
-                    Console.WriteLine(String.Format("The remote node <{0}:{1}> seems to be down. Waiting...",_remoteIp,_remotePort));
-                    Thread.Sleep(5000);
-                }
-            }
-            //Console.WriteLine("Connected to " + _remoteIp + " : " + _remotePort);
-            NetworkStream ns = _tcpEndpoint.GetStream();
-            _nW = new BinaryWriter(ns);
-            _nR = new BinaryReader(ns);
-        }
-
-        private void GetWork()
-        {
-            // Retrive the installer
-            // 1. Read file name
-            string fileName = _nR.ReadString();
-            //Console.WriteLine("FileName received: " + fileName);
-
-            // 2. Read File dimension
-            long fileDim = _nR.ReadInt64();
-            //Console.WriteLine("File Dimension received:" + fileDim);
-
-            // Create the temporary file
-            FileStream fs = File.Create(System.IO.Path.GetTempPath() + fileName);
-            //Console.WriteLine("Created temp file in " + fs.Name);
-            // TODO: System checks for space availability and permissions. If something is wrong, do not send ACK.
-
-            // 3. Send ACK: I will accept that file. 
-            SendAck();
-            //Console.WriteLine("SENT ACK #1: OK, WAITING FOR FILE BINARIES.");
-
-            // 4. Read the file from the network and save it locally
-            Byte[] buff = new Byte[4096];
-            int read = 0;
-            while (read < fileDim) // Until you get the whole file...
-            {
-                // Read into the buffer from the network
-                int nR = _nR.Read(buff, 0, buff.Length);
-                if (nR == 0)
-                    throw new NetworkProtocol.ProtocolException("I didn't receive all the file data, the remote host has closed the connection.");
-                read += nR;
-                // Write to the FileSystem
-                fs.Write(buff, 0, nR);
-            }
-            _installerPath = fs.Name;
-            fs.Close();
-            fs.Dispose();
-
-            // 5. Send ACK, File has been correctly READ.
-            SendAck();
-            //Console.WriteLine("SENT ACK #2: File received succesfully.");
         }
 
         private void ExecuteCommand(short cmd, Window w)
@@ -520,11 +466,6 @@ namespace InstallerAnalyzer1_Guest
                 }
             }
             return false;
-        }
-
-        private void SendAck()
-        {
-            _nW.Write(Protocol.ACK);
         }
 
         private Int16 ReceiveCommand()
@@ -641,52 +582,6 @@ namespace InstallerAnalyzer1_Guest
             return actualWindow;
         }
 
-        /*
-        static int pc = 0;
-        static readonly string[] wps = new string[] { "   ",".  ",".. ","..."};
-        private static void UpdateHeader()
-        {
-            // Save the cursor pos
-            int px = Console.CursorLeft;
-            int py = Console.CursorTop;
-
-            // Server Address: 
-            Console.CursorTop = 1; Console.CursorLeft = 17;
-            Console.Write(((IPEndPoint)_tcpEndpoint.Client.RemoteEndPoint).Address + " : " + ((IPEndPoint)_tcpEndpoint.Client.RemoteEndPoint).Port+" - ");
-            if (_tcpEndpoint.Connected)
-            {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write("CONNECTED");
-                Console.ResetColor();
-            }
-            else
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.Write("DISCONNECTED");
-                Console.ResetColor();
-            }
-
-            // Installer:
-            Console.CursorTop = 2; Console.CursorLeft = 12;
-            if (_installerPath.Length>20)
-                Console.Write("..."+_installerPath.Substring(_installerPath.Length-20));
-            else
-                Console.Write(_installerPath);
-            // Process spawned:
-            Console.CursorTop = 3; Console.CursorLeft = 18;
-            string line = _proc.Id + " (" + (_proc.HasExited ? (" Exited as " + _proc.ExitCode) : (" Running"))+ wps[pc] + " )";
-            if (pc == 3)
-                pc = 0;
-            else
-                pc++;
-
-            Console.WriteLine(line);
-            
-            Console.CursorLeft = px;
-            Console.CursorTop = py;
-        }
-        */
-
         private IntPtr GetProcUIWindowHandle()
         {
             // First, get ALL PIDS spawned by the primary process: I have to monitor them all.
@@ -779,72 +674,32 @@ namespace InstallerAnalyzer1_Guest
             }
         }
 
-        private bool IsProcessEnded()
+        private ProcessContainer StartProcessWithInjector(Job j)
         {
-            // Check for all the PIDs related to the PROC object
-            return _proc.HasExited;
-        }
-
-        /// <summary>
-        /// The following function will start the received process using an appropriate injector.
-        /// </summary>
-        private void StartProcess()
-        {
-            if (_proc != null || _procJob != null)
-                throw new ApplicationException("You cannot start that process twice!");
-            
-            _procJob = new ProcessContainer();
-            _proc = new Process();
-            _proc.StartInfo.FileName = Properties.Settings.Default.INJECTOR_PATH;
-            _proc.StartInfo.Arguments = "\"" + _installerPath + "\" " + "\"" + Properties.Settings.Default.DLL_PATH + "\" " + "\"" + Program.GetMainWindowName()+"\"";
-            _proc.StartInfo.RedirectStandardError = true;
-            _proc.StartInfo.RedirectStandardOutput = true;
-            _proc.StartInfo.UseShellExecute = false;
-            _proc.Start();
-            _procJob.AddProcess(_proc.Handle);
-            
-            // TODO: insert a sync point. For instance wait until the first window of the installer appears by reading something from STDIN...
-        }
-
-        private void SendPossibleInteractions(Window w)
-        { 
-            // 1. Send window handle
-            Console.WriteLine("Sending window handle to the remote server.");
-            _nW.Write(w.Handle.ToInt32());
-            // 2. Send number of interactive controls
-            int count = w.InteractiveControls.Count();
-            Console.WriteLine("Sending "+count+" controls to the remote server.");
-            _nW.Write(count);
-            // 3. For each InteractiveControl, send ID, Type
-            int num = 0;
-            foreach (InteractiveControl ic in w.InteractiveControls)
+            ProcessContainer res = null;
+            try
             {
-                // Send button - Id
-                _nW.Write(ic.Id);
-                // Send Interaction id
-                _nW.Write(ic.GetPossibleInteractions()[0].Id);
-                // Send info about that button: text, bounds, focus status, (color)
-                // Text
-                _nW.Write(ic.Text);
-                // Bounds: calculate ic bounds relative to the window
-                Rect wB = w.GetBounds();
-                Rect cB = ic.GetBounds();
-                _nW.Write(cB.TopLeft.X-wB.TopLeft.X); // Top left x
-                _nW.Write(cB.TopLeft.Y - wB.TopLeft.Y); // Top left Y
-                _nW.Write(cB.BottomRight.X-wB.TopLeft.X); // Bottom right X
-                _nW.Write(cB.BottomRight.Y - wB.TopLeft.Y);  // Bottom right Y
-                // Focused?
-                _nW.Write(ic.IsFocused());
-
-                Console.WriteLine("Correctly sent control "+num);
-                num++;
+                var proc = new Process();
+                proc.StartInfo.FileName = Properties.Settings.Default.INJECTOR_PATH;
+                proc.StartInfo.Arguments = "\"" + j.LocalFullPath + "\" " + "\"" + Properties.Settings.Default.DLL_PATH + "\" " + "\"" + Program.GetMainWindowName() + "\"";
+                proc.StartInfo.RedirectStandardError = true;
+                proc.StartInfo.RedirectStandardOutput = true;
+                proc.StartInfo.UseShellExecute = false;
+                res = new ProcessContainer(proc);
+                res.Start();
+                
+            } catch(Exception ex){
+                // Partially handle here. Kill the process if created and dispose the process object. Then raise the exception again.
+                if (res != null)
+                {
+                    try { res.Process.Kill(); }
+                    catch (Exception e) { /*Do nothing.*/ }
+                    res.Process.Close();
+                }
+                throw ex;
             }
-            // 4. Send WindowStatusHash
-            _nW.Write(w.StatusHash);
-            // 5. Send Window screenshot: dimension and bytes
-            byte[] buff = w.GetWindowsScreenshot();
-            _nW.Write(buff.Length);
-            _nW.Write(buff);
+            
+            return res;
         }
 
         #region Win32 API
@@ -959,5 +814,4 @@ namespace InstallerAnalyzer1_Guest
         }
     }
 
-    
 }

@@ -226,7 +226,7 @@ namespace InstallerAnalyzer1_Host
             {
                 lock (this)
                 {
-                    Process p = new Process();
+                    Process p = new Process();  
                     ProcessStartInfo info = p.StartInfo;
 
                     // Check if the machine file already exists. If so, skip everything! The machine is already cloned.
