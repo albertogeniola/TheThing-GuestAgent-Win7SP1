@@ -71,7 +71,7 @@ namespace InstallerAnalyzer1_Guest
             handle = IntPtr.Zero;
         }
 
-        public readonly Process Process { get {return _proc;} }
+        public Process Process { get {return _proc;} }
 
         public void Start() {
             _proc.Start();

@@ -9,10 +9,10 @@ namespace InstallerAnalyzer1_Guest
     public class Job
     {
         private readonly long _id;
-        public readonly long Id { get { return _id; } }
+        public long Id { get { return _id; } }
 
         private readonly string _localPath;
-        public readonly string LocalFullPath { get { return _localPath; } }
+        public string LocalFullPath { get { return _localPath; } }
 
         public Job(long id, string localPath) {
             this._id = id;

@@ -11,9 +11,10 @@ namespace InstallerAnalyzer1_Guest.Protocol
     public class ResponseReportWork
     {
         [JsonProperty("response", Required = Required.Always)]
-        public readonly String Response
+        public String Response
         {
             get;
+            set;
         }
 
         public bool isValid(out string reason) {

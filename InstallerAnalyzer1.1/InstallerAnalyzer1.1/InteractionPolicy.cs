@@ -5,8 +5,8 @@ using System.Text;
 
 namespace InstallerAnalyzer1_Guest
 {
-    interface InteractionPolicy
+    public interface InteractionPolicy
     {
-        public void Interact(Window w);
+        void Interact(Window w);
     }
 }

@@ -10,7 +10,7 @@ namespace InstallerAnalyzer1_Guest.Protocol
     public class ResponseReportWorkReportReceived
     {
         [JsonProperty(PropertyName="command")]
-        public readonly String Response {
+        public String Response {
             get { return "REPORT_WORK_REPORT_RECEIVED"; }
         }
 

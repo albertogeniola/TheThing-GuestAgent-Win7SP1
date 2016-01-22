@@ -10,7 +10,7 @@ namespace InstallerAnalyzer1_Guest.Protocol
     public class RequestGetWork
     {
         [JsonProperty(PropertyName="command")]
-        public readonly String Command {
+        public String Command {
             get { return "GET_WORK"; }
         }
 

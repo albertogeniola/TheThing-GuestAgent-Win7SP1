@@ -11,27 +11,31 @@ namespace InstallerAnalyzer1_Guest.Protocol
     public class ResponseGetWork
     {
         [JsonProperty("response", Required = Required.Always)]
-        public readonly String Response
+        public String Response
         {
             get;
+            set;
         }
 
         [JsonProperty(PropertyName = "work_id", Required = Required.AllowNull)]
-        public readonly long WorkId
+        public long WorkId
         {
             get;
+            set;
         }
 
         [JsonProperty("file_name", Required = Required.AllowNull)]
-        public readonly String FileName
+        public String FileName
         {
             get;
+            set;
         }
 
         [JsonProperty("file_dim", Required = Required.AllowNull)]
-        public readonly long FileDim
+        public long FileDim
         {
             get;
+            set;
         }
 
         public bool isValid(out string reason) {
