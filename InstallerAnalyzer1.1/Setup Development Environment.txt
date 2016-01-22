@@ -1,0 +1,19 @@
+Setup development environment
+
+1.Detours installation
+	1. Download and install detours express from ms website. Last tested version is Detours Express 3.0 (32bit)
+	2. Open cmd prompt (as administrator) and navigate to Visual Studio shell, usually located in "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat". Run it.
+	3. Navigate to detorus installation path, usually "C:\Program Files (x86)\Microsoft Research\Detours Express 3.0"
+	4. run "nmake"
+
+2. Configure dependencies VS project
+	1. Open the vs project
+	2. select Injector, go to project property and select Linker->Additional Library Directories
+	3. link folder of detours lib, usually "C:\Program Files (x86)\Microsoft Research\Detours Express 3.0\lib.X86"
+	4. From project properties select C/C++ -> General -> Additional Include Directories
+	5. add the folder of detours header files, usually "C:\Program Files (x86)\Microsoft Research\Detours Express 3.0\include"
+
+3. Configure winpcap dependencies to Injector
+	1. Download the winpcap developer resource pack, from "https://www.winpcap.org/devel.htm"
+	2. Unzip the packet into some directory, usually documents
+	3. Add header files and libs to the project as done in step 2, pointing to the winpcap folders ("include" and "lib" folders)
