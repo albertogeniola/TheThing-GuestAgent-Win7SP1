@@ -26,6 +26,7 @@ namespace InstallerAnalyzer1_Guest
     class LogicThread
     {
         const int ACQUIRE_WORK_SLEEP_SECS = 10;
+        const string DEFAULT_REPORT_PATH = "report.xml";
 
         private int _getWorkPollingTime = 5000; // Poll every 5 secs
         
@@ -298,42 +299,45 @@ namespace InstallerAnalyzer1_Guest
             }
         }
 
-        private string PrepareReport(ProcessContainer p)
+        private string PrepareReport(ProcessContainer p, string outfile=DEFAULT_REPORT_PATH)
         {
             // Start collecting info and produce a nice report
             string errors = p.Process.StandardError.ReadToEnd();
             string output = p.Process.StandardOutput.ReadToEnd();
             int rtnCode = p.Process.ExitCode;
 
-            // START AGAIN FROM HERE
-            asdasdsadsdas das
+            // Add the output/error streams and return code
+            var log = Program.GetInstallerLog();
+            var executionResult = log.CreateElement("ExecutionResult");
             
-            using (StringWriter tw = new StringWriter())
+            var stdout = log.CreateElement("StdOut");
+            stdout.Value = output;
+            executionResult.AppendChild(stdout);
+            
+            var stderr = log.CreateElement("StdErr");
+            stderr.Value = errors;
+            executionResult.AppendChild(stderr);
+
+            var retcode = log.CreateElement("retcode");
+            retcode.Value = ""+rtnCode;
+            executionResult.AppendChild(retcode);
+
+            log.AppendChild(executionResult);
+
+            // Write the collected info to a local report.xml file.
+            using (var fs = File.Create(outfile))
             {
-                using (XmlWriter xmlWriter = new XmlTextWriter(tw))
+                using (XmlWriter xmlWriter = new XmlTextWriter(fs, Encoding.UTF8))
                 {
-                    try
-                    {
-                        Program.GetInstallerLog().WriteTo(xmlWriter);
-                        xmlWriter.Flush();
-                        _nW.Write(tw.GetStringBuilder().ToString());
-                    }
-                    catch (Exception e)
-                    {
-                        MessageBox.Show("NO WAY!!!");
-                    }
+                    log.WriteTo(xmlWriter);
                 }
+
+                // Flush changes on disk.
+                fs.Flush();
             }
-        }
 
+            return outfile;
 
-        private void RemoteReboot()
-        {
-            // 1. Send RemoteRebootACK
-            _nW.Write(Protocol.ACK_REMOTE_REBOOT);
-            // 2. Send VMName
-            //_nW.Write(_vmName);
-            _nW.Write(_mac);
         }
 
         private string GetMACAddr() {
@@ -347,130 +351,6 @@ namespace InstallerAnalyzer1_Guest
 
             return macAddr;
         
-        }
-
-        private void SendLocalRebootACK()
-        {
-            _nW.Write(Protocol.ACK_LOCAL_REBOOT);
-            _nW.Close();
-            _nR.Close();
-            _tcpEndpoint.Close();
-        }
-
-        private void LocalReboot()
-        {
-            Process p = new Process();
-            p.StartInfo.FileName = "shutdown";
-            p.StartInfo.Arguments = " -r -f -t 0";
-            p.Start();
-            p.WaitForExit();
-
-            //throw new Exception("NO REBOOT NOW!");
-        }
-
-        private void ExecuteCommand(short cmd, Window w)
-        {            
-            // Parse the command and execute the asked action
-            switch (cmd)
-            {
-                case Protocol.CMD_UI_INTERACT:
-                    //Console.WriteLine("COMMAND TO PERFORM: UI INTERACTION");
-                    // 1. Read the command
-                    string id = _nR.ReadString();
-                    // 1. Read the interaction type
-                    int intType = _nR.ReadInt32();
-
-                    string controlTitle = "NA";
-                    foreach(InteractiveControl ic in w.InteractiveControls)
-                    {
-                        if (ic.Id == id)
-                            controlTitle = ic.Text;
-                    }
-
-                    // Do the action
-                    bool b = DoUiInteraction(id, intType, w);
-                    // Send Ack
-                    if (b)
-                    {
-                        SendCmdAck();
-                        Program.appendFollowedPath(id + "=" + intType,"\'"+controlTitle+"\' ("+intType+")");
-                    }
-                    else
-                    {
-                        Console.WriteLine("An error has occurred during interaction with:");
-                        Console.WriteLine("Control ID: " + id);
-                        Console.WriteLine("Interaction type: " + intType);
-                        SendCmdNoAck();
-                    }
-
-                    break;
-                
-                case Protocol.CMD_REMOTE_REBOOT:
-                    if (IsVM())
-                    {
-                        RemoteReboot();
-                    }
-                    else
-                    {
-                        // Tell Remote I'm a physical Machine
-                        SendLocalRebootACK(); // This will drop connection.
-                        LocalReboot();
-                    }
-                    break;
-
-                case Protocol.CMD_RESTART_PROCESS:
-                    //Console.WriteLine("COMMAND TO PERFORM: RESTART PROCESS");
-                    RestartProcess();
-                    SendProcessRestartedAck();
-                    break;
-                default:
-                    throw new ProtocolException("Invalid command specified: " + cmd);
-            }    
-        }
-
-        private void RestartProcess()
-        {
-            Program.resetLog();
-            _proc.Kill();
-            _procJob.Close();
-            _procJob.Dispose();
-            _procJob = new ProcessContainer();
-            _proc.Start();
-            _procJob.AddProcess(_proc.Handle);
-        }
-
-        private void SendProcessRestartedAck()
-        {
-            _nW.Write(Protocol.ACK_PROCESS_RESTARTED);
-        }
-
-        private bool DoUiInteraction(string id, int intType, Window w)
-        {
-            foreach (InteractiveControl ic in w.InteractiveControls)
-            {
-                if (ic.Id.Equals(id))
-                {
-                    try
-                    {
-                        ic.Interact(intType);
-                        return true;
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine(e.Message);
-                        Console.WriteLine(e.StackTrace);
-                        Console.WriteLine("I was unable to interact with "+ic);
-                        return false;
-                    }
-                    
-                }
-            }
-            return false;
-        }
-
-        private Int16 ReceiveCommand()
-        {
-            return _nR.ReadInt16();
         }
 
         private Window WaitForInputRequested()
@@ -582,11 +462,8 @@ namespace InstallerAnalyzer1_Guest
             return actualWindow;
         }
 
-        private IntPtr GetProcUIWindowHandle()
+        private IntPtr GetProcUIWindowHandle(int pid)
         {
-            // First, get ALL PIDS spawned by the primary process: I have to monitor them all.
-            int pid = _proc.Id;
-
             List<int> mypids = new List<int>();
             Process[] pcs = Process.GetProcesses();
             mypids.Add(pid);
