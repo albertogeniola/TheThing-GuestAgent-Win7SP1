@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Windows.Forms;
 
 namespace InstallerAnalyzer1_Guest
@@ -11,6 +12,11 @@ namespace InstallerAnalyzer1_Guest
     {
         private RichTextBox _output;
         private StreamWriter _outputFileStream;
+        private string _logPath;
+
+        public string GetLogFilePath() {
+            return _logPath;
+        }
 
         public ProgramLogger(string outputFile):base()
         {
@@ -23,11 +29,14 @@ namespace InstallerAnalyzer1_Guest
             {
                 _outputFileStream = File.CreateText(outputFile);
                 _outputFileStream.AutoFlush = true;
+                _logPath = outputFile;
             }
             catch (Exception e)
             {
-                MessageBox.Show(e.Message);
-                Application.Exit();
+                Console.WriteLine("Application log file was invalid. Falling back to DEFAULT.");
+                _logPath = "log.txt";
+                _outputFileStream = File.CreateText(_logPath); //TODO: this must be parametrized
+                _outputFileStream.AutoFlush = true;
             }
         }
 
@@ -42,7 +51,12 @@ namespace InstallerAnalyzer1_Guest
             base.Write(value);
             _outputFileStream.Write(value);
             if (_output != null)
-                _output.AppendText(""+value);
+                if (_output.InvokeRequired)
+                    _output.Invoke((MethodInvoker)delegate
+                    {
+                        _output.AppendText("" + value);
+                    });
+                
         }
 
         public void setTextBox(RichTextBox output)

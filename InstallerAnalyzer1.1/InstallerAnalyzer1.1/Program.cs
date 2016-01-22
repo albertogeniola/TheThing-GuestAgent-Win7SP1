@@ -43,7 +43,8 @@ namespace InstallerAnalyzer1_Guest
 
                 try
                 {
-                    _remoteIp = IPAddress.Parse(args[0]);
+                    _remoteIp = Dns.GetHostAddresses(args[0]).Where(ip => ip.AddressFamily == AddressFamily.InterNetwork).ElementAt(0);
+                    //_remoteIp = IPAddress.Parse(args[0]);
                 }
                 catch (Exception e)
                 {
