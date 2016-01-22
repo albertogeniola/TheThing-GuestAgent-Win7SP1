@@ -60,6 +60,10 @@
     <CodeAnalysisRuleSet>ManagedMinimumRules.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Newtonsoft.Json, Version=8.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\packages\Newtonsoft.Json.8.0.2\lib\net40\Newtonsoft.Json.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
@@ -76,6 +80,7 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BasicInteractionPolicy.cs" />
     <Compile Include="ControlNotFoundException.cs" />
     <Compile Include="Controls\Control.cs" />
     <Compile Include="Controls\InteractiveControl.cs" />
@@ -85,6 +90,8 @@
     <Compile Include="AnalyzerMainWindow.Designer.cs">
       <DependentUpon>AnalyzerMainWindow.cs</DependentUpon>
     </Compile>
+    <Compile Include="InteractionPolicy.cs" />
+    <Compile Include="Job.cs" />
     <Compile Include="ProcessContainer.cs" />
     <Compile Include="ProcessExitedException.cs" />
     <Compile Include="LogicThread.cs" />
@@ -102,11 +109,19 @@
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
       <DependentUpon>Settings.settings</DependentUpon>
     </Compile>
+    <Compile Include="Protocol\ResponseReportWorkReportReceived.cs" />
+    <Compile Include="Protocol\RequestReportWork.cs" />
+    <Compile Include="Protocol\RequestGetWork.cs" />
+    <Compile Include="Protocol\RequestGetWorkFile.cs" />
+    <Compile Include="Protocol\RequestGetWorkFileReceived.cs" />
+    <Compile Include="Protocol\ResponseReportWork.cs" />
+    <Compile Include="Protocol\ResponseGetWork.cs" />
     <Compile Include="Window.cs" />
     <Compile Include="WindowFactory.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>

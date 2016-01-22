@@ -77,6 +77,17 @@ namespace InstallerAnalyzer1_Guest
                 tot += r;
             }
         }
+        private void __sendFile(NetworkStream ns, FileStream fs, int dim)
+        {
+            byte[] buff = new byte[8192];
+            long written = 0;
+            while (written < dim)
+            {
+                int read = fs.Read(buff, 0, buff.Length);
+                ns.Write(buff, 0, read);
+                written += read;
+            }
+        }
         private void _send_message(NetworkStream ns, string msg) { 
             // Encode the string and get its byte length
             var utf8 = Encoding.UTF8;
@@ -117,8 +128,64 @@ namespace InstallerAnalyzer1_Guest
             _send_message(ns,JsonConvert.SerializeObject(req));
             return JsonConvert.DeserializeObject<ResponseGetWork>(_recv_message(ns));
         }
+
+        private ResponseReportWork SendReport(NetworkStream ns, long workId, long reportFileLen, string status)
+        {
+            RequestReportWork r = new RequestReportWork();
+            r.Mac = _mac;
+            r.ReportLenInBytes = reportFileLen;
+            r.WorkId = workId;
+            r.Status = status;
+
+            _send_message(ns, JsonConvert.SerializeObject(r));
+            return JsonConvert.DeserializeObject<ResponseReportWork>(_recv_message(ns));
+        }
+        private ResponseReportWorkReportReceived WaitServerReportAck(NetworkStream ns)
+        {
+            return JsonConvert.DeserializeObject<ResponseReportWorkReportReceived>(_recv_message(ns));
+        }
         #endregion
 
+        private void ReportWork(Job j, string reportFilePath, string status)
+        {
+            var client = ConnectToHost();
+            try
+            {
+                Console.WriteLine("Reporting job completition to Host Controller");
+                var ns = client.GetStream();
+
+                string err;
+                
+                // We will need file dimension and work id to perform a report
+                FileInfo f = new FileInfo(reportFilePath);
+
+                // Send the report info to the server
+                ResponseReportWork res = SendReport(ns, j.Id, f.Length, status);
+
+                if (!res.isValid(out err))
+                    //TODO deal with response in case is invalid
+                    throw new ProtocolException("Received response by Host Controller was not valid. " + err);
+
+                // Time to send the report to the server
+                using (var fs = File.OpenRead(reportFilePath)) {
+                    __sendFile(ns, fs, (int)f.Length);
+                }
+                
+                // Did the server receive the file correctly?
+                ResponseReportWorkReportReceived rr = WaitServerReportAck(ns);
+                if (!rr.isValid(out err))
+                    //TODO deal with NACK
+                    throw new ProtocolException("Received response by Host Controller was not valid. " + err);
+                
+                // Done!
+            }
+            finally
+            {
+                client.Close();
+            }
+        }
+
+        
         /// <summary>
         /// This function connects to the Host controller and asks for a job to be executed locally.
         /// In case there are jobs to be executed, this method also takes care of installer download.
@@ -188,7 +255,7 @@ namespace InstallerAnalyzer1_Guest
 
         }
 
-        private void ExecuteJob(Job j, InteractionPolicy policy) {
+        private ProcessContainer ExecuteJob(Job j, InteractionPolicy policy) {
             // Start the process by injecting our DLL pointed by the settings file.
             var proc = StartProcessWithInjector(j);
             Console.WriteLine("Installer started.");
@@ -203,7 +270,7 @@ namespace InstallerAnalyzer1_Guest
                 try
                 {
                     Console.WriteLine("Waiting for windows to be stable...");
-                    waitingWindnow = WaitForInputRequested();
+                    waitingWindnow = WaitForInputRequested(proc);
                     Console.WriteLine("Ok, ready for user input. ");
                 }
                 catch (ProcessExitedException e)
@@ -217,6 +284,8 @@ namespace InstallerAnalyzer1_Guest
 
                 // At this point we reiterate again, untile the pocess runs.
             }
+
+            return proc;
         }
 
         public LogicThread(IPAddress remoteIp, int remotePort)
@@ -260,33 +329,18 @@ namespace InstallerAnalyzer1_Guest
                     }
 
                     // Time to play with the installer!
-                    ExecuteJob(j, policy);
+                    var proc = ExecuteJob(j, policy);
                     Console.WriteLine("Installer process ended. ");
 
                     // Collect info of the system and send them to the remote machine
-                    Console.WriteLine("Sending info to the remote server...");
-                    SendInfoToMachine();
+                    Console.WriteLine("Collecting report...");
+                    string reportPath = PrepareReport(proc);
+                    Console.WriteLine("Sending report to HostController...");
+                    ReportWork(j,reportPath,"completed");
                     Console.WriteLine("Done.");
 
-                    // Reboot
-                    //Console.Write("Remote has asked for reboot.");
-                    // Check if I am a virtual machine. If yes, ask the HOST to reboot me.
-                    if (IsVM())
-                    {
-                        Console.WriteLine("I am a VM, ask the remote host to revert me.");
-                        RemoteReboot();
-                        Console.WriteLine("Done");
-                    }
-                    else
-                    {
-                        Console.WriteLine("I am a physical VM, notify the remote server and reboot.");
-                        // Tell Remote I'm a physical Machine
-                        Console.WriteLine("Done. Rebooting...");
-                        SendLocalRebootACK(); // This will drop connection.
-                        LocalReboot();
-                    }
-                    // Send the report to the HostController
-                    //SendReport();
+                    // Should we reboot?
+                    // TODO
 
                     // Done!
                     Console.WriteLine("Job completed!");
@@ -296,6 +350,9 @@ namespace InstallerAnalyzer1_Guest
             catch (Exception e)
             {
                 MessageBox.Show(e.Message + "\n" + e.StackTrace);
+                keepRunning = false;
+
+                //TODO shall we reboot?!
             }
         }
 
@@ -353,7 +410,7 @@ namespace InstallerAnalyzer1_Guest
         
         }
 
-        private Window WaitForInputRequested()
+        private Window WaitForInputRequested(ProcessContainer pc)
         {
             // There's no progragmatic way to understand that, so I'll apply a sort of logic strategy
             /**
@@ -377,12 +434,12 @@ namespace InstallerAnalyzer1_Guest
                 try
                 {
                     // If No window is spawned, wait...
-                    IntPtr wH = GetProcUIWindowHandle();
+                    IntPtr wH = GetProcUIWindowHandle(pc.Process.Id);
                     Console.WriteLine("Window Handle: " + wH);
                     if (wH == IntPtr.Zero)
                     {
                         Console.WriteLine("Window Handle: NO WINDOW");
-                        if (_proc.HasExited)
+                        if (pc.Process.HasExited)
                         {
                             throw new ProcessExitedException();
                         }

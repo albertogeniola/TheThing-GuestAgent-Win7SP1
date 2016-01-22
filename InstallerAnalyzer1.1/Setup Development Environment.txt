@@ -17,3 +17,5 @@ Setup development environment
 	1. Download the winpcap developer resource pack, from "https://www.winpcap.org/devel.htm"
 	2. Unzip the packet into some directory, usually documents
 	3. Add header files and libs to the project as done in step 2, pointing to the winpcap folders ("include" and "lib" folders)
+
+4. Install JSON.NET through nuget packet manager
