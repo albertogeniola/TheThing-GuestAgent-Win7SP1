@@ -244,8 +244,12 @@ namespace InstallerAnalyzer1_Guest
                 RequestGetWorkFileReceived rr = new RequestGetWorkFileReceived();
                 _send_message(ns, JsonConvert.SerializeObject(rr));
 
-                // Hopefully everything went ok, it's now time to build up the Job object.
-                Job j = new Job(res.WorkId, path);
+                // In case there was nothing to do, the server responds with a null work_id. We handle this possibility here, by returning
+                // null in case it happens.
+                Job j = null;
+                if (res.WorkId !=null)
+                    j = new Job((long)res.WorkId, path);
+
                 return j;
             }
             finally
@@ -349,10 +353,11 @@ namespace InstallerAnalyzer1_Guest
             }
             catch (Exception e)
             {
-                MessageBox.Show(e.Message + "\n" + e.StackTrace);
+                //MessageBox.Show(e.Message + "\n" + e.StackTrace);
                 keepRunning = false;
-
-                //TODO shall we reboot?!
+                Console.Error.WriteLine("Exception " + e.Message + " occurred.");
+                //TODO shall we reboot?! For now I raise the same error
+                throw e; // FIXME!
             }
         }
 
@@ -406,7 +411,15 @@ namespace InstallerAnalyzer1_Guest
                     select nic.GetPhysicalAddress().ToString()
                 ).FirstOrDefault();
 
-            return macAddr;
+            // Add separators to the mac
+            StringBuilder builder = new StringBuilder();
+            for (int i=0;i<macAddr.Length;i++) {
+                if ((i % 2) == 0 && i != 0)
+                    builder.Append(':');
+                builder.Append(macAddr[i]);
+            }
+
+            return builder.ToString();
         
         }
 

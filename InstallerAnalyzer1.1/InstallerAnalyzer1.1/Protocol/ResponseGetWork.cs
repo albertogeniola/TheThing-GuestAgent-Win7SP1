@@ -18,7 +18,7 @@ namespace InstallerAnalyzer1_Guest.Protocol
         }
 
         [JsonProperty(PropertyName = "work_id", Required = Required.AllowNull)]
-        public long WorkId
+        public long? WorkId
         {
             get;
             set;
@@ -44,9 +44,25 @@ namespace InstallerAnalyzer1_Guest.Protocol
                 return false;
             }
 
-            if (! String.IsNullOrEmpty(Path.GetDirectoryName(FileName.Trim()))) {
-                reason = "The filename received was composed with directory names. Simple filename was expected.";
-                return false;
+            if (WorkId != null)
+            {
+                if (FileName == null)
+                {
+                    reason = "The filename received is null.";
+                    return false;
+                }
+
+                if (FileDim < 0)
+                {
+                    reason = "File dimension is less than 0.";
+                    return false;
+                }
+
+                if (!String.IsNullOrEmpty(Path.GetDirectoryName(FileName.Trim())))
+                {
+                    reason = "The filename received was composed with directory names. Simple filename was expected.";
+                    return false;
+                }
             }
 
             reason = null;
