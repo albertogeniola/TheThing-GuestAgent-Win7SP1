@@ -353,6 +353,9 @@ namespace InstallerAnalyzer1_Guest
             }
             catch (Exception e)
             {
+                // TODO: if the error happened during execution of interaction whould we notify the server that we failed? 
+                // TOD: Notify the server!
+
                 //MessageBox.Show(e.Message + "\n" + e.StackTrace);
                 keepRunning = false;
                 Console.Error.WriteLine("Exception " + e.Message + " occurred.");
@@ -373,18 +376,18 @@ namespace InstallerAnalyzer1_Guest
             var executionResult = log.CreateElement("ExecutionResult");
             
             var stdout = log.CreateElement("StdOut");
-            stdout.Value = output;
+            stdout.InnerText = output;
             executionResult.AppendChild(stdout);
             
             var stderr = log.CreateElement("StdErr");
-            stderr.Value = errors;
+            stderr.InnerText = errors;
             executionResult.AppendChild(stderr);
 
             var retcode = log.CreateElement("retcode");
-            retcode.Value = ""+rtnCode;
+            retcode.InnerText = "" + rtnCode;
             executionResult.AppendChild(retcode);
 
-            log.AppendChild(executionResult);
+            log.FirstChild.AppendChild(executionResult);
 
             // Write the collected info to a local report.xml file.
             using (var fs = File.Create(outfile))
@@ -392,10 +395,10 @@ namespace InstallerAnalyzer1_Guest
                 using (XmlWriter xmlWriter = new XmlTextWriter(fs, Encoding.UTF8))
                 {
                     log.WriteTo(xmlWriter);
-                }
 
-                // Flush changes on disk.
-                fs.Flush();
+                    // Flush changes on disk.
+                    fs.Flush();
+                }
             }
 
             return outfile;
