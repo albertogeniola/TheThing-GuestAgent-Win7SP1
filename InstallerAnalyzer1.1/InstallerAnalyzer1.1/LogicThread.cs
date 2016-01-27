@@ -1,5 +1,4 @@
-﻿using InstallerAnalyzer1_Guest.Controls;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -26,7 +25,7 @@ namespace InstallerAnalyzer1_Guest
     class LogicThread
     {
         const int ACQUIRE_WORK_SLEEP_SECS = 10;
-        const string DEFAULT_REPORT_PATH = "report.xml";
+        readonly string DEFAULT_REPORT_PATH = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "report.xml");
 
         private int _getWorkPollingTime = 5000; // Poll every 5 secs
         
@@ -338,17 +337,23 @@ namespace InstallerAnalyzer1_Guest
 
                     // Collect info of the system and send them to the remote machine
                     Console.WriteLine("Collecting report...");
-                    string reportPath = PrepareReport(proc);
+                    string reportPath = PrepareReport(proc, DEFAULT_REPORT_PATH);
                     Console.WriteLine("Sending report to HostController...");
                     ReportWork(j,reportPath,"completed");
                     Console.WriteLine("Done.");
 
-                    // Should we reboot?
-                    // TODO
-
                     // Done!
                     Console.WriteLine("Job completed!");
 
+                    // We finished the test successfully. 
+                    // In case this was a bare-metal VM, we need to reboot now. 
+                    // In case of a VM, the situation may be different. For performance
+                    // reasons it would be nice to start again from a known snapshot
+                    // simply reverting the VM instead of full reboot. 
+                    // At the moment we just reboot ourself, but in future this operation
+                    // may be different.
+                    NativeMethods.Reboot();
+                    keepRunning = false;
                 }
             }
             catch (Exception e)
@@ -364,7 +369,7 @@ namespace InstallerAnalyzer1_Guest
             }
         }
 
-        private string PrepareReport(ProcessContainer p, string outfile=DEFAULT_REPORT_PATH)
+        private string PrepareReport(ProcessContainer p, string outfile)
         {
             // Start collecting info and produce a nice report
             string errors = p.Process.StandardError.ReadToEnd();
@@ -491,16 +496,8 @@ namespace InstallerAnalyzer1_Guest
                             continue;
                         }
 
-                    // If the window is Windows Internet Explorer or notepad, close them directly
-                    if (actualWindow.Title.Contains("Notepad") || actualWindow.Title.Contains("Internet Explorer"))
-                    //if (actualWindow.ClassName.Equals("Notepad") || actualWindow.ClassName.Equals("Internet Explorer"))
-                    {
-                        actualWindow.Close();
-                        continue;
-                    }
-
                     // If there are no controls to interact with, restart the loop
-                    if (actualWindow.InteractiveControls.Count() == 0)
+                    if (actualWindow.ControlCount == 0)
                     {
                         Console.WriteLine("--- NO CONTROL TO INTERACT WITH ---");
                         //Console.WriteLine("WAITING FOR INPUT: No controls to interact with.");
@@ -701,6 +698,7 @@ namespace InstallerAnalyzer1_Guest
         #endregion
 
     }
+
 
     /// <summary>
     /// A utility class to determine a process parent.

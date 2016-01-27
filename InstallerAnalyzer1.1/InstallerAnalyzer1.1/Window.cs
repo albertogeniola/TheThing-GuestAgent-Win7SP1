@@ -3,36 +3,18 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Automation;
-using InstallerAnalyzer1_Guest.Controls;
 using System.Drawing;
 
 namespace InstallerAnalyzer1_Guest
 {
     public class Window
     {
-        /*
-        #region Private Readonly Static Conditions
-        private static readonly Condition enabledButtonCondition = new AndCondition(
-                new PropertyCondition(AutomationElement.IsEnabledProperty, true),
-                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button)
-                );
-        private static readonly Condition enabledCheckboxeCondition = new AndCondition(
-                new PropertyCondition(AutomationElement.IsEnabledProperty, true),
-                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.CheckBox)
-                );
-        private static readonly Condition enabledRadiobuttonCondition = new AndCondition(
-                new PropertyCondition(AutomationElement.IsEnabledProperty, true),
-                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.RadioButton)
-                );
-        #endregion
-        */
         #region Private object-fields
         private IntPtr _handle;
         private string _className;
         private string _title;
-        private List<InteractiveControl> _interactiveControls;
-        private List<Control> _othersControls;
-        private string _statusHash;
+        private AutomationElementCollection _elements;
+        private Rectangle _pos;
         #endregion
 
         /// <summary>
@@ -45,125 +27,59 @@ namespace InstallerAnalyzer1_Guest
             _handle = hWnd;
             _className = GetClassName(_handle);
             _title = GetWindowName(_handle);
-            _interactiveControls = new List<InteractiveControl>();
-            _othersControls = new List<Control>();
+            _pos = new Rectangle();
+            GetWindowRect(_handle.ToInt32(), ref _pos);
 
-            string ctrlHash = "";
+            _pos.Width = _pos.Width - _pos.X;
+            _pos.Height = _pos.Height - _pos.Y;
+            
+            // Get all the elements in the window
+            _elements = AutomationElement.FromHandle(_handle).FindAll(TreeScope.Descendants, Condition.TrueCondition);
+        }
 
-            AutomationElementCollection elementCollection = AutomationElement.FromHandle(_handle).FindAll(TreeScope.Descendants, Condition.TrueCondition);
-            foreach (AutomationElement ae in elementCollection)
-            {
-                AutomationElement.AutomationElementInformation info = ae.Current;
-                // Skip handleless buttons: the close button, title bar button, and so on won't be added
-                if (ae.Current.NativeWindowHandle == 0)
-                    continue;
+        public Rectangle WindowLocation
+        {
+            get { return _pos; }
+        }
 
-                string status = "";
+        public int ControlCount { get { return _elements.Count; } }
 
-                if (info.ControlType==ControlType.Button)
-                {
-                    status = info.AutomationId + "_" + info.Name + "_" + info.IsEnabled + "_" + info.BoundingRectangle ;
+        public AutomationElementCollection Elements {
+            get { return _elements; }
+        }
 
-                    System.Windows.Point point;
-                    bool clickable = ae.TryGetClickablePoint(out point);
-                    
-                    if (info.IsEnabled && clickable)
-                    {
-                        _interactiveControls.Add(new InteractiveControl(ae));
-                    }
-                    else
-                    {
-                        _othersControls.Add(new InteractiveControl(ae));
-                    }
-                }
-                    /*
-                else if (info.ControlType == ControlType.RadioButton) 
-                {
-                    
-                    SelectionItemPattern p = (SelectionItemPattern)ae.GetCurrentPattern(SelectionItemPattern.Pattern);
-                    status = info.AutomationId + "_" + info.Name + "_" + info.IsEnabled + "_" + info.BoundingRectangle+"_"+p.Current.IsSelected;
+        public override int GetHashCode()
+        {
+            throw new NotImplementedException();
+        }
 
-                    System.Windows.Point point;
-                    bool clickable = ae.TryGetClickablePoint(out point);
-
-                    if (clickable && info.IsEnabled && (!p.Current.IsSelected)) // I consider the RADIO BUTTON an  interactive control only if it is not selected yet
-                    {
-                        _interactiveControls.Add(new InteractiveControl(ae));
-                    }
-                    else
-                    {
-                        _othersControls.Add(new InteractiveControl(ae));
-                    }
-                }
-                else if (info.ControlType == ControlType.CheckBox)
-                {
-                    
-                    TogglePattern p = (TogglePattern)ae.GetCurrentPattern(TogglePattern.Pattern);
-                    status = info.AutomationId + "_" + info.Name + "_" + info.IsEnabled + "_" + info.BoundingRectangle + "_" + p.Current.ToggleState;
-
-                    System.Windows.Point point;
-                    bool clickable = ae.TryGetClickablePoint(out point);
-                    if (info.IsEnabled && clickable)
-                    {
-                        _interactiveControls.Add(new InteractiveControl(ae));
-                    }
-                    else
-                    {
-                        _othersControls.Add(new InteractiveControl(ae));
-                    }
-                }
-                     */
-                else
-                {
-                    status = info.AutomationId + "_" + info.Name + "_" + info.IsEnabled + "_" + info.BoundingRectangle;
-                    _othersControls.Add(new UnknownControl(new IntPtr(info.NativeWindowHandle), info.ClassName, info.AutomationId, info.Name));
-                }
-                ctrlHash = ctrlHash + status + "|";
-            }
-            _statusHash = _handle +";"+ _title +";"+ _className +";"+ ctrlHash;
+        public override bool Equals(object obj)
+        {
+            // In dept equal
+            if (obj == null)
+                return false;
+            Window other = (Window)obj;
+            return DeppEquals(other._elements, this._elements) && other.Title == this.Title && other.Handle == this.Handle && other.WindowLocation == this.WindowLocation;
 
         }
 
-        private static bool WindowControlsEquals(IEnumerable<Control> a, IEnumerable<Control> b)
+        private bool DeppEquals(AutomationElementCollection automationElementCollection1, AutomationElementCollection automationElementCollection2)
         {
-            foreach (Control ia in a)
-            {
+            foreach (AutomationElement a1 in automationElementCollection1) {
                 bool found = false;
-                foreach (Control ib in b)
+                foreach (AutomationElement a2 in automationElementCollection2)
                 {
-                    if (ib.Equals(ia))
+                    if (a2 == a1)
                     {
                         found = true;
                         break;
                     }
                 }
                 if (!found)
-                {
                     return false;
-                }
             }
-
             return true;
-        }
-
-        public override int GetHashCode()
-        {
-            return _handle.GetHashCode() ^ _className.GetHashCode() ^ _title.GetHashCode();
-        }
-
-        public override bool Equals(object obj)
-        {
-            if (obj == null)
-                return false;
-
-            if (!(obj is Window))
-                return false;
-            else
-            {
-                Window w = (Window)obj;
-                return w._handle == _handle && w._className == _className && _title==w._title && WindowControlsEquals(_interactiveControls,w._interactiveControls) && WindowControlsEquals(w._othersControls,_othersControls);
-            }
-
+                
         }
 
         public IntPtr Handle
@@ -188,11 +104,6 @@ namespace InstallerAnalyzer1_Guest
             {
                 return _className;
             }
-        }
-
-        public IEnumerable<InteractiveControl> InteractiveControls
-        {
-            get { return _interactiveControls; }
         }
 
         public static string GetClassName(IntPtr handle)
@@ -222,14 +133,12 @@ namespace InstallerAnalyzer1_Guest
         [DllImport("user32.dll")]
         private static extern bool PostMessage(IntPtr hWnd, uint Msg, int wParam, int lParam);
 
-
-        public string StatusHash { get { return _statusHash; } }
-
         public void Close()
         {
             PostMessage(_handle, 0x0010,0,0);
         }
 
+        /*
         public byte[] GetWindowsScreenshot()
         {
             // Get bounds of the current window
@@ -254,10 +163,10 @@ namespace InstallerAnalyzer1_Guest
             else
                 return null;
         }
+         * */
 
         [DllImport("user32.dll")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+        public static extern long GetWindowRect(int hWnd, ref Rectangle lpRect);
 
         [StructLayout(LayoutKind.Sequential)]
         private struct RECT
@@ -268,6 +177,9 @@ namespace InstallerAnalyzer1_Guest
             public int Bottom;      // y position of lower-right corner
         }
 
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
 
         public System.Windows.Rect GetBounds()
         {
