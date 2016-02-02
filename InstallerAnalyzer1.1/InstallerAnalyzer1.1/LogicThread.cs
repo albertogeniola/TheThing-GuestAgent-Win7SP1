@@ -19,11 +19,14 @@ using System.Windows;
 using System.Net.NetworkInformation;
 using InstallerAnalyzer1_Guest.Protocol;
 using Newtonsoft.Json;
+using InstallerAnalyzer1_Guest.UIAnalysis;
+using InstallerAnalyzer1_Guest.UIAnalysis.RankingPolicy;
 
 namespace InstallerAnalyzer1_Guest
 {
     class LogicThread
     {
+        const int REACTION_TIMEOUT = 3000;
         const int ACQUIRE_WORK_SLEEP_SECS = 10;
         readonly string DEFAULT_REPORT_PATH = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "report.xml");
 
@@ -143,8 +146,6 @@ namespace InstallerAnalyzer1_Guest
         {
             return JsonConvert.DeserializeObject<ResponseReportWorkReportReceived>(_recv_message(ns));
         }
-        #endregion
-
         private void ReportWork(Job j, string reportFilePath, string status)
         {
             var client = ConnectToHost();
@@ -154,7 +155,7 @@ namespace InstallerAnalyzer1_Guest
                 var ns = client.GetStream();
 
                 string err;
-                
+
                 // We will need file dimension and work id to perform a report
                 FileInfo f = new FileInfo(reportFilePath);
 
@@ -166,16 +167,17 @@ namespace InstallerAnalyzer1_Guest
                     throw new ProtocolException("Received response by Host Controller was not valid. " + err);
 
                 // Time to send the report to the server
-                using (var fs = File.OpenRead(reportFilePath)) {
+                using (var fs = File.OpenRead(reportFilePath))
+                {
                     __sendFile(ns, fs, (int)f.Length);
                 }
-                
+
                 // Did the server receive the file correctly?
                 ResponseReportWorkReportReceived rr = WaitServerReportAck(ns);
                 if (!rr.isValid(out err))
                     //TODO deal with NACK
                     throw new ProtocolException("Received response by Host Controller was not valid. " + err);
-                
+
                 // Done!
             }
             finally
@@ -184,7 +186,7 @@ namespace InstallerAnalyzer1_Guest
             }
         }
 
-        
+
         /// <summary>
         /// This function connects to the Host controller and asks for a job to be executed locally.
         /// In case there are jobs to be executed, this method also takes care of installer download.
@@ -246,7 +248,7 @@ namespace InstallerAnalyzer1_Guest
                 // In case there was nothing to do, the server responds with a null work_id. We handle this possibility here, by returning
                 // null in case it happens.
                 Job j = null;
-                if (res.WorkId !=null)
+                if (res.WorkId != null)
                     j = new Job((long)res.WorkId, path);
 
                 return j;
@@ -255,38 +257,86 @@ namespace InstallerAnalyzer1_Guest
             {
                 client.Close();
             }
-
         }
+        #endregion
 
-        private ProcessContainer ExecuteJob(Job j, InteractionPolicy policy) {
-            // Start the process by injecting our DLL pointed by the settings file.
+        
+        private ProcessContainer ExecuteJob(Job j, IUIRanker ranker, IRankingPolicy policy) {
+            
+            // Start the process to analyze
+            Console.WriteLine("UI Bot: START");
             var proc = StartProcessWithInjector(j);
-            Console.WriteLine("Installer started.");
 
-            // Continue until the process exits.
+            // It starts the loop of interactions, ended only when the process
+            // has exited, correctly (status = 0) or not (status != 0).
             while (!proc.Process.HasExited)
             {
-                Console.WriteLine("Installer process still running...");
-                Window waitingWindnow = null;
                 
-                // Wait for inputrequested
+                // Wait until the window is considered stable
+                Window waitingWindnow = null;
                 try
                 {
-                    Console.WriteLine("Waiting for windows to be stable...");
+                    Console.WriteLine("UI Bot: WAIT WINDOW STABLE (PID: " + proc.Process.Id + ")");
                     waitingWindnow = WaitForInputRequested(proc);
-                    Console.WriteLine("Ok, ready for user input. ");
                 }
                 catch (ProcessExitedException e)
                 {
                     break;
                 }
+                // TODO: Timeout dealing?
 
-                // Now let the interaction happen. The way our monkey chooses the buttons to press
-                // depends on the policy passed as argument.
-                policy.Interact(waitingWindnow);
+                // Analyze the window and build the controls rank.
+                Console.WriteLine("UI Bot: Analyze Window (PID: " + proc.Process.Id + ", HWND: "+waitingWindnow.Handle+", TITLE: "+waitingWindnow.Title+")");
+                CandidateSet w = ranker.Rank(policy, waitingWindnow);
+                
+                // Now let the interaction happen. The RankingPolicy decides which UIControl should we use to continue installation
+                try
+                {
+                    bool uiHasChanged = false;
+                    do
+                    {
+                        // Interact with the best control according to the rank assinged by the Interaction Policy
+                        var candidate = w.PopTopCandidate();
+                        Console.WriteLine("UI Bot: Interacting with control "+candidate.ToString());
+                        candidate.Interact();
 
-                // At this point we reiterate again, untile the pocess runs.
+                        // Wait for something to happen
+                        Console.WriteLine("UI Bot: Waiting for UI reaction.");
+                        uiHasChanged = ranker.WaitReaction(waitingWindnow, w, REACTION_TIMEOUT);
+                        if (!uiHasChanged)
+                            Console.WriteLine("UI Bot: UI Reaction didn't happen within the specific TIMEOUT. Trying with another interaction.");
+
+                    } while (!uiHasChanged);
+
+                }
+                catch (ControlNotFoundException e)
+                {
+                    // The control we were looking for does not exist on the window
+                    Console.WriteLine("UI Bot: the espected control was not found on the UI. The UI might have been refreshed. We'll analyze it again.");
+                    // So we want to repeat the loop again to analyze it again
+                    continue;
+                }
+                catch (NoMoreCandidateException e)
+                {
+                    // We are stuck and the interaction policy is unable to find
+                    // a valid control to interact with. 
+                    Console.WriteLine("UI Bot: No more control to interact with. Dropping Interaction.");
+                    break;
+
+                    //TODO: would be nice to have a screenshot of the dead UI screen that caused this situation
+                }
+                catch (ProcessExitedException e)
+                {
+                    // The process exited. There is nothing we can do to recover.
+                    Console.WriteLine("UI Bot: Process exited while interacting with UI.");
+                    break;
+                }
+
+
+                // At this point we reiterate again, until the pocess runs.
             }
+
+            // Process has exited at this point. We should check whether correctly or not.
 
             return proc;
         }
@@ -309,7 +359,9 @@ namespace InstallerAnalyzer1_Guest
         /// </summary>
         private void work()
         {
-            InteractionPolicy policy = new BasicInteractionPolicy();
+            IUIRanker ranker = new NativeAndVisualRanker();
+            IRankingPolicy policy = new SimpleRankingPolicy();
+
             bool keepRunning = true;
             try
             {
@@ -332,7 +384,7 @@ namespace InstallerAnalyzer1_Guest
                     }
 
                     // Time to play with the installer!
-                    var proc = ExecuteJob(j, policy);
+                    var proc = ExecuteJob(j, ranker, policy);
                     Console.WriteLine("Installer process ended. ");
 
                     // Collect info of the system and send them to the remote machine
@@ -486,6 +538,10 @@ namespace InstallerAnalyzer1_Guest
                     if (prevWindow == null)
                         prevWindow = actualWindow;
                     else
+                    {
+                        // TODO: this will always be different!
+                        // we need to provide something to check window evolution
+                        // A possibility would be screenshot comparation.
                         if (!prevWindow.Equals(actualWindow))
                         {
                             // Something changed
@@ -495,17 +551,6 @@ namespace InstallerAnalyzer1_Guest
                             Thread.Sleep(pollInterval);
                             continue;
                         }
-
-                    // If there are no controls to interact with, restart the loop
-                    if (actualWindow.ControlCount == 0)
-                    {
-                        Console.WriteLine("--- NO CONTROL TO INTERACT WITH ---");
-                        //Console.WriteLine("WAITING FOR INPUT: No controls to interact with.");
-                        //Console.WriteLine("Winhandle: "+wH+" - "+actualWindow.Handle);
-                        //Console.WriteLine("Wintitle: " + wH + " - " + actualWindow.Title);
-                        ciclesDone = 0;
-                        Thread.Sleep(pollInterval);
-                        continue;
                     }
 
                     // Is there any progressbar? if yes, proceed only if it is 100% completed...
@@ -698,7 +743,6 @@ namespace InstallerAnalyzer1_Guest
         #endregion
 
     }
-
 
     /// <summary>
     /// A utility class to determine a process parent.

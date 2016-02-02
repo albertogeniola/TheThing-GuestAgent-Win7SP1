@@ -69,6 +69,15 @@
     <CodeAnalysisRuleSet>ManagedMinimumRules.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="AForge">
+      <HintPath>..\packages\AForge.2.2.5\lib\AForge.dll</HintPath>
+    </Reference>
+    <Reference Include="AForge.Imaging">
+      <HintPath>..\packages\AForge.Imaging.2.2.5\lib\AForge.Imaging.dll</HintPath>
+    </Reference>
+    <Reference Include="AForge.Math">
+      <HintPath>..\packages\AForge.Math.2.2.5\lib\AForge.Math.dll</HintPath>
+    </Reference>
     <Reference Include="Newtonsoft.Json, Version=8.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\packages\Newtonsoft.Json.8.0.2\lib\net40\Newtonsoft.Json.dll</HintPath>
@@ -82,6 +91,9 @@
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
+    <Reference Include="Tesseract">
+      <HintPath>..\packages\Tesseract.3.0.1.0\lib\net40\Tesseract.dll</HintPath>
+    </Reference>
     <Reference Include="UIAutomationClient" />
     <Reference Include="UIAutomationClientsideProviders" />
     <Reference Include="UIAutomationProvider" />
@@ -89,15 +101,17 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BasicInteractionPolicy.cs" />
-    <Compile Include="ControlNotFoundException.cs" />
+    <Compile Include="UIAnalysis\IUIRanker.cs" />
+    <Compile Include="UIAnalysis\NativeAndVisualRanker.cs" />
+    <Compile Include="UIAnalysis\RankingPolicy\IRankingPolicy.cs" />
+    <Compile Include="UIAnalysis\CandidateSet.cs" />
+    <Compile Include="UIAnalysis\ControlNotFoundException.cs" />
     <Compile Include="AnalyzerMainWindow.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="AnalyzerMainWindow.Designer.cs">
       <DependentUpon>AnalyzerMainWindow.cs</DependentUpon>
     </Compile>
-    <Compile Include="InteractionPolicy.cs" />
     <Compile Include="Job.cs" />
     <Compile Include="NativeMethods.cs" />
     <Compile Include="ProcessContainer.cs" />
@@ -123,8 +137,10 @@
     <Compile Include="Protocol\RequestGetWorkFileReceived.cs" />
     <Compile Include="Protocol\ResponseReportWork.cs" />
     <Compile Include="Protocol\ResponseGetWork.cs" />
-    <Compile Include="Window.cs" />
-    <Compile Include="WindowFactory.cs" />
+    <Compile Include="UIAnalysis\NoMoreCandidateException.cs" />
+    <Compile Include="UIAnalysis\RankingPolicy\SimpleRankingPolicy.cs" />
+    <Compile Include="UIAnalysis\UIControlCandidate.cs" />
+    <Compile Include="UIAnalysis\Window.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
@@ -132,6 +148,33 @@
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+    <None Include="tessdata\eng.cube.bigrams">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="tessdata\eng.cube.fold">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="tessdata\eng.cube.lm">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="tessdata\eng.cube.nn">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="tessdata\eng.cube.params">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="tessdata\eng.cube.size">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="tessdata\eng.cube.word-freq">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="tessdata\eng.tesseract_cube.nn">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="tessdata\eng.traineddata">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -170,6 +213,20 @@
       <ProductName>Windows Installer 4.5</ProductName>
       <Install>true</Install>
     </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="x64\liblept171.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="x64\libtesseract304.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="x86\liblept171.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="x86\libtesseract304.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
