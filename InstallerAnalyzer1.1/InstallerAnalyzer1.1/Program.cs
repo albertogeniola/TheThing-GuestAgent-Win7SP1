@@ -138,21 +138,10 @@ namespace InstallerAnalyzer1_Guest
                 mw.resetInstallerLog();
             }
         }
-
-        public static void appendFollowedPath(string idsPath,string friendlyPath)
-        {
-            mw.appendFollowedPath(idsPath,friendlyPath);
-        }
-
+        
         internal static void appendInstallerLog(string xmlElement)
         {
             mw.appendInstallerLog(xmlElement);
-        }
-
-
-        public static void setSockAddr(string p)
-        {
-            mw.setSockAddr(p);
         }
 
         public static void appendXmlLog(System.Xml.XmlElement xmlElement)

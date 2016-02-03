@@ -501,6 +501,7 @@ namespace InstallerAnalyzer1_Guest
             IntPtr prevHandle = IntPtr.Zero;
             Window actualWindow = null;
             Window prevWindow = null;
+            string prevHash = null;
 
             while (ciclesDone <= ciclesLimit)
             {
@@ -536,17 +537,20 @@ namespace InstallerAnalyzer1_Guest
                     actualWindow = new Window(wH);
 
                     if (prevWindow == null)
+                    {
                         prevWindow = actualWindow;
+                        prevHash = UIAnalysis.NativeAndVisualRanker.CalculateHash(prevWindow);
+                    }
                     else
                     {
-                        // TODO: this will always be different!
-                        // we need to provide something to check window evolution
-                        // A possibility would be screenshot comparation.
-                        if (!prevWindow.Equals(actualWindow))
+                        // TODO: I am spending a lot of effort here in taking screenshots and calculating hashes.
+                        // Moreover I am not optimizing memory reusage. In the future I should take care of this.
+                        string actualHash = UIAnalysis.NativeAndVisualRanker.CalculateHash(actualWindow);
+                        if (prevHash.CompareTo(actualHash) != 0)
                         {
                             // Something changed
-                            //Console.WriteLine("Something changed into the window even if handles are the same.");
                             prevWindow = actualWindow;
+                            prevHash = actualHash;
                             ciclesDone = 0;
                             Thread.Sleep(pollInterval);
                             continue;

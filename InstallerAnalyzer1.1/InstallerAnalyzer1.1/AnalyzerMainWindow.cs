@@ -20,9 +20,11 @@ namespace InstallerAnalyzer1_Guest
         public AnalyzerMainWindow(IPAddress ip, int port)
         {
             InitializeComponent();
+            notifyIcon1.Visible = true;
             notifyIcon1.BalloonTipTitle="Program started.";
             notifyIcon1.BalloonTipText = "Connection to "+ip.ToString()+":"+port;
-            notifyIcon1.ShowBalloonTip(2000);
+            notifyIcon1.ShowBalloonTip(10000);
+            
             LogicThread t = new LogicThread(ip, port);
             t.Start();
             this.Width = SystemInformation.PrimaryMonitorSize.Width;
@@ -48,6 +50,7 @@ namespace InstallerAnalyzer1_Guest
             XmlDocument doc = new XmlDocument();
             doc.LoadXml(row);
 
+            // TODO: is this really necessary?
             // Now encode base64 each value
             XmlNode el = doc.DocumentElement;
             foreach (XmlAttribute attr in el.Attributes)
@@ -57,7 +60,7 @@ namespace InstallerAnalyzer1_Guest
             }
 
             Program.appendXmlLog(doc.DocumentElement);
-            logbox.AppendText(row + '\n');
+            logbox.Text = row;
         }
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
@@ -84,12 +87,6 @@ namespace InstallerAnalyzer1_Guest
 
         }
 
-        public void appendFollowedPath(string ids, string friendly)
-        {
-            this.followedPath.Text += ids + NetworkProtocol.Protocol.URI_PATH_SEP;
-            this.userFriendlyPath.Text += friendly + NetworkProtocol.Protocol.URI_PATH_SEP;
-        }
-        
         public void appendInstallerLog(string xmlElement)
         {
             AddRow(xmlElement);
@@ -98,11 +95,6 @@ namespace InstallerAnalyzer1_Guest
         public RichTextBox getConsoleBox()
         {
             return this.consoleBox;
-        }
-
-        public void setSockAddr(string addr)
-        {
-            this.localSockAddr.Text = addr;
         }
     }
 }
