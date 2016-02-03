@@ -47,20 +47,26 @@ namespace InstallerAnalyzer1_Guest
 
         private void AddRow(string row)
         {
-            XmlDocument doc = new XmlDocument();
-            doc.LoadXml(row);
-
-            // TODO: is this really necessary?
-            // Now encode base64 each value
-            XmlNode el = doc.DocumentElement;
-            foreach (XmlAttribute attr in el.Attributes)
+            try
             {
-                byte[] b = Encoding.UTF8.GetBytes(attr.Value);
-                attr.Value = Convert.ToBase64String(b);
-            }
+                XmlDocument doc = new XmlDocument();
+                doc.LoadXml(row);
 
-            Program.appendXmlLog(doc.DocumentElement);
-            logbox.Text = row;
+                // TODO: is this really necessary?
+                // Now encode base64 each value
+                XmlNode el = doc.DocumentElement;
+                foreach (XmlAttribute attr in el.Attributes)
+                {
+                    byte[] b = Encoding.UTF8.GetBytes(attr.Value);
+                    attr.Value = Convert.ToBase64String(b);
+                }
+
+                Program.appendXmlLog(doc.DocumentElement);
+                logbox.Text = row;
+            }
+            catch (Exception e) {
+                logbox.Text = "Error parsing." + row;
+            }
         }
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
