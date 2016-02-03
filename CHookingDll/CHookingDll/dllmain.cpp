@@ -33,6 +33,11 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		break;
 	case DLL_PROCESS_ATTACH:
 		
+		wchar_t msgbuf[1024];
+		wsprintf(msgbuf, _T("Attached to process %d."), GetCurrentProcessId());
+		OutputDebugString(msgbuf);
+		
+
 		// Assign the address location of the function to the static pointer
 		realNtCreateFile = (pNtCreateFile)(GetProcAddress(ntdllmod, "NtCreateFile"));
 
@@ -69,9 +74,6 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		realWSAConnectByName = (pWSAConnectByName)(GetProcAddress(ws2mod, "WSAConnectByName"));
 		*/
 
-		// Configure Pcap
-
-		OutputDebugString(_T("PROCESS ATTACHED TO DLL."));
 		// Read from shared memory the name of the window to send message to
 		if (!configureWindowName())
 		{
@@ -1514,8 +1516,8 @@ void log(pugi::xml_node *element)
 	element->append_attribute(L"ThreadId") = to_string(GetCurrentThreadId()).c_str();
 	element->append_attribute(L"PId") = to_string(GetCurrentProcessId()).c_str();
 
+	/*
 	std::wstringstream ss;
-	
 	element->print(ss, L"", pugi::format_no_declaration|pugi::format_raw);
 	
 	
@@ -1526,6 +1528,21 @@ void log(pugi::xml_node *element)
 	ds.cbData = str.size()*sizeof(wchar_t);
 	ds.lpData = (wchar_t*)str.c_str();
 		
+	// Send message...
+	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);
+	*/
+
+	std::stringstream ss;
+	element->print(ss, L"", pugi::format_no_declaration | pugi::format_raw);
+	
+
+	// Create a std::string and copy your document data in to the string    
+	std::string str = ss.str();
+
+	ds.dwData = 0;
+	ds.cbData = str.size();
+	ds.lpData = (PVOID)str.c_str();
+
 	// Send message...
 	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);
 
@@ -2062,35 +2079,14 @@ void from_unicode_to_wstring(PUNICODE_STRING u, wstring* w)
 
 bool configureWindowName()
 {
-	HANDLE hMapObject;
-	LPVOID lpvMem;
 	char buf[SHMEMSIZE];
 
-	// Open the shared memory mapping
-	hMapObject = OpenFileMapping(FILE_MAP_READ, FALSE, TEXT(SHARED_MEM_NAME));
-	lpvMem = MapViewOfFile(
-		hMapObject,     // object to map view of
-		FILE_MAP_READ, // read/write access
-		0,              // high offset:  map from
-		0,              // low offset:   beginning
-		0);             // default: map entire file
-	
-	// If error occurred, return false
-	if (lpvMem == NULL)
-		return false;
-
-	// Otherwise read the name of the window
-	sprintf_s(buf, SHMEMSIZE,"%s",(char*)lpvMem);
-	cwHandle = FindWindowA(NULL, buf);
+	cwHandle = FindWindow(NULL, GUESTCONTROLLER_WINDOW_NAME);
 
 	if (cwHandle == NULL)
 	{
 		return false;
 	}
-	
-	// Done, dispose everything
-	CloseHandle(hMapObject);
-	UnmapViewOfFile(lpvMem);
 
 	OutputDebugStringA("Window name...");
 	OutputDebugStringA(buf);

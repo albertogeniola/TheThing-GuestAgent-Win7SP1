@@ -35,6 +35,7 @@
             this.notifyIcon1 = new System.Windows.Forms.NotifyIcon(this.components);
             this.pictureBox1 = new System.Windows.Forms.PictureBox();
             this.label1 = new System.Windows.Forms.Label();
+            this.label2 = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             this.SuspendLayout();
             // 
@@ -94,6 +95,16 @@
             this.label1.TabIndex = 4;
             this.label1.Text = "Last Message from Injected DLL:";
             // 
+            // label2
+            // 
+            this.label2.AutoSize = true;
+            this.label2.ForeColor = System.Drawing.Color.Gold;
+            this.label2.Location = new System.Drawing.Point(696, 9);
+            this.label2.Name = "label2";
+            this.label2.Size = new System.Drawing.Size(330, 13);
+            this.label2.TabIndex = 5;
+            this.label2.Text = "Do not change the title of this Window. IT MUST BE \"WKWatcher\".";
+            // 
             // AnalyzerMainWindow
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -101,6 +112,7 @@
             this.BackColor = System.Drawing.Color.Black;
             this.ClientSize = new System.Drawing.Size(1035, 82);
             this.ControlBox = false;
+            this.Controls.Add(this.label2);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.pictureBox1);
             this.Controls.Add(this.consoleBox);
@@ -111,7 +123,7 @@
             this.Name = "AnalyzerMainWindow";
             this.Opacity = 0.8D;
             this.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
-            this.Text = "Watcher";
+            this.Text = "WKWatcher";
             this.TopMost = true;
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).EndInit();
             this.ResumeLayout(false);
@@ -126,5 +138,6 @@
         private System.Windows.Forms.NotifyIcon notifyIcon1;
         private System.Windows.Forms.PictureBox pictureBox1;
         private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.Label label2;
     }
 }

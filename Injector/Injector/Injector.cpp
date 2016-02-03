@@ -1,6 +1,7 @@
 // Injector.cpp : definisce il punto di ingresso dell'applicazione console.
 #include "stdafx.h"
 #include "injector.h"
+#define GUESTCONTROLLER_WINDOW_NAME "WKWatcher"
 
 /* Global variables */
 HWND cwHandle;
@@ -33,9 +34,9 @@ int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,LPSTR lpCmdLine,
 	// 1. ProcessPath
 	// 2. dll to inject Path
 	// 3. Name of the window to PostMessages to
-	if (argc != 4)
+	if (argc != 3)
 	{
-		fprintf(stderr, "Invalid Usage. Please specify 3 arguments: processpath, dllpath, windowname (space separated).");
+		fprintf(stderr, "Invalid Usage. Please specify 3 arguments: processpath, dllpath (space separated).");
 		exit(-1);
 	}
 	// 1. ProcessPath: must exist
@@ -63,13 +64,16 @@ int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,LPSTR lpCmdLine,
 	}
 
 	// 3. Name of the window to send message to
-	cwHandle = FindWindow(NULL, argv[3]);
+	cwHandle = FindWindow(NULL, GUESTCONTROLLER_WINDOW_NAME);
+	// TODO: uncomment me
 	if (cwHandle == NULL)
 	{
-		fprintf(stderr, "Cannot find the window named %s", argv[3]);
+		OutputDebugStringA("Cannot find the GuestController window to send message. Please check its name is ");
+		OutputDebugStringA(GUESTCONTROLLER_WINDOW_NAME);
+		fprintf(stderr, "Cannot find the window named %s", GUESTCONTROLLER_WINDOW_NAME);
 		exit(-1);
 	}
-	
+
 	// Configure the network listener
 	// Network configuration
 	// Look at the interfaces
@@ -114,7 +118,7 @@ int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,LPSTR lpCmdLine,
 	ZeroMemory(&pi, sizeof(PROCESS_INFORMATION));
 	si.cb = sizeof(STARTUPINFO);
 	
-	// START EDIT
+	//START EDIT
 	processCreated = CreateProcess(
 		NULL,
 		argv[1],
@@ -144,10 +148,10 @@ int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,LPSTR lpCmdLine,
 	//CloseHandle(hProcess);
 
 	ResumeThread(pi.hThread);
-	// STOP EDIT
+	//STOP EDIT
 
 	/*
-	if (!DetourCreateProcessWithDll(NULL, "C:\\Users\\webking\\Desktop\\cbsidlm-cbsi134-Spotify-ORG-10912348", NULL, NULL, TRUE, CREATE_DEFAULT_ERROR_MODE, NULL, NULL, &si, &pi, DLLPath, NULL))
+	if (!DetourCreateProcessWithDll(NULL, argv[1], NULL, NULL, TRUE, CREATE_DEFAULT_ERROR_MODE, NULL, NULL, &si, &pi, argv[2], NULL))
 	{
 		DWORD e = GetLastError();
 		printf("Error Creating process");

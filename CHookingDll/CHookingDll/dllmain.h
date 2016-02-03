@@ -17,6 +17,7 @@
 #pragma comment(lib, "detours.lib")	// Nedded for DTOURS
 #pragma comment(lib, "ntdll.lib")	// Needed to hooking NtCreateFile
 
+#define GUESTCONTROLLER_WINDOW_NAME _T("WKWatcher")
 
 EXTERN_C IMAGE_DOS_HEADER __ImageBase;
 

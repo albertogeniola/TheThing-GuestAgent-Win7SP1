@@ -12,6 +12,14 @@ using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using System.Xml;
 
+/**
+ * ==================== VERY IMPORTANT NOTE! ==================== 
+ * Alberto Geniola, 03/02/2016
+ * The Title of this window is used by the Injected DLL in order to send messages via SendMessage.
+ * If we change the window name, this will be broken. At the moment the window name is WKWatcher.
+ * If you change that, PLEASE UPDATE THIS NOTE and also the Injector/dll
+** ==================== VERY IMPORTANT NOTE! ==================== */
+
 namespace InstallerAnalyzer1_Guest
 {
     public partial class AnalyzerMainWindow : Form
@@ -64,7 +72,7 @@ namespace InstallerAnalyzer1_Guest
                 Program.appendXmlLog(doc.DocumentElement);
                 logbox.Text = row;
             }
-            catch (Exception e) {
+            catch (XmlException e) {
                 logbox.Text = "Error parsing." + row;
             }
         }

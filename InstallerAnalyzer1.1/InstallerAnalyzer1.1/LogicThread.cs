@@ -9,7 +9,6 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using NetworkProtocol;
 using System.ComponentModel;
 using System.Windows.Automation;
 using System.Windows.Forms;
@@ -677,7 +676,7 @@ namespace InstallerAnalyzer1_Guest
             {
                 var proc = new Process();
                 proc.StartInfo.FileName = Properties.Settings.Default.INJECTOR_PATH;
-                proc.StartInfo.Arguments = "\"" + j.LocalFullPath + "\" " + "\"" + Properties.Settings.Default.DLL_PATH + "\" " + "\"" + Program.GetMainWindowName() + "\"";
+                proc.StartInfo.Arguments = "\"" + j.LocalFullPath + "\" " + "\"" + Properties.Settings.Default.DLL_PATH + "\"";
                 proc.StartInfo.RedirectStandardError = true;
                 proc.StartInfo.RedirectStandardOutput = true;
                 proc.StartInfo.UseShellExecute = false;

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace NetworkProtocol
 {
+    /*
     public static class Protocol
     {
         // From Guest to Host
@@ -32,5 +33,5 @@ namespace NetworkProtocol
         public const string URI_CONTROL_SEP = "&";
 
         public const string SNAPSHOT_CREATED = "SNAPSHOT_CREATED";
-    }
+    }*/
 }
