@@ -292,18 +292,24 @@ namespace InstallerAnalyzer1_Guest
             {
                 // Wait until the window is considered stable
                 Window waitingWindnow = null;
+                Console.WriteLine("UI Bot: WAIT WINDOW STABLE (PID: " + proc.Process.Id + ") "+"Interaction: "+c);
+                waitingWindnow = WaitForInputRequested();
+                if (waitingWindnow == null) { 
+                    // No window has been found. Let the loop check again if there still are processes running, otherwise we are done!
+                    Console.WriteLine("UI Bot: No windows found. Check again wether any process is running...");
+                    continue;
+                }
+                Console.WriteLine("UI Bot: Stable hWND "+waitingWindnow.Handle.ToString("X")+", loc: "+waitingWindnow.WindowLocation.ToString());
                 try
                 {
-                    Console.WriteLine("UI Bot: WAIT WINDOW STABLE (PID: " + proc.Process.Id + ") "+"Interaction: "+c);
-                    waitingWindnow = WaitForInputRequested();
-                    Console.WriteLine("UI Bot: Stable hWND "+waitingWindnow.Handle.ToString("X")+", loc: "+waitingWindnow.WindowLocation.ToString());
                     SaveStableScreen(waitingWindnow, c);
-                    c++;
                 }
-                catch (ProcessExitedException e)
+                catch (Exception e)
                 {
-                    break;
+                    //Ignore if error occurs here.
                 }
+                c++;
+                
                 // TODO: Timeout dealing?
 
                 // Analyze the window and build the controls rank.
@@ -321,7 +327,13 @@ namespace InstallerAnalyzer1_Guest
                         Console.WriteLine("UI Bot: Interacting with control " + candidate.ToString());
 
                         // Save a screenshot with interaction information for debugging and reporting
-                        SaveInteractionScreen(waitingWindnow, candidate, c);
+                        try
+                        {
+                            SaveInteractionScreen(waitingWindnow, candidate, c);
+                        }
+                        catch (Exception e) { 
+                            //Ignore if error occurs here.
+                        }
 
                         candidate.Interact();
 
@@ -607,6 +619,7 @@ namespace InstallerAnalyzer1_Guest
              * 2. Scan it by taking a screenshot and calculating an hash which will be memorized
              * 3. Reiterate again until I find the same hash for at least 4 times.
              * 4. Each time I reiterate, wait for a second, so the process has time to update itself.
+             * If no window is found, return null.
              * 
              * TODO
              * Please note that this mechanism could be heavily improved by hooking Win32 Drawing APIs to trigger
@@ -635,11 +648,15 @@ namespace InstallerAnalyzer1_Guest
                 // If No window is spawned, reset the counter and wait.
                 if (wH == IntPtr.Zero)
                 {
-                    Console.WriteLine("WaitInputRequest: NO WINDOW found. Waiting...");
+                    Console.WriteLine("WaitInputRequest: NO WINDOW found!");
+                    Thread.Sleep(pollInterval);
+                    /*
                     prevHandle = wH;
                     stableScans = 0;
                     Thread.Sleep(pollInterval);
                     continue;
+                     * */
+                    return null;
                 }
 
                 // If the Handle of the mainWindow changes, reset the stability counter and iterate again.
