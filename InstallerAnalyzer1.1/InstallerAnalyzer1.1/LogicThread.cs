@@ -26,12 +26,11 @@ namespace InstallerAnalyzer1_Guest
 {
     class LogicThread
     {
-        const int STUCK_THRESHOLD = 3;
+        const int STUCK_THRESHOLD = 10; //TODO: Fixme. This might be increased or decreased. 
+        const int STUCK_NO_CONTROLS_THRESHOLD = 100;
         const int REACTION_TIMEOUT = 3000;
         const int ACQUIRE_WORK_SLEEP_SECS = 10;
         readonly string DEFAULT_REPORT_PATH = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "report.xml");
-
-        //private int _getWorkPollingTime = 5000; // Poll every 5 secs
 
         // Network objects
         private IPAddress _remoteIp;
@@ -280,6 +279,7 @@ namespace InstallerAnalyzer1_Guest
         private ProcessContainer ExecuteJob(Job j, IUIRanker ranker, IRankingPolicy policy) {
             int c=0;
             int stuckCounter = 0;
+            int stuckWaitingForControlsCounter = 0;
             PrepareScreenFolders();
 
             // Start the process to analyze
@@ -380,9 +380,10 @@ namespace InstallerAnalyzer1_Guest
                     // Increase the stuck counter and try again. Maybe the window has changed.
                     // if the counter if abose the threshold, give up.
                     Console.WriteLine("UI Bot: No more control to interact with.");
-                    if (stuckCounter < STUCK_THRESHOLD)
+                    if (stuckWaitingForControlsCounter < STUCK_NO_CONTROLS_THRESHOLD)
                     {
-                        stuckCounter++;
+                        stuckWaitingForControlsCounter++; //TODO: No more candidate means a window with no interaction possibilities. 
+                                        // Should we consider it as Stuck? It may be a simple waiting window... This counter should be different and higer.
                         Console.WriteLine("UI Bot: Performing another attempt to find a valid window");
                         continue;
                     }
