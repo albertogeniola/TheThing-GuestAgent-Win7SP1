@@ -299,15 +299,20 @@ namespace InstallerAnalyzer1_Guest
                     if (waitingWindnow == null) { 
                         // No window has been found. Let the loop check again if there still are processes running, otherwise we are done!
                         Console.WriteLine("UI Bot: No windows found. Check again wether any process is running...");
-                        if (ProgramStatus.Instance.Pids.Length == 0) {
+                        if (ProgramStatus.Instance.Pids.Length == 0)
+                        {
                             Console.WriteLine("UI Bot: All processes are ended. It's done!");
                             break;
                         }
+                        else
+                        {
+                            continue;
+                        }
                     }
                     Console.WriteLine("UI Bot: Stable hWND "+waitingWindnow.Handle.ToString("X")+", loc: "+waitingWindnow.WindowLocation.ToString());
-                
+
                     SaveStableScreen(waitingWindnow, c);
-                
+
                     c++;
                 
                     // TODO: Timeout dealing?
@@ -325,14 +330,8 @@ namespace InstallerAnalyzer1_Guest
                         Console.WriteLine("UI Bot: Interacting with control " + candidate.ToString());
 
                         // Save a screenshot with interaction information for debugging and reporting
-                        try
-                        {
-                            SaveInteractionScreen(waitingWindnow, candidate, c);
-                        }
-                        catch (Exception e) { 
-                            //Ignore if error occurs here.
-                        }
-
+                        SaveInteractionScreen(waitingWindnow, candidate, c);
+                        
                         candidate.Interact();
 
                         // Wait for something to happen
@@ -443,25 +442,40 @@ namespace InstallerAnalyzer1_Guest
 
         private void SaveStableScreen(Window waitingWindnow, int c)
         {
-            using (Bitmap b = waitingWindnow.GetWindowsScreenshot())
+            try
             {
-                string fname = Path.Combine(Settings.Default.STABLE_SCREEN_PATH, c + "_" + UIAnalysis.NativeAndVisualRanker.CalculateHash(b) + ".bmp");
-                b.Save(fname);
+                using (Bitmap b = waitingWindnow.GetWindowsScreenshot())
+                {
+                    string fname = Path.Combine(Settings.Default.STABLE_SCREEN_PATH, c + "_" + UIAnalysis.NativeAndVisualRanker.CalculateHash(b) + ".bmp");
+                    b.Save(fname);
+                    return true;
+                }
+            }
+            catch (Exception e) {
+                return false;
             }
         }
 
-        private void SaveInteractionScreen(Window waitingWindnow, UIControlCandidate candidate, int c)
+        private bool SaveInteractionScreen(Window waitingWindnow, UIControlCandidate candidate, int c)
         {
-            using (Bitmap b = waitingWindnow.GetWindowsScreenshot())
+            try
             {
-                using (Graphics g = Graphics.FromImage(b))
+                using (Bitmap b = waitingWindnow.GetWindowsScreenshot())
                 {
-                    using (Pen markerPen = new Pen(Color.Red, 5))
-                        g.DrawRectangle(markerPen, candidate.PositionWindowRelative);
-                }
+                    using (Graphics g = Graphics.FromImage(b))
+                    {
+                        using (Pen markerPen = new Pen(Color.Red, 5))
+                            g.DrawRectangle(markerPen, candidate.PositionWindowRelative);
+                    }
 
-                string fname = Path.Combine(Settings.Default.INTERACTIONS_SCREEN_PATH, c + ".bmp");
-                b.Save(fname);
+                    string fname = Path.Combine(Settings.Default.INTERACTIONS_SCREEN_PATH, c + ".bmp");
+                    b.Save(fname);
+                    return true;
+                }
+            }
+            catch (Exception e)
+            {
+                return false;
             }
         }
 
