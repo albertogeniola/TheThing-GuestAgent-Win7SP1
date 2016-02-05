@@ -190,6 +190,7 @@ typedef VOID(WINAPI * pExitProcess)(UINT uExitCode);
 VOID WINAPI MyExitProcess(UINT uExitCode);
 static pExitProcess realExitProcess;
 
+
 /*
 // >>>>>>>>>>>>>> WSAConnect <<<<<<<<<<<<<<< 
 typedef int(WINAPI *pWSAConnect)(SOCKET s, const struct sockaddr* name, int namelen, LPWSABUF lpCallerData, LPWSABUF lpCalleeData, LPQOS lpSQOS, LPQOS lpGQOS);
@@ -246,4 +247,5 @@ void from_unicode_to_wstring(PUNICODE_STRING u, std::wstring* w);
 /* Messages storage functions */
 void log(pugi::xml_node *element);
 void notifyNewPid(DWORD pid);
+void notifyRemovedPid(DWORD pid);
 bool configureWindowName();

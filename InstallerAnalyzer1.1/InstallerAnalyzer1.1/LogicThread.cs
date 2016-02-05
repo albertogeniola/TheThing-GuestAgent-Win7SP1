@@ -26,6 +26,7 @@ namespace InstallerAnalyzer1_Guest
 {
     class LogicThread
     {
+        const int STUCK_THRESHOLD = 3;
         const int REACTION_TIMEOUT = 3000;
         const int ACQUIRE_WORK_SLEEP_SECS = 10;
         readonly string DEFAULT_REPORT_PATH = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "report.xml");
@@ -269,7 +270,7 @@ namespace InstallerAnalyzer1_Guest
                 }
                 catch (ArgumentException e) { 
                     // The process is dead. Remove it from the list of monitored ones.
-                    ProgramStatus.Instance.RemovePid(p);
+                    Console.WriteLine("AreProcsFinished: Process " + ((int)p) + " may be dead. Skipping.");
                 }
             }
 
@@ -278,6 +279,7 @@ namespace InstallerAnalyzer1_Guest
         
         private ProcessContainer ExecuteJob(Job j, IUIRanker ranker, IRankingPolicy policy) {
             int c=0;
+            int stuckCounter = 0;
             PrepareScreenFolders();
 
             // Start the process to analyze
@@ -341,14 +343,53 @@ namespace InstallerAnalyzer1_Guest
                     // So we want to repeat the loop again to analyze it again
                     continue;
                 }
+                catch (ElementNotEnabledException e)
+                {
+                    Console.WriteLine("UI Bot: Element has become disabled.");
+                    if (stuckCounter < STUCK_THRESHOLD)
+                    {
+                        stuckCounter++;
+                        Console.WriteLine("UI Bot: Performing another attempt to find a valid window");
+                        continue;
+                    }
+                    else
+                    {
+                        Console.WriteLine("UI Bot: maximum number of attempts reached. Givin' up.");
+                        break;
+                    }
+                }
+                catch (ElementNotAvailableException e)
+                {
+                    Console.WriteLine("UI Bot: Element disappeared");
+                    if (stuckCounter < STUCK_THRESHOLD)
+                    {
+                        stuckCounter++;
+                        Console.WriteLine("UI Bot: Performing another attempt to find a valid window");
+                        continue;
+                    }
+                    else
+                    {
+                        Console.WriteLine("UI Bot: maximum number of attempts reached. Givin' up.");
+                        break;
+                    }
+                }
                 catch (NoMoreCandidateException e)
                 {
                     // We are stuck and the interaction policy is unable to find
                     // a valid control to interact with. 
-                    Console.WriteLine("UI Bot: No more control to interact with. Dropping Interaction.");
-                    break;
-
-                    //TODO: would be nice to have a screenshot of the dead UI screen that caused this situation
+                    // Increase the stuck counter and try again. Maybe the window has changed.
+                    // if the counter if abose the threshold, give up.
+                    Console.WriteLine("UI Bot: No more control to interact with.");
+                    if (stuckCounter < STUCK_THRESHOLD)
+                    {
+                        stuckCounter++;
+                        Console.WriteLine("UI Bot: Performing another attempt to find a valid window");
+                        continue;
+                    }
+                    else {
+                        Console.WriteLine("UI Bot: maximum number of attempts reached. Givin' up.");
+                        break;
+                    }                    
                 }
                 catch (ProcessExitedException e)
                 {
@@ -656,9 +697,16 @@ namespace InstallerAnalyzer1_Guest
         /// <returns>Guessed hWND of the UI Window, or IntPtr.Zero if no window can be found.</returns>
         private IntPtr GetProcUIWindowHandle()
         {
+            /**
+             * The main idea here is to look for all the windows of all the processes of the list.
+             * If the process has some interesting window (i.e. has focus, is big enough, ec..), take that as
+             * possible UI window. Otherwise get the first of the list.
+             */
             var mypids = ProgramStatus.Instance.Pids;
-            AutomationElement ae = null;
+            AutomationElement winner = null;
 
+            // List all the processes that currently have a non null WindowHandle
+            List<Condition> pidsCond = new List<Condition>();
             for (int i = 0; i < mypids.Length; i++)
             {
                 Process proc = null;
@@ -667,45 +715,60 @@ namespace InstallerAnalyzer1_Guest
                     proc = Process.GetProcessById((Int32)mypids.ElementAt(i));
                     if (proc.MainWindowHandle == IntPtr.Zero)
                         continue;
+                    else {
+                        var pidcond = new PropertyCondition(AutomationElement.ProcessIdProperty, proc.Id);
+                        pidsCond.Add(pidcond);
+                    }
                 }
-                catch (Exception e) { 
+                catch (Exception e)
+                {
                     // The process might be dead.
                     continue;
                 }
-                
-                var pidcond = new PropertyCondition(AutomationElement.ProcessIdProperty, proc.Id);
-                var windowVisible=new PropertyCondition(AutomationElement.IsOffscreenProperty, false);
-                var cond = new AndCondition(pidcond,windowVisible);
+            }
 
-                var allae = AutomationElement.RootElement.FindAll(TreeScope.Children, cond);
+            
+            // If there is no pid to monitor, we will have no results. So, return now.
+            if (pidsCond.Count == 0)
+                return IntPtr.Zero;
+            else if (pidsCond.Count == 1) { 
+                // The or condition will require 2 conditions to work. Add a False condition to shut its mouth
+                pidsCond.Add(Condition.FalseCondition);
+            }
 
-                if (allae != null && allae.Count > 0)
-                {
-                    StringBuilder test = new StringBuilder();
-                    foreach (AutomationElement a in allae) {
-                        test.AppendLine(a.Current.ControlType + " : " + a.Current.BoundingRectangle + " : " + a.Current.BoundingRectangle);
+            // Use UIAtuomation to query the windows available matching all the resutls (belonging to our pids, visibility).
+            var pidsInOr = new OrCondition(pidsCond.ToArray());
+            var windowVisible=new PropertyCondition(AutomationElement.IsOffscreenProperty, false);
+            var cond = new AndCondition(pidsInOr,windowVisible);
+
+            var allae = AutomationElement.RootElement.FindAll(TreeScope.Children, cond);
+
+            // If we have some result, check if there is any focused element or some "golden" one we might prefer...
+            if (allae != null && allae.Count > 0)
+            {
+                StringBuilder test = new StringBuilder();
+                foreach (AutomationElement a in allae) {
+                    // Log all the result windows and chose the one with focus.
+                    test.AppendLine(a.Current.ControlType + " : " + a.Current.BoundingRectangle + " : " + a.Current.BoundingRectangle);
+                    if (a.Current.HasKeyboardFocus)
+                    {
+                        winner = a;
                     }
-                    string tt = test.ToString();
-                    ae = allae[0];
                 }
-                if (ae != null)
+
+                // If none had the focus, grab the first. 
+                // TODO: we might use some heuristic here to get a better window...
+                if (winner == null)
                 {
-                    break;
+                    winner = allae[0];
                 }
             }
             
-            // TODO is visible?
-            // TODO Prefer bigger bounds
-
-            if (ae != null && !ae.Current.IsOffscreen)
-            {
-                return new IntPtr(ae.Current.NativeWindowHandle);
-            }
+            // Return the winner if any, otherwise Zero
+            if (winner != null)
+                return new IntPtr(winner.Current.NativeWindowHandle);
             else
-            {
                 return IntPtr.Zero;
-            }
-
             
             /*
             // Get the FocusedWindow and be sure it's owned by one of the current Processes

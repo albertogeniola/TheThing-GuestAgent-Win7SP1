@@ -12,6 +12,7 @@
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "wpcap.lib")
 
+#define COPYDATA_PROC_SPAWNED 1
 
 typedef struct ip_address{
 	u_char byte1;
@@ -55,3 +56,16 @@ DWORD startThread(LPVOID lpdwThreadParam);
 bool setupMemoryMapping(char* windowName);
 void log(pugi::xml_node * element);
 PCHAR* CommandLineToArgvA(PCHAR CmdLine, int* _argc);
+void notifyNewPid(DWORD pid);
+BOOL WINAPI MyDetourCreateProcessWithDll(LPCSTR lpApplicationName,
+	__in_z LPSTR lpCommandLine,
+	LPSECURITY_ATTRIBUTES lpProcessAttributes,
+	LPSECURITY_ATTRIBUTES lpThreadAttributes,
+	BOOL bInheritHandles,
+	DWORD dwCreationFlags,
+	LPVOID lpEnvironment,
+	LPCSTR lpCurrentDirectory,
+	LPSTARTUPINFOA lpStartupInfo,
+	LPPROCESS_INFORMATION lpProcessInformation,
+	LPCSTR lpDllName,
+	PDETOUR_CREATE_PROCESS_ROUTINEA pfCreateProcessA);

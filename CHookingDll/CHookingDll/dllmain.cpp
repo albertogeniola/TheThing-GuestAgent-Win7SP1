@@ -66,8 +66,8 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		//realNtClose = (pNtClose)(GetProcAddress(ntdllmod, "NtClose"));
 		realCreateProcessA = (pCreateProcessA)(GetProcAddress(kern32dllmod, "CreateProcessA"));
 		realCreateProcessW = (pCreateProcessA)(GetProcAddress(kern32dllmod, "CreateProcessW"));
-		realExitProcess = (pExitProcess)(GetProcAddress(kern32dllmod, "ExitProcess"));
 		realNtQueryInformationProcess = (pNtQueryInformationProcess)(GetProcAddress(ntdllmod, "NtQueryInformationProcess"));
+		realExitProcess = (pExitProcess)ExitProcess;
 		/*
 		// WinSock 1
 		realConnect = (pConnect)(GetProcAddress(wsmod, "connect"));
@@ -281,13 +281,14 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 			OutputDebugString(_T("CreateProcessW successful"));
 
 		// ExitProcess
-		DetourTransactionAbort();
+		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
 		DetourAttach(&(PVOID&)realExitProcess, MyExitProcess);
 		if (DetourTransactionCommit() != NO_ERROR)
-			OutputDebugString(_T("ExitProcess not detoured correctly"));
+			OutputDebugString(_T("ExitProcess not derouted correctly"));
 		else
 			OutputDebugString(_T("ExitProcess successful"));
+		
 
 
 		/*
@@ -562,14 +563,6 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		else
 			OutputDebugString(_T("CreateProcessW detached successfully"));
 
-		// CreateProcessW
-		DetourTransactionBegin();
-		DetourUpdateThread(GetCurrentThread());
-		DetourDetach(&(PVOID&)realExitProcess, MyExitProcess);
-		if (DetourTransactionCommit() != NO_ERROR)
-			OutputDebugString(_T("ExitProcess not detached correctly"));
-		else
-			OutputDebugString(_T("ExitProcess detached successfully"));
 
 		/*
 		// Sock connect
@@ -1449,6 +1442,10 @@ NTSTATUS WINAPI MyNtTerminateProcess(HANDLE ProcessHandle, NTSTATUS ExitStatus)
 	
 	return res;
 }*/
+
+
+// TODO: NtCreateProcess?
+
 BOOL WINAPI MyCreateProcessA(LPCTSTR lpApplicationName, LPTSTR lpCommandLine, LPSECURITY_ATTRIBUTES lpProcessAttributes, LPSECURITY_ATTRIBUTES lpThreadAttributes, BOOL bInheritHandles, DWORD dwCreationFlags, LPVOID lpEnvironment, LPCTSTR lpCurrentDirectory, LPSTARTUPINFO lpStartupInfo, LPPROCESS_INFORMATION lpProcessInformation)
 {
 	CHAR   DllPath[MAX_PATH] = { 0 };
@@ -1503,19 +1500,13 @@ BOOL WINAPI MyCreateProcessW(LPCWSTR lpApplicationName, LPWSTR lpCommandLine, LP
 	return res;
 }
 
-VOID WINAPI MyExitProcess(UINT uExitCode) {
-	
-	pugi::xml_document doc; pugi::xml_node element = doc.append_child(_T("ExitProcess"));
-	// >>>>>>>>>>>>>>> Result <<<<<< <<<<<<<<<
-	string w = string(to_string(uExitCode));
-	element.addAttribute(_T("Code"), w.c_str());
-
-	log(&element);
-
-	realExitProcess(uExitCode);
-
-
+VOID WINAPI MyExitProcess(UINT uExitCode)
+{
+	// We hook this to let the GuestController know about our intention to terminate
+	notifyRemovedPid(GetCurrentProcessId());
+	return realExitProcess(uExitCode);
 }
+
 /*
 // Winsock
 int WINAPI MySend(SOCKET s, const char *buf, int len, int flags)
@@ -1613,6 +1604,21 @@ void notifyNewPid(DWORD pid)
 	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);
 
 }
+
+void notifyRemovedPid(DWORD pid)
+{
+	DWORD res = 0;
+	COPYDATASTRUCT ds;
+
+	ds.dwData = COPYDATA_PROC_DIED;
+	ds.cbData = sizeof(DWORD);
+	ds.lpData = (PVOID)&pid;
+
+	// Send message...
+	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);
+
+}
+
 
 /* 
 	>>>>>>>>>>>>>>> Parsing functions <<<<<<<<<<<<<<< 

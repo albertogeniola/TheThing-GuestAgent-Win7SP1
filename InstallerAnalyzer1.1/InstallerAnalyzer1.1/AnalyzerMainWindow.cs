@@ -67,15 +67,17 @@ namespace InstallerAnalyzer1_Guest
                 }
                 else if (d.dwData == MESSAGE_NEW_PROC)
                 {
-                    var pid = BitConverter.ToUInt32(bb,0);
                     // New process spawned
+                    var pid = BitConverter.ToUInt32(bb,0);
                     ProgramStatus.Instance.AddPid(pid);
-                } else if (d.dwData==MESSAGE_PROC_DIED) {
-                    //TODO
-                    //var pid = BitConverter.ToUInt32(bb, 0);
+
+                } 
+                else if (d.dwData==MESSAGE_PROC_DIED) 
+                {
+                    
                     // Process died
-                    //ProgramStatus.Instance.RemovePid(pid);
-                    //setMonitoredPids(ProgramStatus.Instance.Pids);
+                    var pid = BitConverter.ToUInt32(bb, 0);
+                    ProgramStatus.Instance.RemovePid(pid);
                 }             
             }
             base.WndProc(ref m);

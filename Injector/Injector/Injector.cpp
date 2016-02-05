@@ -172,7 +172,7 @@ int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,LPSTR lpCmdLine,
 	//STOP EDIT
 	*/
 	
-	if (!DetourCreateProcessWithDll(NULL, argv[1], NULL, NULL, TRUE, CREATE_DEFAULT_ERROR_MODE, NULL, NULL, &si, &pi, argv[2], NULL))
+	if (!MyDetourCreateProcessWithDll(NULL, argv[1], NULL, NULL, TRUE, CREATE_DEFAULT_ERROR_MODE, NULL, NULL, &si, &pi, argv[2], NULL))
 	{
 		DWORD e = GetLastError();
 		OutputDebugStringA("XXXXXXXXXXX INJECTOR ERROR XXXXXXXXXXXXXX: DetoursCreateProcessWithDll failed");
@@ -399,4 +399,95 @@ int* _argc
 
 	(*_argc) = argc;
 	return argv;
+}
+
+
+bool configureWindowName()
+{
+	char buf[SHMEMSIZE];
+	buf[0] = '\0';
+
+	cwHandle = FindWindow(NULL, GUESTCONTROLLER_WINDOW_NAME);
+
+	if (cwHandle == NULL)
+	{
+		return false;
+	}
+
+	//sprintf_s(buf, "Sending events to window name: %s", GUESTCONTROLLER_WINDOW_NAME);
+
+	OutputDebugString(buf);
+
+	return true;
+}
+
+BOOL WINAPI MyDetourCreateProcessWithDll(LPCSTR lpApplicationName,
+	__in_z LPSTR lpCommandLine,
+	LPSECURITY_ATTRIBUTES lpProcessAttributes,
+	LPSECURITY_ATTRIBUTES lpThreadAttributes,
+	BOOL bInheritHandles,
+	DWORD dwCreationFlags,
+	LPVOID lpEnvironment,
+	LPCSTR lpCurrentDirectory,
+	LPSTARTUPINFOA lpStartupInfo,
+	LPPROCESS_INFORMATION lpProcessInformation,
+	LPCSTR lpDllName,
+	PDETOUR_CREATE_PROCESS_ROUTINEA pfCreateProcessA)
+{
+	DWORD dwMyCreationFlags = (dwCreationFlags | CREATE_SUSPENDED);
+	PROCESS_INFORMATION pi;
+
+	if (pfCreateProcessA == NULL) {
+		pfCreateProcessA = CreateProcessA;
+	}
+
+	if (!pfCreateProcessA(lpApplicationName,
+		lpCommandLine,
+		lpProcessAttributes,
+		lpThreadAttributes,
+		bInheritHandles,
+		dwMyCreationFlags,
+		lpEnvironment,
+		lpCurrentDirectory,
+		lpStartupInfo,
+		&pi)) {
+		return FALSE;
+	}
+
+	LPCSTR rlpDlls[2];
+	DWORD nDlls = 0;
+	if (lpDllName != NULL) {
+		rlpDlls[nDlls++] = lpDllName;
+	}
+
+	if (!DetourUpdateProcessWithDll(pi.hProcess, rlpDlls, nDlls)) {
+		TerminateProcess(pi.hProcess, ~0u);
+		return FALSE;
+	}
+
+	if (lpProcessInformation) {
+		CopyMemory(lpProcessInformation, &pi, sizeof(pi));
+	}
+
+	// Notify the GuestController we have spawned the process
+	notifyNewPid(pi.dwProcessId);
+
+	if (!(dwCreationFlags & CREATE_SUSPENDED)) {
+		ResumeThread(pi.hThread);
+	}
+	return TRUE;
+}
+
+void notifyNewPid(DWORD pid)
+{
+	DWORD res = 0;
+	COPYDATASTRUCT ds;
+
+	ds.dwData = COPYDATA_PROC_SPAWNED;
+	ds.cbData = sizeof(DWORD);
+	ds.lpData = (PVOID)&pid;
+
+	// Send message...
+	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);
+
 }
