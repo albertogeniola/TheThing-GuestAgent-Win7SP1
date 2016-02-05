@@ -440,7 +440,7 @@ namespace InstallerAnalyzer1_Guest
                 }
         }
 
-        private void SaveStableScreen(Window waitingWindnow, int c)
+        private bool SaveStableScreen(Window waitingWindnow, int c)
         {
             try
             {
