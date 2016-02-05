@@ -1,5 +1,4 @@
 #include "dllmain.h"
-using namespace std;
 
 /* Global variables */
 HWND cwHandle;
@@ -21,6 +20,8 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 	kern32dllmod = GetModuleHandle(TEXT("kernel32.dll"));
 	wsmod = LoadLibrary(TEXT("wsock32.dll"));
 	ws2mod = LoadLibrary(TEXT("ws2_32.dll"));
+	
+	string tmplog;
 
 	// Now, according to the reason this method has been called, register or unregister the DLL
 	switch (Reason)
@@ -33,9 +34,12 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		break;
 	case DLL_PROCESS_ATTACH:
 		
-		wchar_t msgbuf[1024];
-		wsprintf(msgbuf, _T("Attached to process %d."), GetCurrentProcessId());
-		OutputDebugString(msgbuf);
+		
+		tmplog.append(_T("Attached to process"));
+		tmplog.append(to_string(GetCurrentProcessId()));
+
+		//wsprintf(msgbuf, _T("Attached to process %d."), GetCurrentProcessId());
+		OutputDebugString(tmplog.c_str());
 		
 
 		// Assign the address location of the function to the static pointer
@@ -62,6 +66,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		//realNtClose = (pNtClose)(GetProcAddress(ntdllmod, "NtClose"));
 		realCreateProcessA = (pCreateProcessA)(GetProcAddress(kern32dllmod, "CreateProcessA"));
 		realCreateProcessW = (pCreateProcessA)(GetProcAddress(kern32dllmod, "CreateProcessW"));
+		realExitProcess = (pExitProcess)(GetProcAddress(kern32dllmod, "ExitProcess"));
 		realNtQueryInformationProcess = (pNtQueryInformationProcess)(GetProcAddress(ntdllmod, "NtQueryInformationProcess"));
 		/*
 		// WinSock 1
@@ -91,7 +96,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		if (DetourTransactionCommit() != NO_ERROR)
 			OutputDebugString(_T("NtCreateFile not derouted correctly"));
 		else
-			OutputDebugString(_T("NtCreateFile successfully"));
+			OutputDebugString(_T("NtCreateFile successful"));
 
 		// NtOpenFile
 		DetourTransactionBegin();
@@ -100,7 +105,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		if (DetourTransactionCommit() != NO_ERROR)
 			OutputDebugString(_T("NtOpenFile not derouted correctly"));
 		else
-			OutputDebugString(_T("NtOpenFile successfully"));
+			OutputDebugString(_T("NtOpenFile successful"));
 
 		// NtDeleteFile
 		DetourTransactionBegin();
@@ -109,7 +114,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		if (DetourTransactionCommit() != NO_ERROR)
 			OutputDebugString(_T("NtDeleteFile not derouted correctly"));
 		else
-			OutputDebugString(_T("NtDeleteFile successfully"));
+			OutputDebugString(_T("NtDeleteFile successful"));
 
 		// NtDeleteFile
 		DetourTransactionBegin();
@@ -118,7 +123,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		if (DetourTransactionCommit() != NO_ERROR)
 			OutputDebugString(_T("NtOpenDirectoryObject not derouted correctly"));
 		else
-			OutputDebugString(_T("NtOpenDirectoryObject successfully"));
+			OutputDebugString(_T("NtOpenDirectoryObject successful"));
 
 		// NtCreateKey
 		DetourTransactionBegin();
@@ -127,7 +132,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		if (DetourTransactionCommit() != NO_ERROR)
 			OutputDebugString(_T("NtCreateKey not derouted correctly"));
 		else
-			OutputDebugString(_T("NtCreateKey successfully"));
+			OutputDebugString(_T("NtCreateKey successful"));
 
 		// NtOpenKey
 		DetourTransactionBegin();
@@ -136,7 +141,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		if (DetourTransactionCommit() != NO_ERROR)
 			OutputDebugString(_T("NtOpenKey not derouted correctly"));
 		else
-			OutputDebugString(_T("NtOpenKey successfully"));
+			OutputDebugString(_T("NtOpenKey successful"));
 
 		// NtDeleteKey
 		DetourTransactionBegin();
@@ -145,7 +150,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		if (DetourTransactionCommit() != NO_ERROR)
 			OutputDebugString(_T("NtDeleteKey not derouted correctly"));
 		else
-			OutputDebugString(_T("NtDeleteKey successfully"));
+			OutputDebugString(_T("NtDeleteKey successful"));
 
 		// NtQueryKey
 		DetourTransactionBegin();
@@ -154,7 +159,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		if (DetourTransactionCommit() != NO_ERROR)
 			OutputDebugString(_T("NtQueryKey not derouted correctly"));
 		else
-			OutputDebugString(_T("NtQueryKey successfully"));
+			OutputDebugString(_T("NtQueryKey successful"));
 
 		// NtDeleteValueKey
 		DetourTransactionBegin();
@@ -163,7 +168,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		if (DetourTransactionCommit() != NO_ERROR)
 			OutputDebugString(_T("NtDeleteValueKey not derouted correctly"));
 		else
-			OutputDebugString(_T("NtDeleteValueKey successfully"));
+			OutputDebugString(_T("NtDeleteValueKey successful"));
 
 		// NtEnumerateKey
 		DetourTransactionBegin();
@@ -172,7 +177,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		if (DetourTransactionCommit() != NO_ERROR)
 			OutputDebugString(_T("NtEnumerateKey not derouted correctly"));
 		else
-			OutputDebugString(_T("NtEnumerateKey successfully"));
+			OutputDebugString(_T("NtEnumerateKey successful"));
 
 		// NtEnumerateValueKey
 		DetourTransactionBegin();
@@ -181,7 +186,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		if (DetourTransactionCommit() != NO_ERROR)
 			OutputDebugString(_T("NtEnumerateValueKey not derouted correctly"));
 		else
-			OutputDebugString(_T("NtEnumerateValueKey successfully"));
+			OutputDebugString(_T("NtEnumerateValueKey successful"));
 
 		// NtLockFile
 		DetourTransactionBegin();
@@ -190,7 +195,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		if (DetourTransactionCommit() != NO_ERROR)
 			OutputDebugString(_T("NtLockFile not derouted correctly"));
 		else
-			OutputDebugString(_T("NtLockFile successfully"));
+			OutputDebugString(_T("NtLockFile successful"));
 
 		//DetourAttach(&(PVOID&)realNtOpenProcess, MyNtOpenProcess);
 
@@ -201,7 +206,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		if (DetourTransactionCommit() != NO_ERROR)
 			OutputDebugString(_T("NtQueryDirectoryFile not derouted correctly"));
 		else
-			OutputDebugString(_T("NtQueryDirectoryFile successfully"));
+			OutputDebugString(_T("NtQueryDirectoryFile successful"));
 
 		// NtQueryFullAttributesFile
 		DetourTransactionBegin();
@@ -210,7 +215,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		if (DetourTransactionCommit() != NO_ERROR)
 			OutputDebugString(_T("NtQueryFullAttributesFile not derouted correctly"));
 		else
-			OutputDebugString(_T("NtQueryFullAttributesFile successfully"));
+			OutputDebugString(_T("NtQueryFullAttributesFile successful"));
 
 		// NtQueryValueKey
 		DetourTransactionBegin();
@@ -219,7 +224,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		if (DetourTransactionCommit() != NO_ERROR)
 			OutputDebugString(_T("NtQueryValueKey not derouted correctly"));
 		else
-			OutputDebugString(_T("NtQueryValueKey successfully"));
+			OutputDebugString(_T("NtQueryValueKey successful"));
 
 		// NtSetInformationFile
 		DetourTransactionBegin();
@@ -228,7 +233,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		if (DetourTransactionCommit() != NO_ERROR)
 			OutputDebugString(_T("NtSetInformationFile not derouted correctly"));
 		else
-			OutputDebugString(_T("NtSetInformationFile successfully"));
+			OutputDebugString(_T("NtSetInformationFile successful"));
 
 		// NtSetValueKey
 		DetourTransactionBegin();
@@ -237,7 +242,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		if (DetourTransactionCommit() != NO_ERROR)
 			OutputDebugString(_T("NtSetValueKey not derouted correctly"));
 		else
-			OutputDebugString(_T("NtSetValueKey successfully"));
+			OutputDebugString(_T("NtSetValueKey successful"));
 
 		// NtTerminateProcess
 		DetourTransactionBegin();
@@ -246,7 +251,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		if (DetourTransactionCommit() != NO_ERROR)
 			OutputDebugString(_T("NtTerminateProcess not derouted correctly"));
 		else
-			OutputDebugString(_T("NtTerminateProcess successfully"));
+			OutputDebugString(_T("NtTerminateProcess successful"));
 		/*
 		// NtClose
 		DetourTransactionBegin();
@@ -264,7 +269,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		if (DetourTransactionCommit() != NO_ERROR)
 			OutputDebugString(_T("CreateProcessA not derouted correctly"));
 		else
-			OutputDebugString(_T("CreateProcessA successfully"));
+			OutputDebugString(_T("CreateProcessA successful"));
 
 		// CreateProcessW
 		DetourTransactionBegin();
@@ -273,7 +278,18 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		if (DetourTransactionCommit() != NO_ERROR)
 			OutputDebugString(_T("CreateProcessW not derouted correctly"));
 		else
-			OutputDebugString(_T("CreateProcessW derotuersuccessfully"));
+			OutputDebugString(_T("CreateProcessW successful"));
+
+		// ExitProcess
+		DetourTransactionAbort();
+		DetourUpdateThread(GetCurrentThread());
+		DetourAttach(&(PVOID&)realExitProcess, MyExitProcess);
+		if (DetourTransactionCommit() != NO_ERROR)
+			OutputDebugString(_T("ExitProcess not detoured correctly"));
+		else
+			OutputDebugString(_T("ExitProcess successful"));
+
+
 		/*
 		// Winsock Connect
 		DetourTransactionBegin();
@@ -545,6 +561,16 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 			OutputDebugString(_T("CreateProcessW not detached correctly"));
 		else
 			OutputDebugString(_T("CreateProcessW detached successfully"));
+
+		// CreateProcessW
+		DetourTransactionBegin();
+		DetourUpdateThread(GetCurrentThread());
+		DetourDetach(&(PVOID&)realExitProcess, MyExitProcess);
+		if (DetourTransactionCommit() != NO_ERROR)
+			OutputDebugString(_T("ExitProcess not detached correctly"));
+		else
+			OutputDebugString(_T("ExitProcess detached successfully"));
+
 		/*
 		// Sock connect
 		DetourTransactionBegin();
@@ -619,12 +645,12 @@ NTSTATUS WINAPI MyNtCreateFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, PO
 	
 	// Use a node object to create the XML string: this will contain all information about the SysCall
 	pugi::xml_document doc;
-	pugi::xml_node element = doc.append_child(L"NtCreateFile");
+	pugi::xml_node element = doc.append_child(_T("NtCreateFile"));
 	
 	// Write Access Mask: parse the flags
-	wstring s = wstring();
+	string s = string();
 	FileAccessMaskToString(DesiredAccess, &s);
-	element.addAttribute(L"AccessMask", s.c_str());
+	element.addAttribute(_T("AccessMask"), s.c_str());
 	
 	// >>>>>>>>>>>>>>> ObjectAttributes (File Path) <<<<<<<<<<<<<<<
 	if (ObjectAttributes->RootDirectory != NULL)
@@ -632,17 +658,17 @@ NTSTATUS WINAPI MyNtCreateFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, PO
 		// The path specified in ObjectName is relative to the directory handle. Get the path of that directory
 		s.clear();
 		GetHandleFileName(ObjectAttributes->RootDirectory, &s);
-		element.addAttribute(L"DirPath", s.c_str());
+		element.addAttribute(_T("DirPath"), s.c_str());
 		s.clear();
 		from_unicode_to_wstring(ObjectAttributes->ObjectName, &s);
-		element.addAttribute(L"Path", s.c_str());
+		element.addAttribute(_T("Path"), s.c_str());
 	}
 	else
 	{
 		// The objectname contains a full path to the file
 		s.clear();
 		from_unicode_to_wstring(ObjectAttributes->ObjectName, &s);
-		element.addAttribute(L"Path", s.c_str());
+		element.addAttribute(_T("Path"), s.c_str());
 	}
 	
 	
@@ -651,7 +677,7 @@ NTSTATUS WINAPI MyNtCreateFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, PO
 	// value and write it to the xml node
 	s.clear();
 	IoStatusToString(IoStatusBlock, &s);
-	element.addAttribute(L"IoStatusBlock", s.c_str());
+	element.addAttribute(_T("IoStatusBlock"), s.c_str());
 
 	// >>>>>>>>>>>>>>> AllocationSize <<<<<<<<<<<<<<<
 	// Skipping allocation size: I don't need it
@@ -659,33 +685,33 @@ NTSTATUS WINAPI MyNtCreateFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, PO
 	// >>>>>>>>>>>>>>> FileAttributes <<<<<<<<<<<<<<<
 	s.clear();
 	FileAttributesToString(FileAttributes, &s);
-	element.addAttribute(L"FileAttributes", s.c_str());
+	element.addAttribute(_T("FileAttributes"), s.c_str());
 
 	// >>>>>>>>>>>>>>> ShareAccess <<<<<<<<<<<<<<<
 	s.clear();
 	ShareAccessToString(ShareAccess, &s);
-	element.addAttribute(L"ShareAccess", s.c_str());
+	element.addAttribute(_T("ShareAccess"), s.c_str());
 
 	// Create Disposition
 	s.clear();
 	s = CreateDispositionToString(CreateDisposition);
-	element.addAttribute(L"CreateDisposition", s.c_str());
+	element.addAttribute(_T("CreateDisposition"), s.c_str());
 
 	// >>>>>>>>>>>>>>> CreateOptions <<<<<<<<<<<<<<<
 	s.clear();
 	FileCreateOptionsToString(CreateOptions, &s);
-	element.addAttribute(L"CreateOptions", s.c_str());
+	element.addAttribute(_T("CreateOptions"), s.c_str());
 
 	// >>>>>>>>>>>>>>> Result <<<<<<<<<<<<<<<
 	s.clear();
 	NtStatusToString(res, &s);
-	element.addAttribute(L"Result", s.c_str());
+	element.addAttribute(_T("Result"), s.c_str());
 
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, L"%p", *FileHandle);
-		element.addAttribute(L"Handle", buff);
+		wsprintf(buff, _T("%p"), *FileHandle);
+		element.addAttribute(_T("Handle"), buff);
 	}
 	
 
@@ -700,60 +726,60 @@ NTSTATUS WINAPI MyNtOpenFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJ
 	NTSTATUS res = realNtOpenFile(FileHandle, DesiredAccess, ObjectAttributes, IoStatusBlock, ShareAccess, OpenOptions);
 
 	// Use a node object to create the XML string: this will contain all information about the SysCall
-	pugi::xml_document doc;pugi::xml_node element = doc.append_child(L"NtOpenFile");
+	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtOpenFile"));
 
-	wstring s = wstring();
+	string s = string();
 	// >>>>>>>>>>>>>>> File Path <<<<<<<<<<<<<<<
 	if (ObjectAttributes->RootDirectory != NULL)
 	{
 		// The path specified in ObjectName is relative to the directory handle. Get the path of that directory
 		s.clear();
 		GetHandleFileName(ObjectAttributes->RootDirectory, &s);
-		element.addAttribute(L"DirPath", s.c_str());
+		element.addAttribute(_T("DirPath"), s.c_str());
 		s.clear();
 		from_unicode_to_wstring(ObjectAttributes->ObjectName, &s);
-		element.addAttribute(L"Path", s.c_str());
+		element.addAttribute(_T("Path"), s.c_str());
 	}
 	else
 	{
 		// The objectname contains a full path to the file
 		s.clear();
 		from_unicode_to_wstring(ObjectAttributes->ObjectName, &s);
-		element.addAttribute(L"Path", s.c_str());
+		element.addAttribute(_T("Path"), s.c_str());
 	}
 
 	
 	// >>>>>>>>>>>>>>> DESIRED ACCESS <<<<<<<<<<<<<<<
 	s.clear();
 	FileAccessMaskToString(DesiredAccess, &s);
-	element.addAttribute(L"DesiredAccess", s.c_str());
+	element.addAttribute(_T("DesiredAccess"), s.c_str());
 
 	// >>>>>>>>>>>>>>> IO STATUS BLOCK <<<<<<<<<<<<<<<
 	s.clear();
 	IoStatusToString(IoStatusBlock, &s);
-	element.addAttribute(L"IoStatusBlock", s.c_str());
+	element.addAttribute(_T("IoStatusBlock"), s.c_str());
 	
 	// >>>>>>>>>>>>>>> SHARE ACCESS <<<<<<<<<<<<<<<
 	s.clear();
 	ShareAccessToString(ShareAccess, &s);
-	element.addAttribute(L"ShareAccess", s.c_str());
+	element.addAttribute(_T("ShareAccess"), s.c_str());
 
 	// >>>>>>>>>>>>>>> OPEN OPTIONS <<<<<<<<<<<<<<<
 	s.clear();
 	FileCreateOptionsToString(OpenOptions, &s);
-	element.addAttribute(L"OpenOptions", s.c_str());
+	element.addAttribute(_T("OpenOptions"), s.c_str());
 
 	// >>>>>>>>>>>>>>> Result <<<<<<<<<<<<<<<
 	s.clear();
 	NtStatusToString(res, &s);
-	element.addAttribute(L"Result", s.c_str());
+	element.addAttribute(_T("Result"), s.c_str());
 
 
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, L"%p", *FileHandle);
-		element.addAttribute(L"Handle", buff);
+		wsprintf(buff, _T("%p"), *FileHandle);
+		element.addAttribute(_T("Handle"), buff);
 	}
 
 	log(&element);
@@ -766,30 +792,30 @@ NTSTATUS WINAPI MyNtDeleteFile(POBJECT_ATTRIBUTES ObjectAttributes)
 	NTSTATUS res = realNtDeleteFile(ObjectAttributes);
 
 	// Use a node object to create the XML string: this will contain all information about the SysCall
-	pugi::xml_document doc;pugi::xml_node element = doc.append_child(L"NtDeleteFile");
+	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtDeleteFile"));
 
-	wstring s = wstring();
+	string s = string();
 	// >>>>>>>>>>>>>>> File Path <<<<<<<<<<<<<<<
 	if (ObjectAttributes->RootDirectory != NULL)
 	{
 		// The path specified in ObjectName is relative to the directory handle. Get the path of that directory
 		s.clear();
 		GetHandleFileName(ObjectAttributes->RootDirectory, &s);
-		element.addAttribute(L"DirPath", s.c_str());
-		element.addAttribute(L"Path", ObjectAttributes->ObjectName->Buffer);
+		element.addAttribute(_T("DirPath"), s.c_str());
+		element.addAttribute(_T("Path"), ObjectAttributes->ObjectName->Buffer);
 	}
 	else
 	{
 		// The objectname contains a full path to the file
 		s.clear();
 		from_unicode_to_wstring(ObjectAttributes->ObjectName, &s);
-		element.addAttribute(L"Path", s.c_str());
+		element.addAttribute(_T("Path"), s.c_str());
 	}
 
 	// >>>>>>>>>>>>>>> Result <<<<<<<<<<<<<<<
 	s.clear();
 	NtStatusToString(res, &s);
-	element.addAttribute(L"Result", s.c_str());
+	element.addAttribute(_T("Result"), s.c_str());
 
 	log(&element);
 
@@ -802,31 +828,31 @@ NTSTATUS WINAPI MyNtOpenDirectoryObject(PHANDLE DirectoryObject, ACCESS_MASK Des
 	NTSTATUS res = realNtOpenDirectoryObject(DirectoryObject, DesiredAccess, ObjectAttributes);
 
 	// Use a node object to create the XML string: this will contain all information about the SysCall
-	pugi::xml_document doc;pugi::xml_node element = doc.append_child(L"NtOpenDirectoryObject");
+	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtOpenDirectoryObject"));
 	
-	wstring s = wstring();
+	string s = string();
 
 	// >>>>>>>>>>>>>>> File Path <<<<<<<<<<<<<<<
 	s.clear();
 	from_unicode_to_wstring(ObjectAttributes->ObjectName, &s);
-	element.addAttribute(L"Path", s.c_str());
+	element.addAttribute(_T("Path"), s.c_str());
 
 	// >>>>>>>>>>>>>>> DESIRED ACCESS <<<<<<<<<<<<<<<
 	s.clear();
 	DirectoryAccessMaskToString(DesiredAccess, &s);
-	element.addAttribute(L"DesiredAccess", s.c_str());
+	element.addAttribute(_T("DesiredAccess"), s.c_str());
 	
 	// >>>>>>>>>>>>>>> Result <<<<<<<<<<<<<<<
 	s.clear();
 	NtStatusToString(res, &s);
-	element.addAttribute(L"Result", s.c_str());
+	element.addAttribute(_T("Result"), s.c_str());
 
 
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, L"%p", *DirectoryObject);
-		element.addAttribute(L"Handle", buff);
+		wsprintf(buff, _T("%p"), *DirectoryObject);
+		element.addAttribute(_T("Handle"), buff);
 	}
 
 	log(&element);
@@ -839,30 +865,30 @@ NTSTATUS WINAPI MyNtOpenKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJEC
 	NTSTATUS res = realNtOpenKey(KeyHandle, DesiredAccess, ObjectAttributes);
 
 	// Use a node object to create the XML string: this will contain all information about the SysCall
-	pugi::xml_document doc;pugi::xml_node element = doc.append_child(L"NtOpenKey");
-	wstring w = wstring();
+	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtOpenKey"));
+	string w = string();
 
 	// >>>>>>>>>>>>>>> Key Path <<<<<<<<<<<<<<<
 	w.clear();
 	from_unicode_to_wstring(ObjectAttributes->ObjectName, &w);
-	element.addAttribute(L"Path", w.c_str());
+	element.addAttribute(_T("Path"), w.c_str());
 
 	// >>>>>>>>>>>>>>> Access Mask <<<<<<<<<<<<<<<
 	w.clear();
 	KeyAccessMaskToString(DesiredAccess, &w);
-	element.addAttribute(L"DesiredAccess", w.c_str());
+	element.addAttribute(_T("DesiredAccess"), w.c_str());
 
 	// >>>>>>>>>>>>>>> Result <<<<<<<<<<<<<<<
 	w.clear();
 	NtStatusToString(res, &w);
-	element.addAttribute(L"Result", w.c_str());
+	element.addAttribute(_T("Result"), w.c_str());
 
 
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, L"%p", *KeyHandle);
-		element.addAttribute(L"Handle", buff);
+		wsprintf(buff, _T("%p"), *KeyHandle);
+		element.addAttribute(_T("Handle"), buff);
 	}
 
 	log(&element);
@@ -875,51 +901,51 @@ NTSTATUS WINAPI MyNtCreateKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJ
 	NTSTATUS res = realNtCreateKey(KeyHandle, DesiredAccess, ObjectAttributes, TitleIndex, Class, CreateOptions, Disposition);
 	
 	// Use a node object to create the XML string: this will contain all information about the SysCall
-	pugi::xml_document doc;pugi::xml_node element = doc.append_child(L"NtCreateKey");
-	wstring w = wstring();
+	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtCreateKey"));
+	string w = string();
 	
 	// >>>>>>>>>>>>>>> Key Path <<<<<<<<<<<<<<<
 	from_unicode_to_wstring(ObjectAttributes->ObjectName, &w);
-	element.addAttribute(L"Path", w.c_str());
+	element.addAttribute(_T("Path"), w.c_str());
 	
 	// >>>>>>>>>>>>>>> Access Mask <<<<<<<<<<<<<<<
 	w.clear();
 	KeyAccessMaskToString(DesiredAccess, &w);
-	element.addAttribute(L"DesiredAccess", w.c_str());
+	element.addAttribute(_T("DesiredAccess"), w.c_str());
 	
 	// >>>>>>>>>>>>>>> Class <<<<<<<<<<<<<<<
 	if (Class != NULL)
 	{
 		from_unicode_to_wstring(Class, &w);
-		element.addAttribute(L"Class", w.c_str());
+		element.addAttribute(_T("Class"), w.c_str());
 	}
 		
 	
 	// >>>>>>>>>>>>>>> Create Options <<<<<<<<<<<<<<<
 	w.clear();
 	KeyCreateOptionsToString(CreateOptions, &w);
-	element.addAttribute(L"CreateOptions", w.c_str());
+	element.addAttribute(_T("CreateOptions"), w.c_str());
 	
 	// >>>>>>>>>>>>>>> Disposition <<<<<<<<<<<<<<<
 	if (Disposition != NULL)
 	{
 		if (*Disposition == REG_CREATED_NEW_KEY)
-			element.addAttribute(L"Disposition", L"REG_CREATED_NEW_KEY");
+			element.addAttribute(_T("Disposition"), _T("REG_CREATED_NEW_KEY"));
 		else if (*Disposition == REG_OPENED_EXISTING_KEY)
-			element.addAttribute(L"Disposition", L"REG_OPENED_EXISTING_KEY");
+			element.addAttribute(_T("Disposition"), _T("REG_OPENED_EXISTING_KEY"));
 	}
 	else
-		element.addAttribute(L"Disposition", L"N/A");
+		element.addAttribute(_T("Disposition"), _T("N/A"));
 	// >>>>>>>>>>>>>>> Result <<<<<<<<<<<<<<<
 	w.clear();
 	NtStatusToString(res, &w);
-	element.addAttribute(L"Result", w.c_str());
+	element.addAttribute(_T("Result"), w.c_str());
 
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, L"%p", *KeyHandle);
-		element.addAttribute(L"Handle", buff);
+		wsprintf(buff, _T("%p"), *KeyHandle);
+		element.addAttribute(_T("Handle"), buff);
 	}
 
 	log(&element);
@@ -932,29 +958,29 @@ NTSTATUS WINAPI MyNtQueryKey(HANDLE KeyHandle, KEY_INFORMATION_CLASS KeyInformat
 	NTSTATUS res = realNtQueryKey(KeyHandle,KeyInformationClass,KeyInformation,Length,ResultLength);
 
 	// Use a node object to create the XML string: this will contain all information about the SysCall
-	pugi::xml_document doc;pugi::xml_node element = doc.append_child(L"NtQueryKey");
+	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtQueryKey"));
 
-	wstring w = wstring();
+	string w = string();
 	GetKeyPathFromKKEY(KeyHandle, &w);
 
 	// >>>>>>>>>>>>>>> Key Path <<<<<<<<<<<<<<<
-	element.addAttribute(L"Path", w.c_str());
+	element.addAttribute(_T("Path"), w.c_str());
 
 	// >>>>>>>>>>>>>>> Key Information Class <<<<<<<<<<<<<<<
 	w = KeyInformationClassToString(KeyInformationClass);
-	element.addAttribute(L"KeyInformationClass", w.c_str());
+	element.addAttribute(_T("KeyInformationClass"), w.c_str());
 
 	// >>>>>>>>>>>>>>> Result <<<<<<<<<<<<<<<
-	w = wstring();
+	w = string();
 	NtStatusToString(res, &w);
-	element.addAttribute(L"Result", w.c_str());
+	element.addAttribute(_T("Result"), w.c_str());
 
 
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, L"%p", KeyHandle);
-		element.addAttribute(L"Handle", buff);
+		wsprintf(buff, _T("%p"), KeyHandle);
+		element.addAttribute(_T("Handle"), buff);
 	}
 
 	log(&element);
@@ -968,25 +994,25 @@ NTSTATUS WINAPI MyNtDeleteKey(HANDLE KeyHandle)
 	NTSTATUS res = realNtDeleteKey(KeyHandle);
 
 	// Use a node object to create the XML string: this will contain all information about the SysCall
-	pugi::xml_document doc;pugi::xml_node element = doc.append_child(L"NtDeleteKey");
+	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtDeleteKey"));
 
-	wstring w = wstring();
+	string w = string();
 
 	// >>>>>>>>>>>>>>> Key Path <<<<<<<<<<<<<<<
 	GetKeyPathFromKKEY(KeyHandle, &w);
-	element.addAttribute(L"Path", w.c_str());
+	element.addAttribute(_T("Path"), w.c_str());
 
 	// >>>>>>>>>>>>>>> Result <<<<<<<<<<<<<<<
 	w.clear();
 	NtStatusToString(res, &w);
-	element.addAttribute(L"Result", w.c_str());
+	element.addAttribute(_T("Result"), w.c_str());
 
 
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, L"%p", KeyHandle);
-		element.addAttribute(L"Handle", buff);
+		wsprintf(buff, _T("%p"), KeyHandle);
+		element.addAttribute(_T("Handle"), buff);
 	}
 
 	log(&element);
@@ -999,29 +1025,29 @@ NTSTATUS WINAPI MyNtDeleteValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName){
 	NTSTATUS res = realNtDeleteValueKey(KeyHandle, ValueName);
 
 	// Use a node object to create the XML string: this will contain all information about the SysCall
-	pugi::xml_document doc;pugi::xml_node element = doc.append_child(L"NtDeleteValueKey");
+	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtDeleteValueKey"));
 
 	// >>>>>>>>>>>>>>> Key Path <<<<<<<<<<<<<<<
-	wstring w = wstring();
+	string w = string();
 	GetKeyPathFromKKEY(KeyHandle, &w);
-	element.addAttribute(L"Path", w.c_str());
+	element.addAttribute(_T("Path"), w.c_str());
 
 	// >>>>>>>>>>>>>>> Value <<<<<<<<<<<<<<<
 	w.clear();
 	from_unicode_to_wstring(ValueName, &w);
-	element.addAttribute(L"ValueName", w.c_str());
+	element.addAttribute(_T("ValueName"), w.c_str());
 
 	// >>>>>>>>>>>>>>> Result <<<<<<<<<<<<<<<
 	w.clear();
 	NtStatusToString(res, &w);
-	element.addAttribute(L"Result", w.c_str());
+	element.addAttribute(_T("Result"), w.c_str());
 
 
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, L"%p", KeyHandle);
-		element.addAttribute(L"Handle", buff);
+		wsprintf(buff, _T("%p"), KeyHandle);
+		element.addAttribute(_T("Handle"), buff);
 	}
 
 	log(&element);
@@ -1033,27 +1059,27 @@ NTSTATUS WINAPI MyNtEnumerateKey(HANDLE KeyHandle, ULONG Index, KEY_INFORMATION_
 	NTSTATUS res = realNtEnumerateKey(KeyHandle,Index,KeyInformationClass,KeyInformation,Length,ResultLength);
 
 	// Use a node object to create the XML string: this will contain all information about the SysCall
-	pugi::xml_document doc;pugi::xml_node element = doc.append_child(L"NtEnumerateKey");
+	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtEnumerateKey"));
 
 	// >>>>>>>>>>>>>>> Result <<<<<<<<<<<<<<<
-	wstring w = wstring();
+	string w = string();
 	NtStatusToString(res, &w);
-	element.addAttribute(L"Result", w.c_str());
+	element.addAttribute(_T("Result"), w.c_str());
 
 	// >>>>>>>>>>>>>>> KeyPath <<<<<<<<<<<<<<<
 	GetKeyPathFromKKEY(KeyHandle,&w);
-	element.addAttribute(L"KeyPath", w.c_str());
+	element.addAttribute(_T("KeyPath"), w.c_str());
 
 	// >>>>>>>>>>>>>>> Key Information Class <<<<<<<<<<<<<<<
 	w = KeyInformationClassToString(KeyInformationClass);
-	element.addAttribute(L"KeyInformationClass", w.c_str());
+	element.addAttribute(_T("KeyInformationClass"), w.c_str());
 
 
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, L"%p", KeyHandle);
-		element.addAttribute(L"Handle", buff);
+		wsprintf(buff, _T("%p"), KeyHandle);
+		element.addAttribute(_T("Handle"), buff);
 	}
 
 	log(&element);
@@ -1066,30 +1092,30 @@ NTSTATUS WINAPI MyNtEnumerateValueKey(HANDLE KeyHandle, ULONG Index, KEY_VALUE_I
 	NTSTATUS res = realNtEnumerateValueKey(KeyHandle, Index, KeyValueInformationClass, KeyValueInformation, Length, ResultLength);
 
 	// Use a node object to create the XML string: this will contain all information about the SysCall
-	pugi::xml_document doc;pugi::xml_node element = doc.append_child(L"NtEnumerateValueKey");
+	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtEnumerateValueKey"));
 
 	// >>>>>>>>>>>>>>> Result <<<<<<<<<<<<<<<
-	wstring w = wstring();
+	string w = string();
 	NtStatusToString(res, &w);
-	element.addAttribute(L"Result", w.c_str());
+	element.addAttribute(_T("Result"), w.c_str());
 
 	// >>>>>>>>>>>>>>> KeyPath <<<<<<<<<<<<<<<
 	GetKeyPathFromKKEY(KeyHandle,&w);
-	element.addAttribute(L"KeyPath", w.c_str());
+	element.addAttribute(_T("KeyPath"), w.c_str());
 
 	// >>>>>>>>>>>>>>> SubKey <<<<<<<<<<<<<<<
-	element.addAttribute(L"SubKeyIndex", to_wstring(Index).c_str());
+	element.addAttribute(_T("SubKeyIndex"), to_string(Index).c_str());
 
 	// >>>>>>>>>>>>>>> Key Value Information Class <<<<<<<<<<<<<<<
 	w = KeyValueInformationClassToString(KeyValueInformationClass);
-	element.addAttribute(L"KeyValueInformationClass", w.c_str());
+	element.addAttribute(_T("KeyValueInformationClass"), w.c_str());
 
 
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, L"%p", KeyHandle);
-		element.addAttribute(L"Handle", buff);
+		wsprintf(buff, _T("%p"), KeyHandle);
+		element.addAttribute(_T("Handle"), buff);
 	}
 
 	log(&element);
@@ -1101,45 +1127,45 @@ NTSTATUS WINAPI MyNtLockFile(HANDLE FileHandle, HANDLE Event, PIO_APC_ROUTINE Ap
 	NTSTATUS res = realNtLockFile(FileHandle,Event,ApcRoutine,ApcContext,IoStatusBlock,ByteOffset,Length,Key,FailImmediately,ExclusiveLock);
 
 	// Use a node object to create the XML string: this will contain all information about the SysCall
-	pugi::xml_document doc;pugi::xml_node element = doc.append_child(L"NtLockFile");
+	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtLockFile"));
 
 	// >>>>>>>>>>>>>>> Result <<<<<<<<<<<<<<<
-	wstring w = wstring();
+	string w = string();
 	NtStatusToString(res, &w);
-	element.addAttribute(L"Result", w.c_str());
+	element.addAttribute(_T("Result"), w.c_str());
 
 	// >>>>>>>>>>>>>>> FilePath <<<<<<<<<<<<<<<
 	GetFileNameFromHandle(FileHandle,&w);
-	element.addAttribute(L"KeyPath", w.c_str());
+	element.addAttribute(_T("KeyPath"), w.c_str());
 	
 
 	// >>>>>>>>>>>>>>> Byte offset <<<<<<<<<<<<<<<
 	w.clear();
-	element.addAttribute(L"LockFrom", to_wstring(ByteOffset->QuadPart).c_str());
+	element.addAttribute(_T("LockFrom"), to_string(ByteOffset->QuadPart).c_str());
 
 	// >>>>>>>>>>>>>>> Length to lock <<<<<<<<<<<<<<<
 	w.clear();
-	element.addAttribute(L"LengthToLock", to_wstring(Length->QuadPart).c_str());
+	element.addAttribute(_T("LengthToLock"), to_string(Length->QuadPart).c_str());
 
 	// >>>>>>>>>>>>>>> Fail Immediately? <<<<<<<<<<<<<<<
 	w.clear();
-	element.addAttribute(L"FailImmediately", to_wstring(FailImmediately).c_str());
+	element.addAttribute(_T("FailImmediately"), to_string(FailImmediately).c_str());
 
 	// >>>>>>>>>>>>>>> Exclusive Lock <<<<<<<<<<<<<<<
 	w.clear();
-	element.addAttribute(L"ExclusiveLock", to_wstring(ExclusiveLock).c_str());
+	element.addAttribute(_T("ExclusiveLock"), to_string(ExclusiveLock).c_str());
 
 	// >>>>>>>>>>>>>>> IO STATUS BLOCK <<<<<<<<<<<<<<<
 	w.clear();
 	IoStatusToString(IoStatusBlock, &w);
-	element.addAttribute(L"IoStatusBlock", w.c_str());
+	element.addAttribute(_T("IoStatusBlock"), w.c_str());
 
 
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, L"%p", FileHandle);
-		element.addAttribute(L"Handle",buff);
+		wsprintf(buff, _T("%p"), FileHandle);
+		element.addAttribute(_T("Handle"),buff);
 	}
 
 	log(&element);
@@ -1153,18 +1179,18 @@ NTSTATUS WINAPI MyNtOpenProcess(PHANDLE ProcessHandle, ACCESS_MASK DesiredAccess
 	NTSTATUS res = realNtOpenProcess(ProcessHandle,DesiredAccess,ObjectAttributes,ClientId);
 	
 	// Use a node object to create the XML string: this will contain all information about the SysCall
-	pugi::xml_document doc;pugi::xml_node element = doc.append_child(L"NtOpenProcess");
+	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtOpenProcess"));
 	
 	
 	// >>>>>>>>>>>>>>> Result <<<<<<<<<<<<<<<
-	wstring w = wstring();
+	string w = string();
 	NtStatusToString(res, &w);
-	element.addAttribute(L"Result", w);
+	element.addAttribute(_T("Result"), w);
 
 	// >>>>>>>>>>>>>>> DESIRED ACCESS <<<<<<<<<<<<<<<
 	w.clear();
 	FileAccessMaskToString(DesiredAccess, &w);
-	element.addAttribute(L"DesiredAccess", w);
+	element.addAttribute(_T("DesiredAccess"), w);
 	
 	// The objectname contains a full path to the file
 	// The ObjectName might be null: http://msdn.microsoft.com/en-us/library/windows/hardware/ff567022(v=vs.85).aspx
@@ -1175,7 +1201,7 @@ NTSTATUS WINAPI MyNtOpenProcess(PHANDLE ProcessHandle, ACCESS_MASK DesiredAccess
 	else
 	{
 		// If it is not null, calcualte the path
-		element.addAttribute(L"Path", ObjectAttributes->ObjectName->Buffer);
+		element.addAttribute(_T("Path"), ObjectAttributes->ObjectName->Buffer);
 	}
 	
 
@@ -1190,31 +1216,31 @@ NTSTATUS WINAPI MyNtQueryDirectoryFile(HANDLE FileHandle, HANDLE Event, PIO_APC_
 	NTSTATUS res = realNtQueryDirectoryFile(FileHandle,Event,ApcRoutine, ApcContext, IoStatusBlock, FileInformation, Length,FileInformationClass,ReturnSingleEntry,FileName,RestartScan);
 
 	// Use a node object to create the XML string: this will contain all information about the SysCall
-	pugi::xml_document doc;pugi::xml_node element = doc.append_child(L"NtQueryDirectoryFile");
+	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtQueryDirectoryFile"));
 
 	// >>>>>>>>>>>>>>> Result <<<<<<<<<<<<<<<
-	wstring w = wstring();
+	string w = string();
 	NtStatusToString(res, &w);
-	element.addAttribute(L"Result", w.c_str());
+	element.addAttribute(_T("Result"), w.c_str());
 
 	// >>>>>>>>>>>>>>> IO STATUS BLOCK <<<<<<<<<<<<<<<
 	w.clear();
 	IoStatusToString(IoStatusBlock, &w);
-	element.addAttribute(L"IoStatusBlock", w.c_str());
+	element.addAttribute(_T("IoStatusBlock"), w.c_str());
 
 	// >>>>>>>>>>>>>>> FILE Name <<<<<<<<<<<<<<<
 	if (FileName != NULL)
 	{
 		w.clear();
-		element.addAttribute(L"FileName", FileName->Buffer);
+		element.addAttribute(_T("FileName"), FileName->Buffer);
 	}
 	
 
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, L"%p", FileHandle);
-		element.addAttribute(L"Handle", buff);
+		wsprintf(buff, _T("%p"), FileHandle);
+		element.addAttribute(_T("Handle"), buff);
 	}
 
 	log(&element);
@@ -1227,12 +1253,12 @@ NTSTATUS WINAPI MyNtQueryFullAttributesFile(POBJECT_ATTRIBUTES ObjectAttributes,
 	NTSTATUS res = realNtQueryFullAttributesFile(ObjectAttributes, FileInformation);
 
 	// Use a node object to create the XML string: this will contain all information about the SysCall
-	pugi::xml_document doc;pugi::xml_node element = doc.append_child(L"NtQueryFullAttributesFile");
+	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtQueryFullAttributesFile"));
 
 	// >>>>>>>>>>>>>>> Result <<<<<<<<<<<<<<<
-	wstring w = wstring();
+	string w = string();
 	NtStatusToString(res, &w);
-	element.addAttribute(L"Result", w.c_str());
+	element.addAttribute(_T("Result"), w.c_str());
 
 	// >>>>>>>>>>>>>>> File Path <<<<<<<<<<<<<<<
 	if (ObjectAttributes->RootDirectory != NULL)
@@ -1240,13 +1266,13 @@ NTSTATUS WINAPI MyNtQueryFullAttributesFile(POBJECT_ATTRIBUTES ObjectAttributes,
 		// The path specified in ObjectName is relative to the directory handle. Get the path of that directory
 		w.clear();
 		GetHandleFileName(ObjectAttributes->RootDirectory, &w);
-		element.addAttribute(L"DirPath", w.c_str());
-		element.addAttribute(L"Path", ObjectAttributes->ObjectName->Buffer);
+		element.addAttribute(_T("DirPath"), w.c_str());
+		element.addAttribute(_T("Path"), ObjectAttributes->ObjectName->Buffer);
 	}
 	else
 	{
 		// The objectname contains a full path to the file
-		element.addAttribute(L"Path", ObjectAttributes->ObjectName->Buffer);
+		element.addAttribute(_T("Path"), ObjectAttributes->ObjectName->Buffer);
 	}
 
 	log(&element);
@@ -1259,33 +1285,33 @@ NTSTATUS WINAPI MyNtQueryValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName, K
 	NTSTATUS res = realNtQueryValueKey(KeyHandle, ValueName, KeyValueInformationClass, KeyValueInformation, Length, ResultLength);
 	
 	// Use a node object to create the XML string: this will contain all information about the SysCall
-	pugi::xml_document doc;pugi::xml_node element = doc.append_child(L"NtQueryValueKey");
+	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtQueryValueKey"));
 
 	// >>>>>>>>>>>>>>> Result <<<<<<<<<<<<<<<
-	wstring w = wstring();
+	string w = string();
 	NtStatusToString(res, &w);
-	element.addAttribute(L"Result", w.c_str());
+	element.addAttribute(_T("Result"), w.c_str());
 	
 	// >>>>>>>>>>>>>>> Key Path <<<<<<<<<<<<<<<
 	w.clear();
 	GetKeyPathFromKKEY(KeyHandle,&w);
-	element.addAttribute(L"KeyPath", w.c_str());
+	element.addAttribute(_T("KeyPath"), w.c_str());
 	
 	// >>>>>>>>>>>>>>> ValueName: could be not null terminated, so set the terminator! <<<<<<<<<<<<<<<
 	w.clear();
 	from_unicode_to_wstring(ValueName, &w);
-	element.addAttribute(L"ValueName", w.c_str());
+	element.addAttribute(_T("ValueName"), w.c_str());
 	
 	// >>>>>>>>>>>>>>> Key Value Information Class <<<<<<<<<<<<<<<
 	w = KeyValueInformationClassToString(KeyValueInformationClass);
-	element.addAttribute(L"KeyValueInformationClass", w.c_str());
+	element.addAttribute(_T("KeyValueInformationClass"), w.c_str());
 	
 
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, L"%p", KeyHandle);
-		element.addAttribute(L"Handle", buff);
+		wsprintf(buff, _T("%p"), KeyHandle);
+		element.addAttribute(_T("Handle"), buff);
 	}
 
 	log(&element);
@@ -1298,31 +1324,31 @@ NTSTATUS WINAPI MyNtSetInformationFile(HANDLE FileHandle, PIO_STATUS_BLOCK IoSta
 	NTSTATUS res = realNtSetInformationFile(FileHandle,IoStatusBlock,FileInformation, Length,FileInformationClass);
 	
 	// Use a node object to create the XML string: this will contain all information about the SysCall
-	pugi::xml_document doc;pugi::xml_node element = doc.append_child(L"NtSetInformationFile");
+	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtSetInformationFile"));
 
 	// >>>>>>>>>>>>>>> Result <<<<<< <<<<<<<<<
-	wstring w = wstring();
+	string w = string();
 	NtStatusToString(res, &w);
-	element.addAttribute(L"Result", w.c_str());
+	element.addAttribute(_T("Result"), w.c_str());
 	
 	// >>>>>>>>>>>>>>> FileInformationClass <<<<<<<<<<<<<<<
 	w.clear();
-	//element.addAttribute(L"FileInformationClass", FileInformationClassToString(FileInformationClass));
-	element.addAttribute(L"FileInformationClass", to_wstring(FileInformationClass).c_str());
+	//element.addAttribute(_T("FileInformationClass"), FileInformationClassToString(FileInformationClass));
+	element.addAttribute(_T("FileInformationClass"), to_string(FileInformationClass).c_str());
 
 	// TODO: parse the class result. It depends on the class type
 
 	// >>>>>>>>>>>>>>> IO STATUS BLOCK <<<<<<<<<<<<<<<
 	w.clear();
 	IoStatusToString(IoStatusBlock, &w);
-	element.addAttribute(L"IoStatusBlock", w.c_str());
+	element.addAttribute(_T("IoStatusBlock"), w.c_str());
 
 
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, L"%p", FileHandle);
-		element.addAttribute(L"Handle",buff);
+		wsprintf(buff, _T("%p"), FileHandle);
+		element.addAttribute(_T("Handle"),buff);
 	}
 
 	log(&element);
@@ -1334,25 +1360,25 @@ NTSTATUS WINAPI MyNtSetValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName, ULO
 	NTSTATUS res = realNtSetValueKey(KeyHandle,ValueName,TitleIndex,Type,Data,DataSize);
 
 	// Use a node object to create the XML string: this will contain all information about the SysCall
-	pugi::xml_document doc;pugi::xml_node element = doc.append_child(L"NtSetValueKey");
+	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtSetValueKey"));
 
 	// >>>>>>>>>>>>>>> Result <<<<<< <<<<<<<<<
-	wstring w = wstring();
+	string w = string();
 	NtStatusToString(res, &w);
-	element.addAttribute(L"Result", w.c_str());
+	element.addAttribute(_T("Result"), w.c_str());
 	
 	// >>>>>>>>>>>>>>> Key Path <<<<<<<<<<<<<<<
 	w.clear();
 	GetKeyPathFromKKEY(KeyHandle,&w);
-	element.addAttribute(L"KeyPath", w.c_str());
+	element.addAttribute(_T("KeyPath"), w.c_str());
 
 	// >>>>>>>>>>>>>>> ValueName <<<<<<<<<<<<<<<
 	w.clear();
 	from_unicode_to_wstring(ValueName, &w);
-	element.addAttribute(L"ValueName", w.c_str());
+	element.addAttribute(_T("ValueName"), w.c_str());
 
 	// >>>>>>>>>>>>>>> TitleIndex <<<<<<<<<<<<<<<
-	element.addAttribute(L"TitleIndex", to_wstring(TitleIndex).c_str());
+	element.addAttribute(_T("TitleIndex"), to_string(TitleIndex).c_str());
 	
 	// SKIPPING NOW THE TYPE OF THE DATA TO BE WRITTEN: (lately TODO?)
 
@@ -1360,8 +1386,8 @@ NTSTATUS WINAPI MyNtSetValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName, ULO
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, L"%p", KeyHandle);
-		element.addAttribute(L"Handle",buff);
+		wsprintf(buff, _T("%p"), KeyHandle);
+		element.addAttribute(_T("Handle"),buff);
 	}
 
 	log(&element);
@@ -1374,24 +1400,24 @@ NTSTATUS WINAPI MyNtTerminateProcess(HANDLE ProcessHandle, NTSTATUS ExitStatus)
 	NTSTATUS res = realNtTerminateProcess(ProcessHandle,ExitStatus);
 
 	// Use a node object to create the XML string: this will contain all information about the SysCall
-	pugi::xml_document doc;pugi::xml_node element = doc.append_child(L"NtTerminateProcess");
+	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtTerminateProcess"));
 
 	// >>>>>>>>>>>>>>> Result <<<<<< <<<<<<<<<
-	wstring w = wstring();
+	string w = string();
 	NtStatusToString(res, &w);
-	element.addAttribute(L"Result", w.c_str());
+	element.addAttribute(_T("Result"), w.c_str());
 
 	// >>>>>>>>>>>>>>> Process Handle <<<<<<<<<<<<<<<
 
 	// >>>>>>>>>>>>>>> ExitStatus <<<<<<<<<<<<<<<
-	element.addAttribute(L"ExitStatus", to_wstring(ExitStatus).c_str());
+	element.addAttribute(_T("ExitStatus"), to_string(ExitStatus).c_str());
 
 
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, L"%p", ProcessHandle);
-		element.addAttribute(L"Handle",buff);
+		wsprintf(buff, _T("%p"), ProcessHandle);
+		element.addAttribute(_T("Handle"),buff);
 	}
 
 	log(&element);
@@ -1404,19 +1430,19 @@ NTSTATUS WINAPI MyNtTerminateProcess(HANDLE ProcessHandle, NTSTATUS ExitStatus)
 	NTSTATUS res = realNtClose(Handle);
 	
 	// Use a node object to create the XML string: this will contain all information about the SysCall
-	pugi::xml_document doc;pugi::xml_node element = doc.append_child(L"NtClose"); 
+	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtClose")); 
 
 	// >>>>>>>>>>>>>>> Result <<<<<< <<<<<<<<<
-	wstring w = wstring();
+	string w = string();
 	NtStatusToString(res, &w);
-	element.addAttribute(L"Result", w);
+	element.addAttribute(_T("Result"), w);
 	
 
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, L"%p", Handle);
-		element.addAttribute(L"Handle", wstring(buff));
+		wsprintf(buff, _T("%p"), Handle);
+		element.addAttribute(_T("Handle"), string(buff));
 	}
 
 	log(&element);
@@ -1430,14 +1456,19 @@ BOOL WINAPI MyCreateProcessA(LPCTSTR lpApplicationName, LPTSTR lpCommandLine, LP
 
 	// Use directly the Detours API
 	BOOL res = DetourCreateProcessWithDll(lpApplicationName, lpCommandLine, lpProcessAttributes, lpThreadAttributes, bInheritHandles, dwCreationFlags, lpEnvironment, lpCurrentDirectory, lpStartupInfo, lpProcessInformation,DllPath,realCreateProcessA);
-
+	if (!res) 
+		OutputDebugString(_T("There was a problem when injecting the DLL to the new process via MyCreateProcessA()."));
+	else{
+		notifyNewPid(lpProcessInformation->dwProcessId);
+		OutputDebugString(_T("New process created and dll injected via MyCreateProcessA()."));
+	}
 	// Use a node object to create the XML string: this will contain all information about the SysCall
-	pugi::xml_document doc;pugi::xml_node element = doc.append_child(L"CreateProcess");
+	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("CreateProcess"));
 
 	// >>>>>>>>>>>>>>> Result <<<<<< <<<<<<<<<
-	wstring w = wstring();
+	string w = string();
 	NtStatusToString(res, &w);
-	element.addAttribute(L"Result", w.c_str());
+	element.addAttribute(_T("Result"), w.c_str());
 
 	
 	log(&element);
@@ -1446,60 +1477,80 @@ BOOL WINAPI MyCreateProcessA(LPCTSTR lpApplicationName, LPTSTR lpCommandLine, LP
 }
 BOOL WINAPI MyCreateProcessW(LPCWSTR lpApplicationName, LPWSTR lpCommandLine, LPSECURITY_ATTRIBUTES lpProcessAttributes, LPSECURITY_ATTRIBUTES lpThreadAttributes, BOOL bInheritHandles, DWORD dwCreationFlags, LPVOID lpEnvironment, LPCWSTR lpCurrentDirectory, LPSTARTUPINFO lpStartupInfo, LPPROCESS_INFORMATION lpProcessInformation)
 {
-	char   DllPath[MAX_PATH] = { 0 };
+	CHAR   DllPath[MAX_PATH] = { 0 };
 	GetModuleFileNameA((HINSTANCE)&__ImageBase, DllPath, _countof(DllPath));
 
 	// Use directly the Detours API
-	BOOL res = DetourCreateProcessWithDllW(lpApplicationName, lpCommandLine, lpProcessAttributes, lpThreadAttributes, bInheritHandles, dwCreationFlags, lpEnvironment, lpCurrentDirectory, lpStartupInfo, lpProcessInformation, DllPath, realCreateProcessW);
+	BOOL res = DetourCreateProcessWithDll(lpApplicationName, lpCommandLine, lpProcessAttributes, lpThreadAttributes, bInheritHandles, dwCreationFlags, lpEnvironment, lpCurrentDirectory, lpStartupInfo, lpProcessInformation, DllPath, realCreateProcessW);
+	if (!res)
+		OutputDebugString(_T("There was a problem when injecting the DLL to the new process via MyCreateProcessW()."));
+	else {
+		notifyNewPid(lpProcessInformation->dwProcessId);
+		OutputDebugString(_T("New process created and dll injected via MyCreateProcessW()."));
+	}
 
 	// Use a node object to create the XML string: this will contain all information about the SysCall
-	pugi::xml_document doc;pugi::xml_node element = doc.append_child(L"CreateProcess");
+	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("CreateProcess"));
 
 	// >>>>>>>>>>>>>>> Result <<<<<< <<<<<<<<<
-	wstring w = wstring();
+	string w = string();
 	NtStatusToString(res, &w);
-	element.addAttribute(L"Result", w.c_str());
+	element.addAttribute(_T("Result"), w.c_str());
 
 
 	log(&element);
 
 	return res;
 }
+
+VOID WINAPI MyExitProcess(UINT uExitCode) {
+	
+	pugi::xml_document doc; pugi::xml_node element = doc.append_child(_T("ExitProcess"));
+	// >>>>>>>>>>>>>>> Result <<<<<< <<<<<<<<<
+	string w = string(to_string(uExitCode));
+	element.addAttribute(_T("Code"), w.c_str());
+
+	log(&element);
+
+	realExitProcess(uExitCode);
+
+
+}
 /*
 // Winsock
 int WINAPI MySend(SOCKET s, const char *buf, int len, int flags)
 {
-	//OutputDebugString(L"SEEEEEND!");
+	//OutputDebugString(_T("SEEEEEND!"));
 	return realSend(s, buf, len, flags);
 }
 
 int WINAPI MyWSAConnect(SOCKET s, const struct sockaddr* name, int namelen, LPWSABUF lpCallerData, LPWSABUF lpCalleeData, LPQOS lpSQOS, LPQOS lpGQOS)
 {
-	OutputDebugStringW(L"WSAConnect!!!!!");
+	OutputDebugString(_T("WSAConnect!!!!!"));
 	return realWSAConnect(s, name, namelen, lpCallerData, lpCalleeData, lpSQOS, lpGQOS);
 }
 
 int WINAPI MyConnect(SOCKET s, const struct sockaddr* name, int namelen)
 {
-	OutputDebugStringW(L"Connect!!!!!");
+	OutputDebugString(_T("Connect!!!!!"));
 	return realConnect(s, name, namelen);
 }
 
 BOOL WINAPI MyWSAConnectByName(SOCKET s, LPTSTR nodename, LPTSTR servicename, LPDWORD LocalAddressLength, LPSOCKADDR LocalAddress, LPDWORD RemoteAddressLength, LPSOCKADDR RemoteAddress, const struct timeval *timeout, LPWSAOVERLAPPED Reserved)
 {
-	OutputDebugStringW(L"MyWSAConnectByName!!!!!");
+	OutputDebugString(_T("MyWSAConnectByName!!!!!"));
 	return realWSAConnectByName(s, nodename,servicename, LocalAddressLength,LocalAddress, RemoteAddressLength, RemoteAddress, timeout, Reserved);
 }
 
 int WINAPI MyWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
-	OutputDebugStringW(L"WSAsend!!!!");
+	OutputDebugString(_T("WSAsend!!!!"));
 	return realWSASend(s, lpBuffers,dwBufferCount, lpNumberOfBytesSent, dwFlags, lpOverlapped, lpCompletionRoutine);
 }
 
 int WINAPI MyWSARecv(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesRecvd, LPDWORD lpFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
-	OutputDebugStringW(L"WSARecv!!!!");
+	OutputDebugString(_T("WSARecv!!!!"));
 	return realWSARecv(s,lpBuffers,dwBufferCount,lpNumberOfBytesRecvd,lpFlags,lpOverlapped,lpCompletionRoutine);
 }
 */
@@ -1513,16 +1564,16 @@ void log(pugi::xml_node *element)
 	DWORD res = 0;
 	COPYDATASTRUCT ds;
 
-	element->append_attribute(L"ThreadId") = to_string(GetCurrentThreadId()).c_str();
-	element->append_attribute(L"PId") = to_string(GetCurrentProcessId()).c_str();
+	element->append_attribute(_T("ThreadId")) = to_string(GetCurrentThreadId()).c_str();
+	element->append_attribute(_T("PId")) = to_string(GetCurrentProcessId()).c_str();
 
 	/*
 	std::wstringstream ss;
-	element->print(ss, L"", pugi::format_no_declaration|pugi::format_raw);
+	element->print(ss, _T(""), pugi::format_no_declaration|pugi::format_raw);
 	
 	
-	// Create a std::string and copy your document data in to the string    
-	std::wstring str = ss.str();
+	// Create a string and copy your document data in to the string    
+	string str = ss.str();
 
 	ds.dwData = 0;
 	ds.cbData = str.size()*sizeof(wchar_t);
@@ -1532,52 +1583,66 @@ void log(pugi::xml_node *element)
 	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);
 	*/
 
-	std::stringstream ss;
-	element->print(ss, L"", pugi::format_no_declaration | pugi::format_raw);
+	// We use a wchart_t type for buffer
 	
+	std::wostringstream ss;
+	element->print(ss, _T(""), pugi::format_no_declaration | pugi::format_raw,pugi::xml_encoding::encoding_utf16_le);
+	
+	std::wstring s = ss.str();
+	const wchar_t* str = s.c_str();
 
-	// Create a std::string and copy your document data in to the string    
-	std::string str = ss.str();
+	ds.dwData = COPYDATA_LOG;
+	ds.cbData = s.length()*sizeof(wchar_t); 
+	ds.lpData = (PVOID)str;
 
-	ds.dwData = 0;
-	ds.cbData = str.size();
-	ds.lpData = (PVOID)str.c_str();
+	// Send message...
+	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);
+	
+}
+
+void notifyNewPid(DWORD pid)
+{
+	DWORD res = 0;
+	COPYDATASTRUCT ds;
+
+	ds.dwData = COPYDATA_PROC_SPAWNED;
+	ds.cbData = sizeof(DWORD);
+	ds.lpData = (PVOID)&pid;
 
 	// Send message...
 	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);
 
 }
 
-
 /* 
 	>>>>>>>>>>>>>>> Parsing functions <<<<<<<<<<<<<<< 
 */
-void FileAttributesToString(ULONG FileAttributes, wstring* s)
+void FileAttributesToString(ULONG FileAttributes, string* s)
 {
 	if ((FileAttributes & FILE_ATTRIBUTE_ARCHIVE) == FILE_ATTRIBUTE_ARCHIVE)
-		s->append(L"|FILE_ATTRIBUTE_ARCHIVE");
+		s->append(_T("|FILE_ATTRIBUTE_ARCHIVE"));
 	if ((FileAttributes & FILE_ATTRIBUTE_ENCRYPTED) == FILE_ATTRIBUTE_ENCRYPTED)
-		s->append(L"|FILE_ATTRIBUTE_ENCRYPTED");
+		s->append(_T("|FILE_ATTRIBUTE_ENCRYPTED"));
 	if ((FileAttributes & FILE_ATTRIBUTE_HIDDEN) == FILE_ATTRIBUTE_HIDDEN)
-		s->append(L"|FILE_ATTRIBUTE_HIDDEN");
+		s->append(_T("|FILE_ATTRIBUTE_HIDDEN"));
 	if ((FileAttributes & FILE_ATTRIBUTE_NORMAL) == FILE_ATTRIBUTE_NORMAL)
-		s->append(L"|FILE_ATTRIBUTE_NORMAL");
+		s->append(_T("|FILE_ATTRIBUTE_NORMAL"));
 	if ((FileAttributes & FILE_ATTRIBUTE_OFFLINE) == FILE_ATTRIBUTE_OFFLINE)
-		s->append(L"|FILE_ATTRIBUTE_OFFLINE");
+		s->append(_T("|FILE_ATTRIBUTE_OFFLINE"));
 	if ((FileAttributes & FILE_ATTRIBUTE_READONLY) == FILE_ATTRIBUTE_READONLY)
-		s->append(L"|FILE_ATTRIBUTE_READONLY");
+		s->append(_T("|FILE_ATTRIBUTE_READONLY"));
 	if ((FileAttributes & FILE_ATTRIBUTE_SYSTEM) == FILE_ATTRIBUTE_SYSTEM)
-		s->append(L"|FILE_ATTRIBUTE_SYSTEM");
+		s->append(_T("|FILE_ATTRIBUTE_SYSTEM"));
 	if ((FileAttributes & FILE_ATTRIBUTE_TEMPORARY) == FILE_ATTRIBUTE_TEMPORARY)
-		s->append(L"|FILE_ATTRIBUTE_TEMPORARY");
+		s->append(_T("|FILE_ATTRIBUTE_TEMPORARY"));
 
 	if (s->length() > 0)
 		(*s) = s->substr(1, s->length() - 1);
 	else
-		(*s) = L"NA";
+		(*s) = _T("NA");
 }
 
-void FileAccessMaskToString(ACCESS_MASK DesiredAccess, wstring* s)
+void FileAccessMaskToString(ACCESS_MASK DesiredAccess, string* s)
 {
 	bool mustCut = false;
 	StandardAccessMaskToString(DesiredAccess, s);
@@ -1586,25 +1651,25 @@ void FileAccessMaskToString(ACCESS_MASK DesiredAccess, wstring* s)
 		mustCut = true;
 
 	if ((DesiredAccess & FILE_READ_DATA) == FILE_READ_DATA)
-		s->append(L"|FILE_READ_DATA");
+		s->append(_T("|FILE_READ_DATA"));
 	if ((DesiredAccess & FILE_READ_ATTRIBUTES) == FILE_READ_ATTRIBUTES)
-		s->append(L"|FILE_READ_ATTRIBUTES");
+		s->append(_T("|FILE_READ_ATTRIBUTES"));
 	if ((DesiredAccess & FILE_READ_EA) == FILE_READ_EA)
-		s->append(L"|FILE_READ_EA");
+		s->append(_T("|FILE_READ_EA"));
 	if ((DesiredAccess & FILE_WRITE_DATA) == FILE_WRITE_DATA)
-		s->append(L"|FILE_WRITE_DATA");
+		s->append(_T("|FILE_WRITE_DATA"));
 	if ((DesiredAccess & FILE_WRITE_ATTRIBUTES) == FILE_WRITE_ATTRIBUTES)
-		s->append(L"|FILE_WRITE_ATTRIBUTES");
+		s->append(_T("|FILE_WRITE_ATTRIBUTES"));
 	if ((DesiredAccess & FILE_WRITE_EA) == FILE_WRITE_EA)
-		s->append(L"|FILE_WRITE_EA");
+		s->append(_T("|FILE_WRITE_EA"));
 	if ((DesiredAccess & FILE_APPEND_DATA) == FILE_APPEND_DATA)
-		s->append(L"|FILE_APPEND_DATA");
+		s->append(_T("|FILE_APPEND_DATA"));
 	if ((DesiredAccess & FILE_EXECUTE) == FILE_EXECUTE)
-		s->append(L"|FILE_EXECUTE");
+		s->append(_T("|FILE_EXECUTE"));
 	if ((DesiredAccess & FILE_LIST_DIRECTORY) == FILE_LIST_DIRECTORY)
-		s->append(L"|FILE_LIST_DIRECTORY");
+		s->append(_T("|FILE_LIST_DIRECTORY"));
 	if ((DesiredAccess & FILE_TRAVERSE) == FILE_TRAVERSE)
-		s->append(L"|FILE_TRAVERSE");
+		s->append(_T("|FILE_TRAVERSE"));
 
 	if (s->length() > 0 && mustCut)
 	{
@@ -1612,7 +1677,7 @@ void FileAccessMaskToString(ACCESS_MASK DesiredAccess, wstring* s)
 	}
 }
 
-void DirectoryAccessMaskToString(ACCESS_MASK DesiredAccess, wstring* s)
+void DirectoryAccessMaskToString(ACCESS_MASK DesiredAccess, string* s)
 {
 	bool mustCut = false;
 	StandardAccessMaskToString(DesiredAccess, s);
@@ -1621,21 +1686,21 @@ void DirectoryAccessMaskToString(ACCESS_MASK DesiredAccess, wstring* s)
 		mustCut = true;
 
 	if ((DesiredAccess & 0x0001) == 0x0001)
-		s->append(L"|DIRECTORY_QUERY");
+		s->append(_T("|DIRECTORY_QUERY"));
 	if ((DesiredAccess & FILE_READ_DATA) == FILE_READ_DATA)
-		s->append(L"|DIRECTORY_TRAVERSE");
+		s->append(_T("|DIRECTORY_TRAVERSE"));
 
 	if ((DesiredAccess & 0x0002) == 0x0002)
-		s->append(L"|FILE_READ_ATTRIBUTES");
+		s->append(_T("|FILE_READ_ATTRIBUTES"));
 
 	if ((DesiredAccess & 0x0004) == 0x0004)
-		s->append(L"|DIRECTORY_CREATE_OBJECT");
+		s->append(_T("|DIRECTORY_CREATE_OBJECT"));
 
 	if ((DesiredAccess & 0x0008) == 0x0008)
-		s->append(L"|DIRECTORY_CREATE_SUBDIRECTORY");
+		s->append(_T("|DIRECTORY_CREATE_SUBDIRECTORY"));
 
 	if ((DesiredAccess & (STANDARD_RIGHTS_REQUIRED | 0xF)) == (STANDARD_RIGHTS_REQUIRED | 0xF))
-		s->append(L"|DIRECTORY_ALL_ACCESS");
+		s->append(_T("|DIRECTORY_ALL_ACCESS"));
 
 	if (s->length() > 0 && mustCut)
 	{
@@ -1643,7 +1708,7 @@ void DirectoryAccessMaskToString(ACCESS_MASK DesiredAccess, wstring* s)
 	}
 }
 
-void KeyAccessMaskToString(ACCESS_MASK DesiredAccess, wstring* s)
+void KeyAccessMaskToString(ACCESS_MASK DesiredAccess, string* s)
 {
 	bool mustCut = false;
 	StandardAccessMaskToString(DesiredAccess, s);
@@ -1652,17 +1717,17 @@ void KeyAccessMaskToString(ACCESS_MASK DesiredAccess, wstring* s)
 		mustCut = true;
 
 	if ((DesiredAccess & KEY_QUERY_VALUE) == KEY_QUERY_VALUE)
-		s->append(L"|KEY_QUERY_VALUE");
+		s->append(_T("|KEY_QUERY_VALUE"));
 	if ((DesiredAccess & KEY_ENUMERATE_SUB_KEYS) == KEY_ENUMERATE_SUB_KEYS)
-		s->append(L"|KEY_ENUMERATE_SUB_KEYS");
+		s->append(_T("|KEY_ENUMERATE_SUB_KEYS"));
 	if ((DesiredAccess & KEY_NOTIFY) == KEY_NOTIFY)
-		s->append(L"|KEY_NOTIFY");
+		s->append(_T("|KEY_NOTIFY"));
 	if ((DesiredAccess & KEY_SET_VALUE) == KEY_SET_VALUE)
-		s->append(L"|KEY_SET_VALUE");
+		s->append(_T("|KEY_SET_VALUE"));
 	if ((DesiredAccess & KEY_CREATE_SUB_KEY) == KEY_CREATE_SUB_KEY)
-		s->append(L"|KEY_CREATE_SUB_KEY");
+		s->append(_T("|KEY_CREATE_SUB_KEY"));
 	if ((DesiredAccess & KEY_CREATE_LINK) == KEY_CREATE_LINK)
-		s->append(L"|KEY_CREATE_LINK");
+		s->append(_T("|KEY_CREATE_LINK"));
 
 	if (s->length() > 0 && mustCut)
 	{
@@ -1671,153 +1736,153 @@ void KeyAccessMaskToString(ACCESS_MASK DesiredAccess, wstring* s)
 
 }
 
-void StandardAccessMaskToString(ACCESS_MASK DesiredAccess, wstring* s)
+void StandardAccessMaskToString(ACCESS_MASK DesiredAccess, string* s)
 {
 	s->clear();
 
 	if ((DesiredAccess & DELETE) == DELETE)
-		s->append(L"|DELETE");
+		s->append(_T("|DELETE"));
 
 	if ((DesiredAccess & READ_CONTROL) == READ_CONTROL)
-		s->append(L"|READ_CONTROL");
+		s->append(_T("|READ_CONTROL"));
 
 	if ((DesiredAccess & SYNCHRONIZE) == SYNCHRONIZE)
-		s->append(L"|SYNCHRONIZE");
+		s->append(_T("|SYNCHRONIZE"));
 
 	if ((DesiredAccess & WRITE_DAC) == WRITE_DAC)
-		s->append(L"|WRITE_DAC");
+		s->append(_T("|WRITE_DAC"));
 
 	if ((DesiredAccess & WRITE_OWNER) == WRITE_OWNER)
-		s->append(L"|WRITE_OWNER");
+		s->append(_T("|WRITE_OWNER"));
 
 	if ((DesiredAccess & GENERIC_READ) == GENERIC_READ)
-		s->append(L"|GENERIC_READ");
+		s->append(_T("|GENERIC_READ"));
 
 	if ((DesiredAccess & GENERIC_WRITE) == GENERIC_WRITE)
-		s->append(L"|GENERIC_WRITE");
+		s->append(_T("|GENERIC_WRITE"));
 
 	if ((DesiredAccess & GENERIC_EXECUTE) == GENERIC_EXECUTE)
-		s->append(L"|GENERIC_EXECUTE");
+		s->append(_T("|GENERIC_EXECUTE"));
 
 	if ((DesiredAccess & GENERIC_ALL) == GENERIC_ALL)
-		s->append(L"|GENERIC_ALL");
+		s->append(_T("|GENERIC_ALL"));
 
 	if (s->length() > 0)
 		(*s) = s->substr(1, s->length() - 1);
 }
 
-void IoStatusToString(IO_STATUS_BLOCK* IoStatusBlock, wstring* s)
+void IoStatusToString(IO_STATUS_BLOCK* IoStatusBlock, string* s)
 {
 	s->clear();
 	switch (IoStatusBlock->Status)
 	{
 	case FILE_CREATED:
-		(*s) = L"FILE_CREATED";
+		(*s) = _T("FILE_CREATED");
 		break;
 
 	case FILE_OPENED:
-		(*s) = L"FILE_OPENED";
+		(*s) = _T("FILE_OPENED");
 		break;
 
 	case FILE_OVERWRITTEN:
-		(*s) = L"FILE_OVERWRITTEN";
+		(*s) = _T("FILE_OVERWRITTEN");
 		break;
 	case FILE_SUPERSEDED:
-		(*s) = L"FILE_SUPERSEDED";
+		(*s) = _T("FILE_SUPERSEDED");
 		break;
 
 	case FILE_EXISTS:
-		(*s) = L"FILE_EXISTS";
+		(*s) = _T("FILE_EXISTS");
 		break;
 
 	case FILE_DOES_NOT_EXIST:
-		(*s) = L"FILE_DOES_NOT_EXIST";
+		(*s) = _T("FILE_DOES_NOT_EXIST");
 		break;
 
 	default:
-		(*s) = L"NA"; // Should never happen...
+		(*s) = _T("NA"); // Should never happen...
 	}
 }
 
-void ShareAccessToString(ULONG ShareAccess, wstring* s)
+void ShareAccessToString(ULONG ShareAccess, string* s)
 {
 	s->clear();
 	if ((ShareAccess & FILE_SHARE_READ) == FILE_SHARE_READ)
-		s->append(L"|FILE_SHARE_READ");
+		s->append(_T("|FILE_SHARE_READ"));
 	if ((ShareAccess & FILE_SHARE_WRITE) == FILE_SHARE_WRITE)
-		s->append(L"|FILE_SHARE_WRITE");
+		s->append(_T("|FILE_SHARE_WRITE"));
 	if ((ShareAccess & FILE_SHARE_DELETE) == FILE_SHARE_DELETE)
-		s->append(L"|FILE_SHARE_DELETE");
+		s->append(_T("|FILE_SHARE_DELETE"));
 	if (s->length() > 0)
 		(*s) = s->substr(1, s->length() - 1);
 	else
-		(*s) = L"NA";
+		(*s) = _T("NA");
 }
 
-void FileCreateOptionsToString(ULONG OpenCreateOption, wstring* s)
+void FileCreateOptionsToString(ULONG OpenCreateOption, string* s)
 {
 	s->clear();
 	if ((OpenCreateOption & FILE_DIRECTORY_FILE) == FILE_DIRECTORY_FILE)
-		s->append(L"|FILE_DIRECTORY_FILE");
+		s->append(_T("|FILE_DIRECTORY_FILE"));
 	if ((OpenCreateOption & FILE_NON_DIRECTORY_FILE) == FILE_NON_DIRECTORY_FILE)
-		s->append(L"|FILE_NON_DIRECTORY_FILE");
+		s->append(_T("|FILE_NON_DIRECTORY_FILE"));
 	if ((OpenCreateOption & FILE_WRITE_THROUGH) == FILE_WRITE_THROUGH)
-		s->append(L"|FILE_WRITE_THROUGH");
+		s->append(_T("|FILE_WRITE_THROUGH"));
 	if ((OpenCreateOption & FILE_SEQUENTIAL_ONLY) == FILE_SEQUENTIAL_ONLY)
-		s->append(L"|FILE_SEQUENTIAL_ONLY");
+		s->append(_T("|FILE_SEQUENTIAL_ONLY"));
 	if ((OpenCreateOption & FILE_RANDOM_ACCESS) == FILE_RANDOM_ACCESS)
-		s->append(L"|FILE_RANDOM_ACCESS");
+		s->append(_T("|FILE_RANDOM_ACCESS"));
 	if ((OpenCreateOption & FILE_NO_INTERMEDIATE_BUFFERING) == FILE_NO_INTERMEDIATE_BUFFERING)
-		s->append(L"|FILE_NO_INTERMEDIATE_BUFFERING");
+		s->append(_T("|FILE_NO_INTERMEDIATE_BUFFERING"));
 	if ((OpenCreateOption & FILE_SYNCHRONOUS_IO_ALERT) == FILE_SYNCHRONOUS_IO_ALERT)
-		s->append(L"|FILE_SYNCHRONOUS_IO_ALERT");
+		s->append(_T("|FILE_SYNCHRONOUS_IO_ALERT"));
 	if ((OpenCreateOption & FILE_SYNCHRONOUS_IO_NONALERT) == FILE_SYNCHRONOUS_IO_NONALERT)
-		s->append(L"|FILE_SYNCHRONOUS_IO_NONALERT");
+		s->append(_T("|FILE_SYNCHRONOUS_IO_NONALERT"));
 	if ((OpenCreateOption & FILE_CREATE_TREE_CONNECTION) == FILE_CREATE_TREE_CONNECTION)
-		s->append(L"|FILE_CREATE_TREE_CONNECTION");
+		s->append(_T("|FILE_CREATE_TREE_CONNECTION"));
 	if ((OpenCreateOption & FILE_NO_EA_KNOWLEDGE) == FILE_NO_EA_KNOWLEDGE)
-		s->append(L"|FILE_NO_EA_KNOWLEDGE");
+		s->append(_T("|FILE_NO_EA_KNOWLEDGE"));
 	if ((OpenCreateOption & FILE_OPEN_REPARSE_POINT) == FILE_OPEN_REPARSE_POINT)
-		s->append(L"|FILE_OPEN_REPARSE_POINT");
+		s->append(_T("|FILE_OPEN_REPARSE_POINT"));
 	if ((OpenCreateOption & FILE_DELETE_ON_CLOSE) == FILE_DELETE_ON_CLOSE)
-		s->append(L"|FILE_DELETE_ON_CLOSE");
+		s->append(_T("|FILE_DELETE_ON_CLOSE"));
 	if ((OpenCreateOption & FILE_OPEN_BY_FILE_ID) == FILE_OPEN_BY_FILE_ID)
-		s->append(L"|FILE_OPEN_BY_FILE_ID");
+		s->append(_T("|FILE_OPEN_BY_FILE_ID"));
 	if ((OpenCreateOption & FILE_OPEN_FOR_BACKUP_INTENT) == FILE_OPEN_FOR_BACKUP_INTENT)
-		s->append(L"|FILE_OPEN_FOR_BACKUP_INTENT");
+		s->append(_T("|FILE_OPEN_FOR_BACKUP_INTENT"));
 	if ((OpenCreateOption & FILE_RESERVE_OPFILTER) == FILE_RESERVE_OPFILTER)
-		s->append(L"|FILE_RESERVE_OPFILTER");
+		s->append(_T("|FILE_RESERVE_OPFILTER"));
 	if ((OpenCreateOption & FILE_OPEN_REQUIRING_OPLOCK) == FILE_OPEN_REQUIRING_OPLOCK)
-		s->append(L"|FILE_OPEN_REQUIRING_OPLOCK");
+		s->append(_T("|FILE_OPEN_REQUIRING_OPLOCK"));
 	if ((OpenCreateOption & FILE_COMPLETE_IF_OPLOCKED) == FILE_COMPLETE_IF_OPLOCKED)
-		s->append(L"|FILE_COMPLETE_IF_OPLOCKED");
+		s->append(_T("|FILE_COMPLETE_IF_OPLOCKED"));
 	if (s->length() > 0)
 		(*s) = s->substr(1, s->length() - 1);
 	else
-		(*s) = L"NA";
+		(*s) = _T("NA");
 }
 
-void KeyCreateOptionsToString(ULONG CreateOption, wstring* s){
+void KeyCreateOptionsToString(ULONG CreateOption, string* s){
 	s->clear();
 	if ((CreateOption & REG_OPTION_VOLATILE) == REG_OPTION_VOLATILE)
-		s->append(L"|REG_OPTION_VOLATILE");
+		s->append(_T("|REG_OPTION_VOLATILE"));
 	if ((CreateOption & REG_OPTION_NON_VOLATILE) == REG_OPTION_NON_VOLATILE)
-		s->append(L"|REG_OPTION_NON_VOLATILE");
+		s->append(_T("|REG_OPTION_NON_VOLATILE"));
 	if ((CreateOption & REG_OPTION_CREATE_LINK) == REG_OPTION_CREATE_LINK)
-		s->append(L"|REG_OPTION_CREATE_LINK");
+		s->append(_T("|REG_OPTION_CREATE_LINK"));
 	if ((CreateOption & REG_OPTION_BACKUP_RESTORE) == REG_OPTION_BACKUP_RESTORE)
-		s->append(L"|REG_OPTION_BACKUP_RESTORE");
+		s->append(_T("|REG_OPTION_BACKUP_RESTORE"));
 
 	if (s->length() > 0)
 		(*s) = s->substr(1, s->length() - 1);
 	else
-		(*s) = L"NA";
+		(*s) = _T("NA");
 }
 
-void NtStatusToString(NTSTATUS status, wstring* s)
+void NtStatusToString(NTSTATUS status, string* s)
 {
 	s->clear();
-	*s = to_wstring((unsigned long)status);	
+	*s = to_string((unsigned long)status);	
 }
 
 const wchar_t* CreateDispositionToString(ULONG CreateDisposition)
@@ -1825,35 +1890,35 @@ const wchar_t* CreateDispositionToString(ULONG CreateDisposition)
 	switch (CreateDisposition)
 	{
 	case FILE_SUPERSEDE:
-		return L"FILE_SUPERSEDE";
+		return _T("FILE_SUPERSEDE");
 		break;
 
 	case FILE_CREATE:
-		return L"FILE_CREATE";
+		return _T("FILE_CREATE");
 		break;
 
 	case FILE_OPEN:
-		return L"FILE_OPEN";
+		return _T("FILE_OPEN");
 		break;
 
 	case FILE_OPEN_IF:
-		return L"FILE_OPEN_IF";
+		return _T("FILE_OPEN_IF");
 		break;
 
 	case FILE_OVERWRITE:
-		return L"FILE_OVERWRITE";
+		return _T("FILE_OVERWRITE");
 		break;
 
 	case FILE_OVERWRITE_IF:
-		return L"FILE_OVERWRITE_IF";
+		return _T("FILE_OVERWRITE_IF");
 		break;
 
 	default:
-		return L"NA"; // Should never happen...
+		return _T("NA"); // Should never happen...
 	}
 }
 
-void GetHandleFileName(HANDLE hHandle, wstring* fname)
+void GetHandleFileName(HANDLE hHandle, string* fname)
 {
 	FILE_FULL_DIR_INFO info;
 	GetFileInformationByHandleEx(hHandle, FileFullDirectoryInfo,&info,sizeof(FILE_FULL_DIR_INFO));
@@ -1867,30 +1932,30 @@ const wchar_t* KeyInformationClassToString(KEY_INFORMATION_CLASS keyinfo)
 	switch (keyinfo)
 	{
 	case KeyBasicInformation:
-		return L"KeyBasicInformation";
+		return _T("KeyBasicInformation");
 	case KeyNodeInformation:
-		return L"KeyNodeInformation";
+		return _T("KeyNodeInformation");
 	case KeyFullInformation:
-		return L"KeyFullInformation";
+		return _T("KeyFullInformation");
 	case KeyNameInformation:
-		return L"KeyNameInformation";
+		return _T("KeyNameInformation");
 	case KeyCachedInformation:
-		return L"KeyCachedInformation";
+		return _T("KeyCachedInformation");
 	case KeyFlagsInformation:
-		return L"KeyFlagsInformation";
+		return _T("KeyFlagsInformation");
 	case KeyVirtualizationInformation:
-		return L"KeyVirtualizationInformation";
+		return _T("KeyVirtualizationInformation");
 	case KeyHandleTagsInformation:
-		return L"KeyHandleTagsInformation";
+		return _T("KeyHandleTagsInformation");
 	case MaxKeyInfoClass:
-		return L"MaxKeyInfoClass";
+		return _T("MaxKeyInfoClass");
 	default:
-		return L"NA";
+		return _T("NA");
 	}
 
 }
 
-void GetKeyPathFromKKEY(HANDLE key,wstring* s)
+void GetKeyPathFromKKEY(HANDLE key,string* s)
 {
 	if (key != NULL)
 	{
@@ -1907,7 +1972,7 @@ void GetKeyPathFromKKEY(HANDLE key,wstring* s)
 				if (result == STATUS_SUCCESS)
 				{
 					buffer[size / sizeof(wchar_t)] = L'\0';
-					*s = std::wstring(buffer + 2);
+					*s = string(buffer + 2);
 				}
 
 				delete[] buffer;
@@ -1922,23 +1987,23 @@ const wchar_t* KeyValueInformationClassToString(KEY_VALUE_INFORMATION_CLASS valu
 	switch (value_info_class)
 	{
 	case KeyValueBasicInformation:
-		return L"KeyValueBasicInformation";
+		return _T("KeyValueBasicInformation");
 	case KeyValueFullInformation:
-		return L"KeyValueFullInformation";
+		return _T("KeyValueFullInformation");
 	case KeyValuePartialInformation:
-		return L"KeyValuePartialInformation";
+		return _T("KeyValuePartialInformation");
 	case  KeyValueFullInformationAlign64:
-		return L"KeyValueFullInformationAlign64";
+		return _T("KeyValueFullInformationAlign64");
 	case KeyValuePartialInformationAlign64:
-		return L"KeyValuePartialInformationAlign64";
+		return _T("KeyValuePartialInformationAlign64");
 	case MaxKeyValueInfoClass:
-		return L"MaxKeyValueInfoClass";
+		return _T("MaxKeyValueInfoClass");
 	default:
-		return L"N/A";
+		return _T("N/A");
 	}
 }
 
-BOOL GetFileNameFromHandle(HANDLE hFile, wstring* w)
+BOOL GetFileNameFromHandle(HANDLE hFile, string* w)
 {
 	BOOL bSuccess = FALSE;
 	TCHAR pszFilename[MAX_PATH + 1];
@@ -2027,7 +2092,7 @@ BOOL GetFileNameFromHandle(HANDLE hFile, wstring* w)
 
 		CloseHandle(hFileMap);
 	}
-	*w = wstring(pszFilename);
+	*w = string(pszFilename);
 	return(bSuccess);
 }
 /*
@@ -2036,32 +2101,32 @@ const wchar_t* FileInformationClassToString(FILE_INFORMATION_CLASS FileInformati
 	switch (FileInformationClass)
 	{
 	case FileBasicInformation:
-		return L"FileBasicInformation";
+		return _T("FileBasicInformation";
 	case FileDispositionInformation:
-		return L"FileDispositionInformation";
+		return _T("FileDispositionInformation";
 	case FileEndOfFileInformation:
-		return L"FileEndOfFileInformation";
+		return _T("FileEndOfFileInformation";
 	case FileIoPriorityHintInformation:
-		return L"FileIoPriorityHintInformation";
+		return _T("FileIoPriorityHintInformation";
 	case FileLinkInformation:
-		return L"FileLinkInformation";
+		return _T("FileLinkInformation";
 	case FilePositionInformation:
-		return L"FilePositionInformation";
+		return _T("FilePositionInformation";
 	case FileRenameInformation:
-		return L"FileRenameInformation";
+		return _T("FileRenameInformation";
 	case FileShortNameInformation:
-		return L"FileShortNameInformation";
+		return _T("FileShortNameInformation";
 	case FileValidDataLengthInformation:
-		return L"FileValidDataLengthInformation";
+		return _T("FileValidDataLengthInformation";
 	case FileReplaceCompletionInformation:
-		return L"FileReplaceCompletionInformation";
+		return _T("FileReplaceCompletionInformation";
 	default:
-		return L"N/A";
+		return _T("N/A";
 	}
 }
 */
 
-void from_unicode_to_wstring(PUNICODE_STRING u, wstring* w)
+void from_unicode_to_wstring(PUNICODE_STRING u, string* w)
 {
 	int len = wcsnlen_s(u->Buffer, u->Length);
 	w->clear();
@@ -2079,7 +2144,8 @@ void from_unicode_to_wstring(PUNICODE_STRING u, wstring* w)
 
 bool configureWindowName()
 {
-	char buf[SHMEMSIZE];
+	TCHAR buf[SHMEMSIZE];
+	buf[0] = '\0';
 
 	cwHandle = FindWindow(NULL, GUESTCONTROLLER_WINDOW_NAME);
 
@@ -2088,8 +2154,9 @@ bool configureWindowName()
 		return false;
 	}
 
-	OutputDebugStringA("Window name...");
-	OutputDebugStringA(buf);
+	_stprintf_s(buf, _T("Sending events to window name: %s"), GUESTCONTROLLER_WINDOW_NAME);
+
+	OutputDebugString(buf);
 
 	return true;
 }

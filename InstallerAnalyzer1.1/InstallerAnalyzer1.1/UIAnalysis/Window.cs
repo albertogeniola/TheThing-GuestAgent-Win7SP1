@@ -25,11 +25,9 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
             _handle = hWnd;
             _className = GetClassName(_handle);
             _title = GetWindowName(_handle);
-            _pos = new Rectangle();
-            GetWindowRect(_handle.ToInt32(), ref _pos);
-
-            _pos.Width = _pos.Width - _pos.X;
-            _pos.Height = _pos.Height - _pos.Y;
+            RECT pos = new RECT();
+            GetWindowRect(hWnd, ref pos);
+            _pos = new Rectangle(new Point(pos.Left, pos.Top), new Size(pos.Right - pos.Left, pos.Bottom - pos.Top));
         }
 
         public Rectangle WindowLocation
@@ -100,10 +98,11 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
 
         
         [DllImport("user32.dll")]
-        public static extern long GetWindowRect(int hWnd, ref Rectangle lpRect);
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool GetClientRect(IntPtr hWnd, ref RECT lpRect);
 
         [StructLayout(LayoutKind.Sequential)]
-        private struct RECT
+        public struct RECT
         {
             public int Left;        // x position of upper-left corner
             public int Top;         // y position of upper-left corner
@@ -113,12 +112,12 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
 
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+        private static extern bool GetWindowRect(IntPtr hWnd, ref RECT lpRect);
 
         public System.Windows.Rect GetBounds()
         {
-            RECT r;
-            if (GetWindowRect(_handle, out r))
+            RECT r = new RECT();
+            if (GetWindowRect(_handle, ref r))
             {
                 return new System.Windows.Rect(r.Left, r.Top, Math.Abs(r.Right - r.Left), Math.Abs(r.Top - r.Bottom));
             }
@@ -130,8 +129,8 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
         public Bitmap GetWindowsScreenshot()
         {
             // Get bounds of the current window
-            RECT bounds;
-            bool res = GetWindowRect(_handle, out bounds);
+            RECT bounds = new RECT();
+            bool res = GetWindowRect(_handle, ref bounds);
             if (res)
             {
                 int width = Math.Abs(bounds.Right - bounds.Left);

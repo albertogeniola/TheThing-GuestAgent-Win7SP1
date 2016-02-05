@@ -11,17 +11,32 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
 {
     public class UIControlCandidate
     {
-        private Rectangle _position;
+        public UIControlCandidate() {}
 
-        public UIControlCandidate()
-        {
+        public override String ToString() {
+            StringBuilder sb = new StringBuilder();
+            sb.Append("Type: ");
+            if (ControlType != null)
+            {
+                sb.Append(ControlType);
+            }
+            else {
+                sb.Append("Unknown");
+            }
+
+            if (Text!=null) {
+                sb.Append("Text ");
+                sb.Append(Text);
+            }
+
+            return sb.ToString();
         }
 
         public void Interact()
         {
             // For debugging purposes we enlight the control
             // choosen so we can easily spot it.
-            DBGMark();
+            //DBGMark();
 
             // If the element we have is from UIAutomation, simply interact with it.
             object objPattern;

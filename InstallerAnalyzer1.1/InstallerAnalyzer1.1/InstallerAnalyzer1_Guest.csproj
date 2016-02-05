@@ -110,6 +110,7 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ProgramStatus.cs" />
     <Compile Include="ProtocolException.cs" />
     <Compile Include="UIAnalysis\IUIRanker.cs" />
     <Compile Include="UIAnalysis\NativeAndVisualRanker.cs" />

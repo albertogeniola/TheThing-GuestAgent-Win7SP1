@@ -22,39 +22,77 @@ using System.Xml;
 
 namespace InstallerAnalyzer1_Guest
 {
-    public partial class AnalyzerMainWindow : Form
+    public partial class AnalyzerMainWindow : Form, IObserver<uint[]>
     {
-        
+        private readonly static IntPtr MESSAGE_LOG = new IntPtr(0);
+        private readonly static IntPtr MESSAGE_NEW_PROC = new IntPtr(1);
+        private readonly static IntPtr MESSAGE_PROC_DIED = new IntPtr(2);
+        private LogicThread _t;
+
         public AnalyzerMainWindow(IPAddress ip, int port)
         {
             InitializeComponent();
+
             notifyIcon1.Visible = true;
             notifyIcon1.BalloonTipTitle="Program started.";
             notifyIcon1.BalloonTipText = "Connection to "+ip.ToString()+":"+port;
             notifyIcon1.ShowBalloonTip(10000);
-            
-            LogicThread t = new LogicThread(ip, port);
-            t.Start();
+
+            _t = new LogicThread(ip, port);
             this.Width = SystemInformation.PrimaryMonitorSize.Width;
+            this.Shown += AnalyzerMainWindow_Shown;
         }
+
+        void AnalyzerMainWindow_Shown(object sender, EventArgs e)
+        {
+            ProgramStatus.Instance.Subscribe(this);
+            _t.Start();
+        }
+
 
         protected override void WndProc(ref Message m)
         {
+            // Intercept CopyData messages
             if (m.Msg == 0x004A)
             {
                 CopyDataStruct d = (CopyDataStruct)Marshal.PtrToStructure(m.LParam, typeof(CopyDataStruct));
+                // Log data
                 byte[] bb = new byte[d.cbData];
                 for (int i = 0; i < bb.Length; i++)
                     bb[i] = Marshal.ReadByte(d.lpData, i);
-                string s = Encoding.Unicode.GetString(bb);
-                AddRow(s);                
+
+                if (d.dwData == MESSAGE_LOG) {    
+                    string s = Encoding.Unicode.GetString(bb);
+                    AddRow(s);
+                }
+                else if (d.dwData == MESSAGE_NEW_PROC)
+                {
+                    var pid = BitConverter.ToUInt32(bb,0);
+                    // New process spawned
+                    ProgramStatus.Instance.AddPid(pid);
+                } else if (d.dwData==MESSAGE_PROC_DIED) {
+                    //TODO
+                    //var pid = BitConverter.ToUInt32(bb, 0);
+                    // Process died
+                    //ProgramStatus.Instance.RemovePid(pid);
+                    //setMonitoredPids(ProgramStatus.Instance.Pids);
+                }             
             }
             base.WndProc(ref m);
         }
 
 
-        private void AddRow(string row)
+        private void AddRow(string r)
         {
+            string row = null;
+            try
+            {
+                row = r.Normalize();
+            }
+            catch (Exception e) {
+                row = UnicodeEncoding.Unicode.GetString(UnicodeEncoding.Unicode.GetBytes(r));
+            }
+                
             try
             {
                 XmlDocument doc = new XmlDocument();
@@ -62,17 +100,17 @@ namespace InstallerAnalyzer1_Guest
 
                 // TODO: is this really necessary?
                 // Now encode base64 each value
+                /*
                 XmlNode el = doc.DocumentElement;
                 foreach (XmlAttribute attr in el.Attributes)
                 {
                     byte[] b = Encoding.UTF8.GetBytes(attr.Value);
                     attr.Value = Convert.ToBase64String(b);
                 }
-
+                */
                 Program.appendXmlLog(doc.DocumentElement);
                 logbox.Text = row;
-            }
-            catch (XmlException e) {
+            } catch (Exception e) {
                 logbox.Text = "Error parsing." + row;
             }
         }
@@ -109,6 +147,33 @@ namespace InstallerAnalyzer1_Guest
         public RichTextBox getConsoleBox()
         {
             return this.consoleBox;
+        }
+
+        public void OnCompleted()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void OnError(Exception error)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void OnNext(uint[] pids)
+        {
+
+            var action = new Action(() =>
+                {
+                    monitoredPids.Text = "";
+                    foreach (var pid in pids)
+                        monitoredPids.Text += pid + ", ";
+                });
+
+            if (InvokeRequired)
+                Invoke(action);
+            else
+                action();
+            
         }
     }
 }

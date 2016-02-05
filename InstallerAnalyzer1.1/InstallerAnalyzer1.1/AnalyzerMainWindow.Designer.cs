@@ -36,6 +36,8 @@
             this.pictureBox1 = new System.Windows.Forms.PictureBox();
             this.label1 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
+            this.label3 = new System.Windows.Forms.Label();
+            this.monitoredPids = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             this.SuspendLayout();
             // 
@@ -51,7 +53,7 @@
             this.logbox.Location = new System.Drawing.Point(391, 25);
             this.logbox.Name = "logbox";
             this.logbox.ReadOnly = true;
-            this.logbox.Size = new System.Drawing.Size(632, 45);
+            this.logbox.Size = new System.Drawing.Size(632, 31);
             this.logbox.TabIndex = 0;
             this.logbox.Text = "";
             // 
@@ -105,6 +107,22 @@
             this.label2.TabIndex = 5;
             this.label2.Text = "Do not change the title of this Window. IT MUST BE \"WKWatcher\".";
             // 
+            // label3
+            // 
+            this.label3.Location = new System.Drawing.Point(391, 57);
+            this.label3.Name = "label3";
+            this.label3.Size = new System.Drawing.Size(87, 13);
+            this.label3.TabIndex = 0;
+            this.label3.Text = "Monitored PIDs:";
+            // 
+            // monitoredPids
+            // 
+            this.monitoredPids.ForeColor = System.Drawing.Color.Aqua;
+            this.monitoredPids.Location = new System.Drawing.Point(484, 57);
+            this.monitoredPids.Name = "monitoredPids";
+            this.monitoredPids.Size = new System.Drawing.Size(539, 13);
+            this.monitoredPids.TabIndex = 6;
+            // 
             // AnalyzerMainWindow
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -112,6 +130,8 @@
             this.BackColor = System.Drawing.Color.Black;
             this.ClientSize = new System.Drawing.Size(1035, 82);
             this.ControlBox = false;
+            this.Controls.Add(this.monitoredPids);
+            this.Controls.Add(this.label3);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.pictureBox1);
@@ -139,5 +159,7 @@
         private System.Windows.Forms.PictureBox pictureBox1;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label label2;
+        private System.Windows.Forms.Label label3;
+        private System.Windows.Forms.Label monitoredPids;
     }
 }

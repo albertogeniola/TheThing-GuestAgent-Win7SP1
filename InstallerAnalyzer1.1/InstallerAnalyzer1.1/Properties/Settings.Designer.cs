@@ -49,5 +49,29 @@ namespace InstallerAnalyzer1_Guest.Properties {
                 return ((string)(this["ApplicationLogFile"]));
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("c:\\users\\bot\\Desktop\\stable")]
+        public string STABLE_SCREEN_PATH {
+            get {
+                return ((string)(this["STABLE_SCREEN_PATH"]));
+            }
+            set {
+                this["STABLE_SCREEN_PATH"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("c:\\users\\bot\\Desktop\\interaction")]
+        public string INTERACTIONS_SCREEN_PATH {
+            get {
+                return ((string)(this["INTERACTIONS_SCREEN_PATH"]));
+            }
+            set {
+                this["INTERACTIONS_SCREEN_PATH"] = value;
+            }
+        }
     }
 }

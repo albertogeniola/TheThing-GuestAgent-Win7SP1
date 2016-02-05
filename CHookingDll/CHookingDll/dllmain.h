@@ -13,10 +13,24 @@
 #include "pugixml.hpp"
 #include <sstream>
 
+// Windows UNICODE PAIN
+#ifdef UNICODE
+typedef std::wstring string;
+typedef std::wstringstream stringstream;
+
+template <typename T>string to_string(T a) {
+	return std::to_wstring(a);
+}
+#endif
+
+
 //#include <winsock2.h>
 #pragma comment(lib, "detours.lib")	// Nedded for DTOURS
 #pragma comment(lib, "ntdll.lib")	// Needed to hooking NtCreateFile
 
+#define COPYDATA_LOG 0
+#define COPYDATA_PROC_SPAWNED 1
+#define COPYDATA_PROC_DIED 2
 #define GUESTCONTROLLER_WINDOW_NAME _T("WKWatcher")
 
 EXTERN_C IMAGE_DOS_HEADER __ImageBase;
@@ -170,6 +184,12 @@ static pCreateProcessA realCreateProcessA;
 typedef BOOL(WINAPI * pCreateProcessW)(LPCWSTR lpApplicationName, LPWSTR lpCommandLine, LPSECURITY_ATTRIBUTES lpProcessAttributes, LPSECURITY_ATTRIBUTES lpThreadAttributes, BOOL bInheritHandles, DWORD dwCreationFlags, LPVOID lpEnvironment, LPCWSTR lpCurrentDirectory, LPSTARTUPINFO lpStartupInfo, LPPROCESS_INFORMATION lpProcessInformation);
 BOOL WINAPI MyCreateProcessW(LPCWSTR lpApplicationName, LPWSTR lpCommandLine, LPSECURITY_ATTRIBUTES lpProcessAttributes, LPSECURITY_ATTRIBUTES lpThreadAttributes, BOOL bInheritHandles, DWORD dwCreationFlags, LPVOID lpEnvironment, LPCWSTR lpCurrentDirectory, LPSTARTUPINFO lpStartupInfo, LPPROCESS_INFORMATION lpProcessInformation);
 static pCreateProcessW realCreateProcessW;
+
+/* >>>>>>>>>>>>>> ExitProcess <<<<<<<<<<<<<<< */
+typedef VOID(WINAPI * pExitProcess)(UINT uExitCode);
+VOID WINAPI MyExitProcess(UINT uExitCode);
+static pExitProcess realExitProcess;
+
 /*
 // >>>>>>>>>>>>>> WSAConnect <<<<<<<<<<<<<<< 
 typedef int(WINAPI *pWSAConnect)(SOCKET s, const struct sockaddr* name, int namelen, LPWSABUF lpCallerData, LPWSABUF lpCalleeData, LPQOS lpSQOS, LPQOS lpGQOS);
@@ -225,4 +245,5 @@ void from_unicode_to_wstring(PUNICODE_STRING u, std::wstring* w);
 
 /* Messages storage functions */
 void log(pugi::xml_node *element);
+void notifyNewPid(DWORD pid);
 bool configureWindowName();

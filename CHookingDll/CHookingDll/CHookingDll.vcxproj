@@ -243,20 +243,12 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="base64.h" />
-    <ClInclude Include="cdecode.h" />
-    <ClInclude Include="cencode.h" />
-    <ClInclude Include="decode.h" />
     <ClInclude Include="dllmain.h" />
-    <ClInclude Include="encode.h" />
     <ClInclude Include="pugiconfig.hpp" />
     <ClInclude Include="pugixml.hpp" />
     <ClInclude Include="stdafx.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="base64.cc" />
-    <ClCompile Include="cdecode.c" />
-    <ClCompile Include="cencode.c" />
     <ClCompile Include="CHookingDll.cpp" />
     <ClCompile Include="dllmain.cpp">
       <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</CompileAsManaged>

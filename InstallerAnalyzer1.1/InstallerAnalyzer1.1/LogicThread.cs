@@ -20,6 +20,7 @@ using InstallerAnalyzer1_Guest.Protocol;
 using Newtonsoft.Json;
 using InstallerAnalyzer1_Guest.UIAnalysis;
 using InstallerAnalyzer1_Guest.UIAnalysis.RankingPolicy;
+using System.Drawing;
 
 namespace InstallerAnalyzer1_Guest
 {
@@ -29,8 +30,8 @@ namespace InstallerAnalyzer1_Guest
         const int ACQUIRE_WORK_SLEEP_SECS = 10;
         readonly string DEFAULT_REPORT_PATH = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "report.xml");
 
-        private int _getWorkPollingTime = 5000; // Poll every 5 secs
-        
+        //private int _getWorkPollingTime = 5000; // Poll every 5 secs
+
         // Network objects
         private IPAddress _remoteIp;
         private int _remotePort;
@@ -259,24 +260,43 @@ namespace InstallerAnalyzer1_Guest
         }
         #endregion
 
+        private bool AreProcsFinished() {
+            foreach (uint p in ProgramStatus.Instance.GetOrWait()) {
+                try { 
+                    Process proc = Process.GetProcessById((int)p);
+                    if (!proc.HasExited)
+                        return false;
+                }
+                catch (ArgumentException e) { 
+                    // The process is dead. Remove it from the list of monitored ones.
+                    ProgramStatus.Instance.RemovePid(p);
+                }
+            }
+
+            return true;
+        }
         
         private ProcessContainer ExecuteJob(Job j, IUIRanker ranker, IRankingPolicy policy) {
-            
+            int c=0;
+            PrepareScreenFolders();
+
             // Start the process to analyze
             Console.WriteLine("UI Bot: START");
             var proc = StartProcessWithInjector(j);
 
             // It starts the loop of interactions, ended only when the process
             // has exited, correctly (status = 0) or not (status != 0).
-            while (!proc.Process.HasExited)
+            while (!AreProcsFinished())
             {
-                
                 // Wait until the window is considered stable
                 Window waitingWindnow = null;
                 try
                 {
-                    Console.WriteLine("UI Bot: WAIT WINDOW STABLE (PID: " + proc.Process.Id + ")");
-                    waitingWindnow = WaitForInputRequested(proc);
+                    Console.WriteLine("UI Bot: WAIT WINDOW STABLE (PID: " + proc.Process.Id + ") "+"Interaction: "+c);
+                    waitingWindnow = WaitForInputRequested();
+                    Console.WriteLine("UI Bot: Stable hWND "+waitingWindnow.Handle.ToString("X")+", loc: "+waitingWindnow.WindowLocation.ToString());
+                    SaveStableScreen(waitingWindnow, c);
+                    c++;
                 }
                 catch (ProcessExitedException e)
                 {
@@ -285,7 +305,7 @@ namespace InstallerAnalyzer1_Guest
                 // TODO: Timeout dealing?
 
                 // Analyze the window and build the controls rank.
-                Console.WriteLine("UI Bot: Analyze Window (PID: " + proc.Process.Id + ", HWND: "+waitingWindnow.Handle+", TITLE: "+waitingWindnow.Title+")");
+                Console.WriteLine("UI Bot: Analyze Window (PID: " + proc.Process.Id + ", HWND: " + waitingWindnow.Handle + ", TITLE: " + waitingWindnow.Title + ") " + "Interaction: " + c);
                 CandidateSet w = ranker.Rank(policy, waitingWindnow);
                 
                 // Now let the interaction happen. The RankingPolicy decides which UIControl should we use to continue installation
@@ -296,7 +316,11 @@ namespace InstallerAnalyzer1_Guest
                     {
                         // Interact with the best control according to the rank assinged by the Interaction Policy
                         var candidate = w.PopTopCandidate();
-                        Console.WriteLine("UI Bot: Interacting with control "+candidate.ToString());
+                        Console.WriteLine("UI Bot: Interacting with control " + candidate.ToString());
+
+                        // Save a screenshot with interaction information for debugging and reporting
+                        SaveInteractionScreen(waitingWindnow, candidate, c);
+
                         candidate.Interact();
 
                         // Wait for something to happen
@@ -304,6 +328,8 @@ namespace InstallerAnalyzer1_Guest
                         uiHasChanged = ranker.WaitReaction(waitingWindnow, w, REACTION_TIMEOUT);
                         if (!uiHasChanged)
                             Console.WriteLine("UI Bot: UI Reaction didn't happen within the specific TIMEOUT. Trying with another interaction.");
+                        else
+                            Console.WriteLine("UI Bot: Waiting for UI reaction.");
 
                     } while (!uiHasChanged);
 
@@ -330,6 +356,10 @@ namespace InstallerAnalyzer1_Guest
                     Console.WriteLine("UI Bot: Process exited while interacting with UI.");
                     break;
                 }
+                catch (Exception e) { 
+                    // Just for debugging reasons, throw it again
+                    throw e;
+                }
 
 
                 // At this point we reiterate again, until the pocess runs.
@@ -338,6 +368,49 @@ namespace InstallerAnalyzer1_Guest
             // Process has exited at this point. We should check whether correctly or not.
 
             return proc;
+        }
+
+        private void PrepareScreenFolders()
+        {
+            if (!Directory.Exists(Settings.Default.INTERACTIONS_SCREEN_PATH))
+                Directory.CreateDirectory(Settings.Default.INTERACTIONS_SCREEN_PATH);
+            else
+                foreach (FileInfo file in (new DirectoryInfo(Settings.Default.INTERACTIONS_SCREEN_PATH)).GetFiles())
+                {
+                    file.Delete();
+                }
+
+            if (!Directory.Exists(Settings.Default.STABLE_SCREEN_PATH))
+                Directory.CreateDirectory(Settings.Default.STABLE_SCREEN_PATH);
+            else
+                foreach (FileInfo file in (new DirectoryInfo(Settings.Default.STABLE_SCREEN_PATH)).GetFiles())
+                {
+                    file.Delete();
+                }
+        }
+
+        private void SaveStableScreen(Window waitingWindnow, int c)
+        {
+            using (Bitmap b = waitingWindnow.GetWindowsScreenshot())
+            {
+                string fname = Path.Combine(Settings.Default.STABLE_SCREEN_PATH, c + "_" + UIAnalysis.NativeAndVisualRanker.CalculateHash(b) + ".bmp");
+                b.Save(fname);
+            }
+        }
+
+        private void SaveInteractionScreen(Window waitingWindnow, UIControlCandidate candidate, int c)
+        {
+            using (Bitmap b = waitingWindnow.GetWindowsScreenshot())
+            {
+                using (Graphics g = Graphics.FromImage(b))
+                {
+                    using (Pen markerPen = new Pen(Color.Red, 5))
+                        g.DrawRectangle(markerPen, candidate.PositionWindowRelative);
+                }
+
+                string fname = Path.Combine(Settings.Default.INTERACTIONS_SCREEN_PATH, c + ".bmp");
+                b.Save(fname);
+            }
         }
 
         public LogicThread(IPAddress remoteIp, int remotePort)
@@ -482,134 +555,154 @@ namespace InstallerAnalyzer1_Guest
         
         }
 
-        private Window WaitForInputRequested(ProcessContainer pc)
+        private Window WaitForInputRequested()
         {
             // There's no progragmatic way to understand that, so I'll apply a sort of logic strategy
-            /**
-             * According to me, an UI is waiting for the user input if:
-             * 1. There are clickable controls on the focused window
-             * 2. The process is not heavy-working on the background/foreground (monitor its CPU consuption, as well as IO and so on)
-             * 3. The UI is not changing
-             * If all of those conditions are the same for more than 2 seconds (i.e. 4 iterations) I guess the UI
-             * is waiting for the user input.
+            /*
+             * From the User's point of view, his action is requested when the UI is static. If nothing is moving
+             * then the user would think his action is requested. For this reason, I apply this simple strategy:
+             * 1. Detect the most-probable window handle of all the monitored PIDs.
+             * 2. Scan it by taking a screenshot and calculating an hash which will be memorized
+             * 3. Reiterate again until I find the same hash for at least 4 times.
+             * 4. Each time I reiterate, wait for a second, so the process has time to update itself.
+             * 
+             * TODO
+             * Please note that this mechanism could be heavily improved by hooking Win32 Drawing APIs to trigger
+             * the analysis when needed and not by waiting an arbitrary amount of time. This is something I can
+             * improve in future versions.
+             * 
+             * TODO2
+             * Note that I am not taking track of stable window HASHES. It may be a good idea to store
+             * them in a dictionary to detect loops (Abort->Cancel->Abort->Cancel->Abort->Cancel...)
              */
-            int pollInterval = 300;
-            int ciclesLimit = 3;
-            int ciclesDone=0;
+            int pollInterval = 1000;
+            int stableThreshold = 3;
+            int stableScans=0;
 
             IntPtr prevHandle = IntPtr.Zero;
-            Window actualWindow = null;
+            Window currentWindow = null;
             Window prevWindow = null;
             string prevHash = null;
 
-            while (ciclesDone <= ciclesLimit)
+            // Loop until we find the same window (i.e. stable) for at least stableThreshold
+            while (stableScans <= stableThreshold)
             {
-                try
+                // Guess the UI window handle
+                IntPtr wH = GetProcUIWindowHandle();
+                    
+                // If No window is spawned, reset the counter and wait.
+                if (wH == IntPtr.Zero)
                 {
-                    // If No window is spawned, wait...
-                    IntPtr wH = GetProcUIWindowHandle(pc.Process.Id);
-                    Console.WriteLine("Window Handle: " + wH);
-                    if (wH == IntPtr.Zero)
-                    {
-                        Console.WriteLine("Window Handle: NO WINDOW");
-                        if (pc.Process.HasExited)
-                        {
-                            throw new ProcessExitedException();
-                        }
-                        //Console.WriteLine("WAITING FOR INPUT: Window handle returned 0");
-                        prevHandle = wH;
-                        ciclesDone = 0;
-                        Thread.Sleep(pollInterval);
-                        continue;
-                    }
-
-                    // If the Handle of the mainWindow changes, restart the loop
-                    if (!wH.Equals(prevHandle))
-                    {
-                        //Console.WriteLine("WAITING FOR INPUT: Window handle changed from "+prevHandle+" to "+wH);
-                        prevHandle = wH;
-                        ciclesDone = 0;
-                        Thread.Sleep(pollInterval);
-                        continue;
-                    }
-
-                    actualWindow = new Window(wH);
-
-                    if (prevWindow == null)
-                    {
-                        prevWindow = actualWindow;
-                        prevHash = UIAnalysis.NativeAndVisualRanker.CalculateHash(prevWindow);
-                    }
-                    else
-                    {
-                        // TODO: I am spending a lot of effort here in taking screenshots and calculating hashes.
-                        // Moreover I am not optimizing memory reusage. In the future I should take care of this.
-                        string actualHash = UIAnalysis.NativeAndVisualRanker.CalculateHash(actualWindow);
-                        if (prevHash.CompareTo(actualHash) != 0)
-                        {
-                            // Something changed
-                            prevWindow = actualWindow;
-                            prevHash = actualHash;
-                            ciclesDone = 0;
-                            Thread.Sleep(pollInterval);
-                            continue;
-                        }
-                    }
-
-                    // Is there any progressbar? if yes, proceed only if it is 100% completed...
-                    // TODO
-
-                    // What about CPU utilization of the process???
-                    // If I get here, nothing seems to be changed, so increment the counter and wait
+                    Console.WriteLine("WaitInputRequest: NO WINDOW found. Waiting...");
+                    prevHandle = wH;
+                    stableScans = 0;
                     Thread.Sleep(pollInterval);
-                    ciclesDone++;
-                    }
-                    catch (Exception e)
-                    {
-                        if (e is ProcessExitedException)
-                            throw e;
-                        else
-                        {
-                            ciclesDone = 0;
-                            continue;
-                        }
-                    }
+                    continue;
                 }
-            
-            //Console.WriteLine("User Input requested. ");
-            return actualWindow;
+
+                // If the Handle of the mainWindow changes, reset the stability counter and iterate again.
+                if (!wH.Equals(prevHandle))
+                {
+                    prevHandle = wH;
+                    stableScans = 0;
+                    Thread.Sleep(pollInterval);
+                    continue;
+                }
+
+                // Create a Window Object using the hWND just obtained.
+                // If this is the first time we detect a window, set the previous window as this one, wait a bit and loop again
+                currentWindow = new Window(wH);
+                if (prevWindow == null)
+                {
+                    prevWindow = currentWindow;
+                    prevHash = UIAnalysis.NativeAndVisualRanker.CalculateHash(prevWindow);
+                    stableScans = 0;
+                    Thread.Sleep(pollInterval);
+                    continue;
+                }
+                    
+                // Here we have the situation in which prevWindow is not null and currentWindow is neither. 
+                // So I need to check if there are visual differences between the two windows.
+                string currentHash = UIAnalysis.NativeAndVisualRanker.CalculateHash(currentWindow);
+                if (prevHash.CompareTo(currentHash) != 0)
+                {
+                    // Something changed
+                    prevWindow = currentWindow;
+                    prevHash = currentHash;
+
+                    // Reset the counter and loop again
+                    stableScans = 0;
+                    Thread.Sleep(pollInterval);
+                    continue;
+                }
+                    
+                // Is there any progressbar? if yes, proceed only if it is 100% completed...
+                // What about CPU utilization of the process???
+                // TODO
+
+                // Ok, after all the check above, I can assume the window UI has not changed. Increase the counter.
+                stableScans++;
+                Thread.Sleep(pollInterval);
+                
+            }
+            // The window looks like stable, return it.
+            return currentWindow;
         }
 
-        private IntPtr GetProcUIWindowHandle(int pid)
+        /// <summary>
+        /// By looking at the list of ProcessIDs (ProgramStatus.PIDS) to monitor, this function
+        /// tries to guess the Window representing the UI.
+        /// </summary>
+        /// <returns>Guessed hWND of the UI Window, or IntPtr.Zero if no window can be found.</returns>
+        private IntPtr GetProcUIWindowHandle()
         {
-            List<int> mypids = new List<int>();
-            Process[] pcs = Process.GetProcesses();
-            mypids.Add(pid);
-            WalkProcessTree(pid, mypids, pcs);
+            var mypids = ProgramStatus.Instance.Pids;
+            AutomationElement ae = null;
 
-            IntPtr desktophndl = GetDesktopWindow();
-
-            Condition ctCon = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Window);
-            Condition oC = Condition.FalseCondition;
-            for (int i = 0; i < mypids.Count; i++)
+            for (int i = 0; i < mypids.Length; i++)
             {
-                oC=new OrCondition(oC,new PropertyCondition(AutomationElement.ProcessIdProperty,mypids.ElementAt(i))); // Tricky
+                Process proc = null;
+                try
+                {
+                    proc = Process.GetProcessById((Int32)mypids.ElementAt(i));
+                    if (proc.MainWindowHandle == IntPtr.Zero)
+                        continue;
+                }
+                catch (Exception e) { 
+                    // The process might be dead.
+                    continue;
+                }
+                
+                var pidcond = new PropertyCondition(AutomationElement.ProcessIdProperty, proc.Id);
+                var windowVisible=new PropertyCondition(AutomationElement.IsOffscreenProperty, false);
+                var cond = new AndCondition(pidcond,windowVisible);
+
+                var allae = AutomationElement.RootElement.FindAll(TreeScope.Children, cond);
+
+                if (allae != null && allae.Count > 0)
+                {
+                    StringBuilder test = new StringBuilder();
+                    foreach (AutomationElement a in allae) {
+                        test.AppendLine(a.Current.ControlType + " : " + a.Current.BoundingRectangle + " : " + a.Current.BoundingRectangle);
+                    }
+                    string tt = test.ToString();
+                    ae = allae[0];
+                }
+                if (ae != null)
+                {
+                    break;
+                }
             }
             
-            Condition c = new AndCondition(ctCon, oC);
+            // TODO is visible?
+            // TODO Prefer bigger bounds
 
-            AutomationElement ae = AutomationElement.FromHandle(desktophndl).FindFirst(TreeScope.Children,c);
-            if (ae != null)
+            if (ae != null && !ae.Current.IsOffscreen)
             {
-                IntPtr res = new IntPtr(ae.Current.NativeWindowHandle);
-                //Console.WriteLine("Current window Handle is: " + res);
-                //Console.WriteLine("Class is: " + Window.GetClassName(res));
-                //Console.WriteLine("Name is " + Window.GetWindowName(res));
-                return res;
+                return new IntPtr(ae.Current.NativeWindowHandle);
             }
             else
             {
-                //Console.WriteLine("No windows found.");
                 return IntPtr.Zero;
             }
 
@@ -642,31 +735,6 @@ namespace InstallerAnalyzer1_Guest
                 // If There's no window on foreground, return a null POINTER
                 return IntPtr.Zero;
             */
-        }
-
-        private void WalkProcessTree(int pid, List<int> pids, Process[] pcs)
-        {
-            foreach (Process p in pcs)
-            {
-                Process proc = null;
-                try
-                {
-                    proc = ParentProcessUtilities.GetParentProcess(p.Id);
-                    if (proc==null)
-                        continue;
-                }
-                catch (Exception ex)
-                {
-                    continue;
-                }
-
-                int pp = proc.Id;
-                if ( pp== pid)
-                {
-                    WalkProcessTree(p.Id, pids, pcs);
-                    pids.Add(p.Id);
-                }
-            }
         }
 
         private ProcessContainer StartProcessWithInjector(Job j)
@@ -729,20 +797,7 @@ namespace InstallerAnalyzer1_Guest
             NOSIZE = 0x0001
         }
 
-        [DllImport("user32.dll")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        static extern bool GetWindowPlacement(IntPtr hWnd, ref WINDOWPLACEMENT lpwndpl);
-
-        private struct WINDOWPLACEMENT
-        {
-            public int length;
-            public int flags;
-            public int showCmd;
-            public System.Drawing.Point ptMinPosition;
-            public System.Drawing.Point ptMaxPosition;
-            public System.Drawing.Rectangle rcNormalPosition;
-        }
-
+        
         #endregion
 
     }

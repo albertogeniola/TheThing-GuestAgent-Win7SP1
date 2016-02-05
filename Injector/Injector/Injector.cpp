@@ -19,14 +19,16 @@ int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,LPSTR lpCmdLine,
 	STARTUPINFO si;
 	PROCESS_INFORMATION pi;
 	bool processCreated= false;
-	pcap_t *adhandle;
-	pcap_if_t *alldevs;
-	pcap_if_t * d;
-	char errbuf[PCAP_ERRBUF_SIZE + 1];
+	//pcap_t *adhandle;
+	//pcap_if_t *alldevs;
+	//pcap_if_t * d;
+	//char errbuf[PCAP_ERRBUF_SIZE + 1];
 	FILE* f;
 	DWORD res;
 	int argc = 0;
 	PCHAR* argv;
+
+	OutputDebugStringA("-----> INJECTOR: Starting.");
 
 	argv = CommandLineToArgvA(GetCommandLine(), &argc);
 
@@ -36,14 +38,16 @@ int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,LPSTR lpCmdLine,
 	// 3. Name of the window to PostMessages to
 	if (argc != 3)
 	{
+		OutputDebugStringA("XXXXXXXXXXX INJECTOR ERROR XXXXXXXXXXXXXX: Invalid injector usage.");
 		fprintf(stderr, "Invalid Usage. Please specify 3 arguments: processpath, dllpath (space separated).");
 		exit(-1);
 	}
 	// 1. ProcessPath: must exist
 	if (fopen_s(&f, argv[1], "r")!=0)
 	{
+		OutputDebugStringA("XXXXXXXXXXX INJECTOR ERROR XXXXXXXXXXXXXX: ProcessPath invalid.");
 		fprintf(stderr, "Cannot find file %s",argv[1]);
-		exit(-1);
+		return -1;
 	}
 	else
 	{
@@ -54,8 +58,9 @@ int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,LPSTR lpCmdLine,
 	// 2. Dll to inject
 	if (fopen_s(&f, argv[2], "r")!=0)
 	{
+		OutputDebugStringA("XXXXXXXXXXX INJECTOR ERROR XXXXXXXXXXXXXX: DLL Path invalid.");
 		fprintf(stderr, "Cannot find file %s", argv[2]);
-		exit(-1);
+		return -1;
 	}
 	else
 	{
@@ -68,26 +73,32 @@ int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,LPSTR lpCmdLine,
 	// TODO: uncomment me
 	if (cwHandle == NULL)
 	{
-		OutputDebugStringA("Cannot find the GuestController window to send message. Please check its name is ");
+		OutputDebugStringA("XXXXXXXXXXX INJECTOR ERROR XXXXXXXXXXXXXX: Cannot find the GuestController window to send message. Please check its name is ");
 		OutputDebugStringA(GUESTCONTROLLER_WINDOW_NAME);
 		fprintf(stderr, "Cannot find the window named %s", GUESTCONTROLLER_WINDOW_NAME);
-		exit(-1);
+		return -1;
 	}
 
+	OutputDebugStringA("-----> INJECTOR: Args are ok.");
+
+	// Prepare arguments for create process
+	ZeroMemory(&si, sizeof(STARTUPINFO));
+	ZeroMemory(&pi, sizeof(PROCESS_INFORMATION));
+	si.cb = sizeof(STARTUPINFO);
+
+	/*
+	//START EDIT
 	// Configure the network listener
 	// Network configuration
 	// Look at the interfaces
 	if (pcap_findalldevs_ex(PCAP_SRC_IF_STRING, NULL, &alldevs, errbuf) == -1)
 	{
+		OutputDebugStringA("XXXXXXXXXXX INJECTOR ERROR XXXXXXXXXXXXXX: Cannot register PCAP.");
 		fprintf_s(stderr, "Error in pcap_findalldevs: %s\n", errbuf);
-		exit(-2);
+		return -2;
 	}
 
-	// Setup shared memory for sending the name of window to the DLL to inject
-	setupMemoryMapping(argv[3]);
-	
-	// Write the window name to the shared memory
-	sprintf_s((char*)lpvMem, SHMEMSIZE, "%s", argv[3]);
+	OutputDebugStringA("-----> INJECTOR: Pcap NICs looped.");
 
 	// I will listen to all the available devices
 	d = alldevs;
@@ -102,8 +113,9 @@ int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,LPSTR lpCmdLine,
 			errbuf     // error buffer
 			)) == NULL)
 		{
+			OutputDebugStringA("XXXXXXXXXXX INJECTOR ERROR XXXXXXXXXXXXXX: Unable to open PCAP driver.");
 			fprintf(stderr, "\nUnable to open the adapter. %s is not supported by WinPcap\n");
-			/* Free the device list */
+			// Free the device list
 			pcap_freealldevs(alldevs);
 			exit(-2);
 		}
@@ -112,13 +124,8 @@ int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,LPSTR lpCmdLine,
 	}
 	pcap_freealldevs(alldevs);
 	
+	OutputDebugStringA("-----> INJECTOR: Pcap conf done.");
 
-	// Clear the memory
-	ZeroMemory(&si, sizeof(STARTUPINFO));
-	ZeroMemory(&pi, sizeof(PROCESS_INFORMATION));
-	si.cb = sizeof(STARTUPINFO);
-	
-	//START EDIT
 	processCreated = CreateProcess(
 		NULL,
 		argv[1],
@@ -132,40 +139,58 @@ int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,LPSTR lpCmdLine,
 		&pi
 		);
 	
-	// Load the loadLibraryA Address
-	LPVOID LoadLibraryAddr = (LPVOID)GetProcAddress(GetModuleHandle("kernel32.dll"),"LoadLibraryA");
+	if (!processCreated) {
+		OutputDebugStringA("XXXXXXXXXXX INJECTOR ERROR XXXXXXXXXXXXXX: Unable to create process");
+		return -3;
+	}
+
+	OutputDebugStringA("-----> INJECTOR: Process created suspended");
 	
+	// Load the loadLibraryA Address
+	//LPVOID LoadLibraryAddr = (LPVOID)GetProcAddress(GetModuleHandle("kernel32.dll"),"LoadLibraryA");
+
 	// Allocate enough memory on the new process
 	LPVOID LLParam = (LPVOID)VirtualAllocEx(pi.hProcess, NULL, strlen(argv[2]),
 		MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 	
+	OutputDebugStringA("-----> INJECTOR: Memory allocated for DLL into host process");
+
 	// Copy the code to be injected
 	WriteProcessMemory(pi.hProcess, LLParam, argv[2], strlen(argv[2]), NULL);
 	
+	OutputDebugStringA("-----> INJECTOR: DLL copied into host process memory space");
+
 	// Start the remote thread
-	CreateRemoteThread(pi.hProcess, NULL, NULL, (LPTHREAD_START_ROUTINE)LoadLibraryAddr, LLParam, NULL, NULL);
+	CreateRemoteThread(pi.hProcess, NULL, NULL, (LPTHREAD_START_ROUTINE)LoadLibraryA, LLParam, NULL, NULL);
 	
+	OutputDebugStringA("-----> INJECTOR: Remote thread created");
+
 	//CloseHandle(hProcess);
 
 	ResumeThread(pi.hThread);
+	OutputDebugStringA("-----> INJECTOR: Thread resumed");
 	//STOP EDIT
-
-	/*
+	*/
+	
 	if (!DetourCreateProcessWithDll(NULL, argv[1], NULL, NULL, TRUE, CREATE_DEFAULT_ERROR_MODE, NULL, NULL, &si, &pi, argv[2], NULL))
 	{
 		DWORD e = GetLastError();
+		OutputDebugStringA("XXXXXXXXXXX INJECTOR ERROR XXXXXXXXXXXXXX: DetoursCreateProcessWithDll failed");
 		printf("Error Creating process");
-		system("pause");
 		exit(-1);
 	}
-	*/
+	OutputDebugStringA("-----> INJECTOR: remote process created and DLL injected.");
 
+	OutputDebugStringA("-----> INJECTOR: Waiting for child process to exit");
 	// Wait until the process ends
 	res = WaitForSingleObject(pi.hProcess, INFINITE);
+	OutputDebugStringA("-----> INJECTOR: Child process ended.");
 	CloseHandle(pi.hProcess);
+	OutputDebugStringA("-----> INJECTOR: Child process handle closed.");
 	return res;
 }
 
+/*
 bool setupMemoryMapping(char* windowName)
 {
 	hMapObject = CreateFileMapping(
@@ -191,8 +216,9 @@ bool setupMemoryMapping(char* windowName)
 	memset(lpvMem, '\0', SHMEMSIZE);
 	
 	return true;
-}
+}*/
 
+/*
 void packet_handler(u_char *dumpfile, const struct pcap_pkthdr *header, const u_char *pkt_data)
 {
 	ip_header *ih;
@@ -256,17 +282,17 @@ void packet_handler(u_char *dumpfile, const struct pcap_pkthdr *header, const u_
 
 	log(&n);
 	//printf("\nIP Packet from %d.%d.%d.%d:%d to %d.%d.%d.%d:%d (%s) ", ih->saddr.byte1, ih->saddr.byte2, ih->saddr.byte3, ih->saddr.byte4, sourcePort, ih->daddr.byte1, ih->daddr.byte2, ih->daddr.byte3, ih->daddr.byte4, destinationPort, protocol);
-	
+}*/
 
-}
-
+/*
 DWORD startThread(LPVOID lpdwThreadParam)
 {
 	//printf("Starting Thread for monitoring...");
 	pcap_loop((pcap_t*)lpdwThreadParam, 0, packet_handler, NULL);
 	return 0;
 }
-
+*/
+/*
 void log(pugi::xml_node * element)
 {
 	DWORD res = 0;
@@ -286,6 +312,8 @@ void log(pugi::xml_node * element)
 	// Send message...
 	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);
 }
+*/
+
 
 PCHAR*
 CommandLineToArgvA(
