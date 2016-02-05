@@ -290,35 +290,33 @@ namespace InstallerAnalyzer1_Guest
             // has exited, correctly (status = 0) or not (status != 0).
             while (!AreProcsFinished())
             {
-                // Wait until the window is considered stable
-                Window waitingWindnow = null;
-                Console.WriteLine("UI Bot: WAIT WINDOW STABLE (PID: " + proc.Process.Id + ") "+"Interaction: "+c);
-                waitingWindnow = WaitForInputRequested();
-                if (waitingWindnow == null) { 
-                    // No window has been found. Let the loop check again if there still are processes running, otherwise we are done!
-                    Console.WriteLine("UI Bot: No windows found. Check again wether any process is running...");
-                    continue;
-                }
-                Console.WriteLine("UI Bot: Stable hWND "+waitingWindnow.Handle.ToString("X")+", loc: "+waitingWindnow.WindowLocation.ToString());
                 try
                 {
+                    // Wait until the window is considered stable
+                    Window waitingWindnow = null;
+                    Console.WriteLine("UI Bot: WAIT WINDOW STABLE (PID: " + proc.Process.Id + ") "+"Interaction: "+c);
+                    waitingWindnow = WaitForInputRequested();
+                    if (waitingWindnow == null) { 
+                        // No window has been found. Let the loop check again if there still are processes running, otherwise we are done!
+                        Console.WriteLine("UI Bot: No windows found. Check again wether any process is running...");
+                        if (ProgramStatus.Instance.Pids.Length == 0) {
+                            Console.WriteLine("UI Bot: All processes are ended. It's done!");
+                            break;
+                        }
+                    }
+                    Console.WriteLine("UI Bot: Stable hWND "+waitingWindnow.Handle.ToString("X")+", loc: "+waitingWindnow.WindowLocation.ToString());
+                
                     SaveStableScreen(waitingWindnow, c);
-                }
-                catch (Exception e)
-                {
-                    //Ignore if error occurs here.
-                }
-                c++;
                 
-                // TODO: Timeout dealing?
+                    c++;
+                
+                    // TODO: Timeout dealing?
 
-                // Analyze the window and build the controls rank.
-                Console.WriteLine("UI Bot: Analyze Window (PID: " + proc.Process.Id + ", HWND: " + waitingWindnow.Handle + ", TITLE: " + waitingWindnow.Title + ") " + "Interaction: " + c);
-                CandidateSet w = ranker.Rank(policy, waitingWindnow);
+                    // Analyze the window and build the controls rank.
+                    Console.WriteLine("UI Bot: Analyze Window (PID: " + proc.Process.Id + ", HWND: " + waitingWindnow.Handle + ", TITLE: " + waitingWindnow.Title + ") " + "Interaction: " + c);
+                    CandidateSet w = ranker.Rank(policy, waitingWindnow);
                 
-                // Now let the interaction happen. The RankingPolicy decides which UIControl should we use to continue installation
-                try
-                {
+                    // Now let the interaction happen. The RankingPolicy decides which UIControl should we use to continue installation
                     bool uiHasChanged = false;
                     do
                     {
