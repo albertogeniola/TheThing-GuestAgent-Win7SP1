@@ -1,17 +1,19 @@
 #define BUFSIZE 512
 #define SHMEMSIZE 4096
-#define SHARED_MEM_NAME "loggerwindowname"
-#include "stdafx.h"
-#include <detours.h>
+//#define SHARED_MEM_NAME "loggerwindowname"
 #include <cstdio>
 #include <string>
 #include <tchar.h>
+#define WIN32_NO_STATUS
+#include <windows.h>
+#undef WIN32_NO_STATUS
+#include <winternl.h>
 #include <ntstatus.h>
-#include <Winternl.h>	// Needed to hooking NtCreateFile
 #include <psapi.h>
 #include <strsafe.h>
 #include "pugixml.hpp"
 #include <sstream>
+#include <detours.h>
 
 // Windows UNICODE PAIN
 #ifdef UNICODE
@@ -22,7 +24,6 @@ template <typename T>string to_string(T a) {
 	return std::to_wstring(a);
 }
 #endif
-
 
 //#include <winsock2.h>
 #pragma comment(lib, "detours.lib")	// Nedded for DTOURS

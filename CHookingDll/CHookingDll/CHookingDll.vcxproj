@@ -103,7 +103,7 @@
     <LinkIncremental>false</LinkIncremental>
     <CustomBuildAfterTargets />
     <TargetName>$(ProjectName)</TargetName>
-    <OutDir>C:\VMs\GuestController</OutDir>
+    <OutDir>C:\VMs\GuestController\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Only Injector|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -249,7 +249,6 @@
     <ClInclude Include="stdafx.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="CHookingDll.cpp" />
     <ClCompile Include="dllmain.cpp">
       <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</CompileAsManaged>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
