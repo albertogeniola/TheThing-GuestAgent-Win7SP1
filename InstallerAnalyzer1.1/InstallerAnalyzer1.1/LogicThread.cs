@@ -23,6 +23,7 @@ using InstallerAnalyzer1_Guest.UIAnalysis.RankingPolicy;
 using System.Drawing;
 using System.IO.Compression;
 using System.IO.Packaging;
+using Ionic.Zip;
 
 namespace InstallerAnalyzer1_Guest
 {
@@ -765,31 +766,12 @@ namespace InstallerAnalyzer1_Guest
         private string ZipScreens()
         {
             string fpath = Path.GetTempFileName()+".zip";
-            using (Package package =
-                Package.Open(fpath, FileMode.Create))
+            using (ZipFile zip = new ZipFile())
             {
-                foreach (var f in Directory.GetFiles(Settings.Default.INTERACTIONS_SCREEN_PATH))
-                {
-
-                    Uri partUriResource = PackUriHelper.CreatePartUri(new Uri(f, UriKind.Relative));
-
-                    // Add the Document part to the Package
-                    PackagePart packagePartDocument = package.CreatePart(partUriResource, "image/bmp");
-
-                    // Copy the data to the Document Part 
-                    using (FileStream fileStream = new FileStream(
-                           f, FileMode.Open, FileAccess.Read))
-                    {
-                        CopyStream(fileStream, packagePartDocument.GetStream());
-                    }// end:using(fileStream) - Close and dispose fileStream. 
-
-                    // Add a Package Relationship to the Document Part
-                    package.CreateRelationship(packagePartDocument.Uri,
-                                               TargetMode.Internal,
-                                               @"WKRelationShip");
-                }
-            }// end:using (Package package) - Close and dispose package.
-
+                // add this map file into the "images" directory in the zip archive
+                zip.AddDirectory(Settings.Default.INTERACTIONS_SCREEN_PATH);
+                zip.Save(fpath);
+            }
             return fpath;
         }
 
