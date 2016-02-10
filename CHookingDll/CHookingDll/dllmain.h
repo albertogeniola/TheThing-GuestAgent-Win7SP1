@@ -29,11 +29,6 @@ template <typename T>string to_string(T a) {
 #pragma comment(lib, "detours.lib")	// Nedded for DTOURS
 #pragma comment(lib, "ntdll.lib")	// Needed to hooking NtCreateFile
 
-#define COPYDATA_LOG 0
-#define COPYDATA_PROC_SPAWNED 1
-#define COPYDATA_PROC_DIED 2
-#define GUESTCONTROLLER_WINDOW_NAME _T("WKWatcher")
-
 EXTERN_C IMAGE_DOS_HEADER __ImageBase;
 
 /* >>>>>>>>>>>>>> NtCreateFile <<<<<<<<<<<<<<< */
@@ -247,6 +242,6 @@ void from_unicode_to_wstring(PUNICODE_STRING u, std::wstring* w);
 
 /* Messages storage functions */
 void log(pugi::xml_node *element);
-void notifyNewPid(DWORD pid);
-void notifyRemovedPid(DWORD pid);
 bool configureWindowName();
+void notifyNewPid(HWND cwHandle, DWORD pid);
+void notifyRemovedPid(HWND cwHandle, DWORD pid);

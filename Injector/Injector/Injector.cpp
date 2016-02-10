@@ -1,7 +1,7 @@
 // Injector.cpp : definisce il punto di ingresso dell'applicazione console.
 #include "stdafx.h"
 #include "injector.h"
-#define GUESTCONTROLLER_WINDOW_NAME "WKWatcher"
+#include "../../InstallerAnalyzer1.1/Common/common.h"
 
 /* Global variables */
 HWND cwHandle;

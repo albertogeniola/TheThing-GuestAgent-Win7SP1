@@ -110,6 +110,7 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="InteractionResult.cs" />
     <Compile Include="ProgramStatus.cs" />
     <Compile Include="ProtocolException.cs" />
     <Compile Include="UIAnalysis\IUIRanker.cs" />
@@ -152,6 +153,7 @@
     <Compile Include="UIAnalysis\RankingPolicy\SimpleRankingPolicy.cs" />
     <Compile Include="UIAnalysis\UIControlCandidate.cs" />
     <Compile Include="UIAnalysis\Window.cs" />
+    <Compile Include="UILoopException.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

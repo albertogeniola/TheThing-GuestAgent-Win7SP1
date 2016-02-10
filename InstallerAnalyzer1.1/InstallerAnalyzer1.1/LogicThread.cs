@@ -21,16 +21,27 @@ using Newtonsoft.Json;
 using InstallerAnalyzer1_Guest.UIAnalysis;
 using InstallerAnalyzer1_Guest.UIAnalysis.RankingPolicy;
 using System.Drawing;
+using System.IO.Compression;
+using System.IO.Packaging;
 
 namespace InstallerAnalyzer1_Guest
 {
     class LogicThread
     {
         const int STUCK_THRESHOLD = 10; //TODO: Fixme. This might be increased or decreased. 
-        const int STUCK_NO_CONTROLS_THRESHOLD = 100;
-        const int REACTION_TIMEOUT = 3000;
+        const int STUCK_NO_CONTROLS_THRESHOLD = 50;
+        const int REACTION_TIMEOUT = 1500;
+        const int IDLE_TIMEOUT = 600000; // Wait up to 10 minutes for heavy I/O timeout
         const int ACQUIRE_WORK_SLEEP_SECS = 10;
+        const int CIRCULAR_LOOP_THRESHOLD = 5;
         readonly string DEFAULT_REPORT_PATH = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "report.xml");
+
+        // I use a dictionary that will contain hashes about scanned windows.
+        // This will be useful to prevent circular UI loopings.
+        private Dictionary<string, int> _visitedVindows;
+
+        // This list will contain the list of installed programs as shown in Control Panel
+        private List<string> _originalList;
 
         // Network objects
         private IPAddress _remoteIp;
@@ -261,7 +272,7 @@ namespace InstallerAnalyzer1_Guest
         #endregion
 
         private bool AreProcsFinished() {
-            foreach (uint p in ProgramStatus.Instance.GetOrWait()) {
+            foreach (uint p in ProgramStatus.Instance.Pids) {
                 try { 
                     Process proc = Process.GetProcessById((int)p);
                     if (!proc.HasExited)
@@ -294,33 +305,37 @@ namespace InstallerAnalyzer1_Guest
                 {
                     // Wait until the window is considered stable
                     Window waitingWindnow = null;
-                    Console.WriteLine("UI Bot: WAIT WINDOW STABLE (PID: " + proc.Process.Id + ") "+"Interaction: "+c);
+                    Console.WriteLine("UI Bot: WAIT WINDOW STABLE (PID: " + proc.Process.Id + ") " + "Interaction: " + c);
                     waitingWindnow = WaitForInputRequested();
-                    if (waitingWindnow == null) { 
+
+                    if (waitingWindnow == null)
+                    {
+
                         // No window has been found. Let the loop check again if there still are processes running, otherwise we are done!
                         Console.WriteLine("UI Bot: No windows found. Check again wether any process is running...");
-                        if (ProgramStatus.Instance.Pids.Length == 0)
+                        if (ProgramStatus.Instance.Pids.Length == 0 && ProgramStatus.Instance.LogsPerSec == 0)
                         {
-                            Console.WriteLine("UI Bot: All processes are ended. It's done!");
+                            Console.WriteLine("UI Bot: All processes are ended and lograte is 0. It's done!");
                             break;
                         }
                         else
                         {
+                            // TODO: we have to introduce a MAX counter here to detect when a process is stuck
+                            // or working too much.
+                            Console.WriteLine("UI Bot: However there still are " + ProgramStatus.Instance.Pids.Length + " processes working. Receiving " + ProgramStatus.Instance.LogsPerSec + " messages/sec by injected dll.");
                             continue;
                         }
                     }
-                    Console.WriteLine("UI Bot: Stable hWND "+waitingWindnow.Handle.ToString("X")+", loc: "+waitingWindnow.WindowLocation.ToString());
+                    Console.WriteLine("UI Bot: Stable hWND " + waitingWindnow.Handle.ToString("X") + ", loc: " + waitingWindnow.WindowLocation.ToString());
 
                     SaveStableScreen(waitingWindnow, c);
 
-                    c++;
-                
                     // TODO: Timeout dealing?
 
                     // Analyze the window and build the controls rank.
                     Console.WriteLine("UI Bot: Analyze Window (PID: " + proc.Process.Id + ", HWND: " + waitingWindnow.Handle + ", TITLE: " + waitingWindnow.Title + ") " + "Interaction: " + c);
                     CandidateSet w = ranker.Rank(policy, waitingWindnow);
-                
+
                     // Now let the interaction happen. The RankingPolicy decides which UIControl should we use to continue installation
                     bool uiHasChanged = false;
                     do
@@ -329,18 +344,49 @@ namespace InstallerAnalyzer1_Guest
                         var candidate = w.PopTopCandidate();
                         Console.WriteLine("UI Bot: Interacting with control " + candidate.ToString());
 
+                        // Register our intention to interact with a particular window
+                        int counter;
+                        if (_visitedVindows.TryGetValue(w.Hash, out counter))
+                        {
+                            _visitedVindows[w.Hash]++;
+                        }
+                        else
+                        {
+                            counter = 1;
+                            _visitedVindows.Add(w.Hash, counter);
+                        }
+
+                        // Are we interacting again with the same window as before? Have we exceeded the threshold?
+                        if (counter > CIRCULAR_LOOP_THRESHOLD)
+                        {
+                            throw new UILoopException();
+                        }
+
                         // Save a screenshot with interaction information for debugging and reporting
                         SaveInteractionScreen(waitingWindnow, candidate, c);
-                        
                         candidate.Interact();
+                        c++;
 
                         // Wait for something to happen
                         Console.WriteLine("UI Bot: Waiting for UI reaction.");
                         uiHasChanged = ranker.WaitReaction(waitingWindnow, w, REACTION_TIMEOUT);
+
+                        // If we hit the timeout, check if there still are process running. If not, just break.
                         if (!uiHasChanged)
-                            Console.WriteLine("UI Bot: UI Reaction didn't happen within the specific TIMEOUT. Trying with another interaction.");
-                        else
-                            Console.WriteLine("UI Bot: Waiting for UI reaction.");
+                        {
+                            Console.WriteLine("UI Bot: UI Reaction didn't happen within the specific TIMEOUT.");
+                            int procs = ProgramStatus.Instance.Pids.Length;
+                            long lograte = ProgramStatus.Instance.LogsPerSec;
+                            if (procs == 0 && lograte == 0)
+                            {
+                                Console.WriteLine("UI Bot: All processes are ended and lograte is 0. It's done!");
+                                break;
+                            }
+                            else
+                            {
+                                Console.WriteLine("UI Bot: but there still are " + procs + " processes running and lograte is " + lograte + " msg/sec. I keep waiting.");
+                            }
+                        }
 
                     } while (!uiHasChanged);
 
@@ -363,6 +409,7 @@ namespace InstallerAnalyzer1_Guest
                     }
                     else
                     {
+                        proc.Result = InteractionResult.UI_Stuck;
                         Console.WriteLine("UI Bot: maximum number of attempts reached. Givin' up.");
                         break;
                     }
@@ -378,6 +425,7 @@ namespace InstallerAnalyzer1_Guest
                     }
                     else
                     {
+                        proc.Result = InteractionResult.UI_Stuck;
                         Console.WriteLine("UI Bot: maximum number of attempts reached. Givin' up.");
                         break;
                     }
@@ -392,31 +440,83 @@ namespace InstallerAnalyzer1_Guest
                     if (stuckWaitingForControlsCounter < STUCK_NO_CONTROLS_THRESHOLD)
                     {
                         stuckWaitingForControlsCounter++; //TODO: No more candidate means a window with no interaction possibilities. 
-                                        // Should we consider it as Stuck? It may be a simple waiting window... This counter should be different and higer.
+                        // Should we consider it as Stuck? It may be a simple waiting window... This counter should be different and higer.
                         Console.WriteLine("UI Bot: Performing another attempt to find a valid window");
                         continue;
                     }
-                    else {
+                    else
+                    {
+                        proc.Result = InteractionResult.UI_Stuck;
                         Console.WriteLine("UI Bot: maximum number of attempts reached. Givin' up.");
                         break;
-                    }                    
+                    }
+                }
+                catch (UILoopException e) { 
+                    // We ended up into a loop among same UI interfaces. This may happer for some reasons, like "Abort->Cancel->Abort->Cancel..."
+                    // or id the UI requires some particular interacion we can't emulate. We can choose several approaches to this situation:
+                    // -> Simply report failure: our UI interaction policy was not able to finish the installation process
+                    // -> Wait until the processes on the background are working and re-evaluate then the situation
+                    // -> Check if there is something new as "Installed Features" into the windows registry, so we know that the installation process went partially ok.
+                    Console.WriteLine("UIBot: UI Loop Detected.");
+                    var pids = ProgramStatus.Instance.Pids.Length;
+                    var lograte = ProgramStatus.Instance.LogsPerSec;
+                    Console.WriteLine("UIBot: There are still " + pids + " running, transmitting " + lograte + " msg/s.");
+
+                    var delta = CheckNewPrograms();
+                    if (delta.Count > 0) {
+                        Console.WriteLine("UIBot: There are new programs on the system. Assuming the installation was successful.");
+                        proc.Result = InteractionResult.PartiallyFinished;
+                        // Something happened on the system! We can assume the installation process had some effect.
+                        break;
+                    }
+
+                    Console.WriteLine("UIBot: There are no new programs on the system.");
+
+                    if (ProgramStatus.Instance.LogsPerSec > 0) {
+                        Console.WriteLine("UIBot: The background processes are still working. Wait until the message rate becomes 0 (or timeout is reached) and loop again.");
+                        if (!ProgramStatus.Instance.WaitUntilIdle(IDLE_TIMEOUT))
+                        {
+                            // Timeout occurred
+                            Console.WriteLine("UIBot: This delay is taking too much. Giving up reporting failure.");
+                            proc.Result = InteractionResult.UI_Stuck;
+                            break;
+                        }
+                        else
+                        {
+                            Console.WriteLine("UIBot: UI is idle now. I will run the analysis again.");
+                            // I need to clear the status of the windows otherwise we are going to fall again under this catch.
+                            _visitedVindows.Clear();
+                            continue;
+                        }
+                        
+                    }
+
+                    // Report failure. We were unable to recover from this loop.
+                    Console.WriteLine("UIBot: There is nothing I can do to recover. Process seem to wait an action I am unable to perform.");
+                    proc.Result = InteractionResult.UI_Stuck;
+                    break;
                 }
                 catch (ProcessExitedException e)
                 {
                     // The process exited. There is nothing we can do to recover.
                     Console.WriteLine("UI Bot: Process exited while interacting with UI.");
+                    proc.Result = InteractionResult.Finished;
                     break;
                 }
-                catch (Exception e) { 
+                catch (Exception e)
+                {
+                    Console.WriteLine("UI Bot: exception occurred. " + e.Message + ". " + e.StackTrace);
                     // Just for debugging reasons, throw it again
-                    throw e;
+                    proc.Result = InteractionResult.UnknownError;
+                    break;
                 }
-
-
+            
                 // At this point we reiterate again, until the pocess runs.
             }
 
             // Process has exited at this point. We should check whether correctly or not.
+            if (proc.Result == InteractionResult.Unknown)
+                proc.Result = InteractionResult.Finished;
 
             return proc;
         }
@@ -484,6 +584,8 @@ namespace InstallerAnalyzer1_Guest
             _remoteIp = remoteIp;
             _remotePort = remotePort;
             _mac = GetMACAddr();
+            _visitedVindows = new Dictionary<string, int>();
+            _originalList = new List<string>();
         }
 
         public void Start()
@@ -499,6 +601,9 @@ namespace InstallerAnalyzer1_Guest
         {
             IUIRanker ranker = new NativeAndVisualRanker();
             IRankingPolicy policy = new SimpleRankingPolicy();
+
+            // Take a snapshot of currently installed programs
+            _originalList = Program.ListInstalledPrograms();
 
             bool keepRunning = true;
             try
@@ -559,36 +664,84 @@ namespace InstallerAnalyzer1_Guest
             }
         }
 
+        private List<string> CheckNewPrograms() {
+            List<string> res = new List<string>();
+
+            var current = Program.ListInstalledPrograms();
+            foreach (var c in current) {
+                if (!_originalList.Contains(c))
+                    res.Add(c);
+            }
+
+            return res;
+        }
+
         private string PrepareReport(ProcessContainer p, string outfile)
         {
+            var log = Program.GetInstallerLog();
+            var result = log.CreateElement("Result"); // Main element containing all the result info
+            log.FirstChild.AppendChild(result);
+
             // Start collecting info and produce a nice report
             string errors = p.Process.StandardError.ReadToEnd();
             string output = p.Process.StandardOutput.ReadToEnd();
             int rtnCode = p.Process.ExitCode;
 
-            // Add the output/error streams and return code
-            var log = Program.GetInstallerLog();
-            var executionResult = log.CreateElement("ExecutionResult");
-            
+            // Add the Injector return code, stdout and stderr
+            var injector = log.CreateElement("Injector");
             var stdout = log.CreateElement("StdOut");
             stdout.InnerText = output;
-            executionResult.AppendChild(stdout);
+            injector.AppendChild(stdout);
             
             var stderr = log.CreateElement("StdErr");
             stderr.InnerText = errors;
-            executionResult.AppendChild(stderr);
+            injector.AppendChild(stderr);
 
-            var retcode = log.CreateElement("retcode");
+            var retcode = log.CreateElement("RetCode");
             retcode.InnerText = "" + rtnCode;
-            executionResult.AppendChild(retcode);
+            injector.AppendChild(retcode);
+            result.AppendChild(injector);
 
-            log.FirstChild.AppendChild(executionResult);
+
+            // UIBot results
+            var uiResult = log.CreateElement("UiBot");
+            var uiResultDescription = log.CreateElement("Description");
+            var uiResultValue = log.CreateElement("Value");
+            uiResultDescription.InnerText = Enum.GetName(typeof(InteractionResult), p.Result);
+            uiResultValue.InnerText = ((int)p.Result).ToString();
+            uiResult.AppendChild(uiResultValue);
+            uiResult.AppendChild(uiResultDescription);
+            result.AppendChild(uiResult);
+
+            // New application detected
+            var deltaApps = log.CreateElement("NewApplications");
+            var newProgs = CheckNewPrograms();
+            deltaApps.SetAttribute("count", newProgs.Count.ToString());
+            foreach (var s in newProgs) { 
+                var app = log.CreateElement("Application");
+                app.InnerText = s;
+                deltaApps.AppendChild(app);
+            }
+            result.AppendChild(deltaApps);
+
+            // Now collect logs and other info, like screenshots.
+            ProgramLogger.Instance.Close();
+            var appLog = log.CreateElement("AppLog");
+            appLog.InnerText = File.ReadAllText(ProgramLogger.Instance.GetLogFile());
+            log.FirstChild.AppendChild(appLog);
+
+            string f = ZipScreens();
+            // Add the zip file to the report
+            var screens = log.CreateElement("InteractionScreenshots");
+            screens.InnerText = Convert.ToBase64String(File.ReadAllBytes(f)); // This Kills memory!!! //TODO //FIXME
+            log.FirstChild.AppendChild(screens);
 
             // Write the collected info to a local report.xml file.
             using (var fs = File.Create(outfile))
             {
-                using (XmlWriter xmlWriter = new XmlTextWriter(fs, Encoding.UTF8))
+                using (XmlTextWriter xmlWriter = new XmlTextWriter(fs, Encoding.UTF8))
                 {
+                    xmlWriter.Formatting = System.Xml.Formatting.Indented;
                     log.WriteTo(xmlWriter);
 
                     // Flush changes on disk.
@@ -598,6 +751,46 @@ namespace InstallerAnalyzer1_Guest
 
             return outfile;
 
+        }
+
+        private static void CopyStream(Stream source, Stream target)
+        {
+            const int bufSize = 0x1000;
+            byte[] buf = new byte[bufSize];
+            int bytesRead = 0;
+            while ((bytesRead = source.Read(buf, 0, bufSize)) > 0)
+                target.Write(buf, 0, bytesRead);
+        }// end:CopyStream()
+
+        private string ZipScreens()
+        {
+            string fpath = Path.GetTempFileName()+".zip";
+            using (Package package =
+                Package.Open(fpath, FileMode.Create))
+            {
+                foreach (var f in Directory.GetFiles(Settings.Default.INTERACTIONS_SCREEN_PATH))
+                {
+
+                    Uri partUriResource = PackUriHelper.CreatePartUri(new Uri(f, UriKind.Relative));
+
+                    // Add the Document part to the Package
+                    PackagePart packagePartDocument = package.CreatePart(partUriResource, "image/bmp");
+
+                    // Copy the data to the Document Part 
+                    using (FileStream fileStream = new FileStream(
+                           f, FileMode.Open, FileAccess.Read))
+                    {
+                        CopyStream(fileStream, packagePartDocument.GetStream());
+                    }// end:using(fileStream) - Close and dispose fileStream. 
+
+                    // Add a Package Relationship to the Document Part
+                    package.CreateRelationship(packagePartDocument.Uri,
+                                               TargetMode.Internal,
+                                               @"WKRelationShip");
+                }
+            }// end:using (Package package) - Close and dispose package.
+
+            return fpath;
         }
 
         private string GetMACAddr() {
@@ -642,7 +835,6 @@ namespace InstallerAnalyzer1_Guest
              * Note that I am not taking track of stable window HASHES. It may be a good idea to store
              * them in a dictionary to detect loops (Abort->Cancel->Abort->Cancel->Abort->Cancel...)
              */
-            int pollInterval = 1000;
             int stableThreshold = 3;
             int stableScans=0;
 
@@ -657,11 +849,11 @@ namespace InstallerAnalyzer1_Guest
                 // Guess the UI window handle
                 IntPtr wH = GetProcUIWindowHandle();
                     
-                // If No window is spawned, reset the counter and wait.
+                // If I found no windows, return null immediatly.
                 if (wH == IntPtr.Zero)
                 {
                     Console.WriteLine("WaitInputRequest: NO WINDOW found!");
-                    Thread.Sleep(pollInterval);
+                    Thread.Sleep(REACTION_TIMEOUT);
                     /*
                     prevHandle = wH;
                     stableScans = 0;
@@ -676,7 +868,7 @@ namespace InstallerAnalyzer1_Guest
                 {
                     prevHandle = wH;
                     stableScans = 0;
-                    Thread.Sleep(pollInterval);
+                    Thread.Sleep(REACTION_TIMEOUT);
                     continue;
                 }
 
@@ -688,7 +880,7 @@ namespace InstallerAnalyzer1_Guest
                     prevWindow = currentWindow;
                     prevHash = UIAnalysis.NativeAndVisualRanker.CalculateHash(prevWindow);
                     stableScans = 0;
-                    Thread.Sleep(pollInterval);
+                    Thread.Sleep(REACTION_TIMEOUT);
                     continue;
                 }
                     
@@ -703,7 +895,7 @@ namespace InstallerAnalyzer1_Guest
 
                     // Reset the counter and loop again
                     stableScans = 0;
-                    Thread.Sleep(pollInterval);
+                    Thread.Sleep(REACTION_TIMEOUT);
                     continue;
                 }
                     
@@ -713,7 +905,7 @@ namespace InstallerAnalyzer1_Guest
 
                 // Ok, after all the check above, I can assume the window UI has not changed. Increase the counter.
                 stableScans++;
-                Thread.Sleep(pollInterval);
+                Thread.Sleep(REACTION_TIMEOUT);
                 
             }
             // The window looks like stable, return it.
@@ -777,7 +969,8 @@ namespace InstallerAnalyzer1_Guest
             if (allae != null && allae.Count > 0)
             {
                 StringBuilder test = new StringBuilder();
-                foreach (AutomationElement a in allae) {
+                foreach (AutomationElement a in allae)
+                {
                     // Log all the result windows and chose the one with focus.
                     test.AppendLine(a.Current.ControlType + " : " + a.Current.BoundingRectangle + " : " + a.Current.BoundingRectangle);
                     if (a.Current.HasKeyboardFocus)
@@ -793,6 +986,21 @@ namespace InstallerAnalyzer1_Guest
                     winner = allae[0];
                 }
             }
+            else { 
+                // Sometime, it may happen that the UI is just minimized. Why don't we meximize it again?
+                foreach (var pid in mypids) {
+                    try
+                    {
+                        var aprocess = Process.GetProcessById((int)pid);
+                        NativeMethods.ShowWindow(aprocess.MainWindowHandle, NativeMethods.ShowWindowCommands.Normal);
+                    }
+                    catch (Exception e) { 
+                        // Tons of things may go wrong here. Just ignore them.
+                    }
+                }
+            }
+
+            
             
             // Return the winner if any, otherwise Zero
             if (winner != null)

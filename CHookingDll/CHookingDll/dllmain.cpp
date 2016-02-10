@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "dllmain.h"
+#include "../../InstallerAnalyzer1.1/Common/common.h"
 
 /* Global variables */
 HWND cwHandle;
@@ -1457,7 +1458,7 @@ BOOL WINAPI MyCreateProcessA(LPCTSTR lpApplicationName, LPTSTR lpCommandLine, LP
 	if (!res) 
 		OutputDebugString(_T("There was a problem when injecting the DLL to the new process via MyCreateProcessA()."));
 	else{
-		notifyNewPid(lpProcessInformation->dwProcessId);
+		notifyNewPid(cwHandle, lpProcessInformation->dwProcessId);
 		OutputDebugString(_T("New process created and dll injected via MyCreateProcessA()."));
 	}
 	// Use a node object to create the XML string: this will contain all information about the SysCall
@@ -1483,7 +1484,7 @@ BOOL WINAPI MyCreateProcessW(LPCWSTR lpApplicationName, LPWSTR lpCommandLine, LP
 	if (!res)
 		OutputDebugString(_T("There was a problem when injecting the DLL to the new process via MyCreateProcessW()."));
 	else {
-		notifyNewPid(lpProcessInformation->dwProcessId);
+		notifyNewPid(cwHandle, lpProcessInformation->dwProcessId);
 		OutputDebugString(_T("New process created and dll injected via MyCreateProcessW()."));
 	}
 
@@ -1504,7 +1505,7 @@ BOOL WINAPI MyCreateProcessW(LPCWSTR lpApplicationName, LPWSTR lpCommandLine, LP
 VOID WINAPI MyExitProcess(UINT uExitCode)
 {
 	// We hook this to let the GuestController know about our intention to terminate
-	notifyRemovedPid(GetCurrentProcessId());
+	notifyRemovedPid(cwHandle, GetCurrentProcessId());
 	return realExitProcess(uExitCode);
 }
 
@@ -1591,35 +1592,6 @@ void log(pugi::xml_node *element)
 	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);
 	
 }
-
-void notifyNewPid(DWORD pid)
-{
-	DWORD res = 0;
-	COPYDATASTRUCT ds;
-
-	ds.dwData = COPYDATA_PROC_SPAWNED;
-	ds.cbData = sizeof(DWORD);
-	ds.lpData = (PVOID)&pid;
-
-	// Send message...
-	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);
-
-}
-
-void notifyRemovedPid(DWORD pid)
-{
-	DWORD res = 0;
-	COPYDATASTRUCT ds;
-
-	ds.dwData = COPYDATA_PROC_DIED;
-	ds.cbData = sizeof(DWORD);
-	ds.lpData = (PVOID)&pid;
-
-	// Send message...
-	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);
-
-}
-
 
 /* 
 	>>>>>>>>>>>>>>> Parsing functions <<<<<<<<<<<<<<< 
@@ -2166,4 +2138,32 @@ bool configureWindowName()
 	OutputDebugString(buf);
 
 	return true;
+}
+
+void notifyNewPid(HWND cwHandle, DWORD pid)
+{
+	DWORD res = 0;
+	COPYDATASTRUCT ds;
+
+	ds.dwData = COPYDATA_PROC_SPAWNED;
+	ds.cbData = sizeof(DWORD);
+	ds.lpData = (PVOID)&pid;
+
+	// Send message...
+	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);
+
+}
+
+void notifyRemovedPid(HWND cwHandle, DWORD pid)
+{
+	DWORD res = 0;
+	COPYDATASTRUCT ds;
+
+	ds.dwData = COPYDATA_PROC_DIED;
+	ds.cbData = sizeof(DWORD);
+	ds.lpData = (PVOID)&pid;
+
+	// Send message...
+	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);
+
 }

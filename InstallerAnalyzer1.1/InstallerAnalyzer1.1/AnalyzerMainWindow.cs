@@ -61,7 +61,11 @@ namespace InstallerAnalyzer1_Guest
                 for (int i = 0; i < bb.Length; i++)
                     bb[i] = Marshal.ReadByte(d.lpData, i);
 
-                if (d.dwData == MESSAGE_LOG) {    
+                if (d.dwData == MESSAGE_LOG) {
+                    // Let the program status we are receiving logs from the process.
+                    // This can give us a hint about how hard are the background processes
+                    // working on the system.
+                    ProgramStatus.Instance.IncLogRate();
                     string s = Encoding.Unicode.GetString(bb);
                     AddRow(s);
                 }

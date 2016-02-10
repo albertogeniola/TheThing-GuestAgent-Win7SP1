@@ -25,6 +25,8 @@ namespace InstallerAnalyzer1_Guest
         private bool disposed;
         private Process _proc;
 
+        public InteractionResult Result { get; set; }
+
         public ProcessContainer(Process p)
         {
             _proc = p;
@@ -46,6 +48,9 @@ namespace InstallerAnalyzer1_Guest
 
             if (!SetInformationJobObject(handle, JobObjectInfoType.ExtendedLimitInformation, extendedInfoPtr, (uint)length))
                 throw new Exception(string.Format("Unable to set information.  Error: {0}", Marshal.GetLastWin32Error()));
+
+            // Set the value to an unknown
+            Result = InteractionResult.Unknown;
         }
 
         public void Dispose()

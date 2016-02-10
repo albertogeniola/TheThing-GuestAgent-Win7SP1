@@ -25,8 +25,8 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
             _handle = hWnd;
             _className = GetClassName(_handle);
             _title = GetWindowName(_handle);
-            RECT pos = new RECT();
-            GetWindowRect(hWnd, ref pos);
+            InstallerAnalyzer1_Guest.NativeMethods.RECT pos = new InstallerAnalyzer1_Guest.NativeMethods.RECT();
+            NativeMethods.GetWindowRect(hWnd, ref pos);
             _pos = new Rectangle(new Point(pos.Left, pos.Top), new Size(pos.Right - pos.Left, pos.Bottom - pos.Top));
         }
 
@@ -67,57 +67,22 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
         public static string GetClassName(IntPtr handle)
         {
             StringBuilder sb = new StringBuilder(500);
-            GetClassName(handle, sb, sb.Capacity);
+            NativeMethods.GetClassName(handle, sb, sb.Capacity);
             return sb.ToString();
         }
 
         public static string GetWindowName(IntPtr hwnd)
         {
-            int length = GetWindowTextLength(hwnd);
+            int length = NativeMethods.GetWindowTextLength(hwnd);
             StringBuilder b = new StringBuilder(length + 1);
-            GetWindowText(hwnd, b, b.Capacity);
+            NativeMethods.GetWindowText(hwnd, b, b.Capacity);
             return b.ToString();
         }
 
-        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-        private static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
-
-        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-        private static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
-
-        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-        private static extern int GetWindowTextLength(IntPtr hWnd);
-        
-        [DllImport("user32.dll")]
-        private static extern bool PostMessage(IntPtr hWnd, uint Msg, int wParam, int lParam);
-
-        public void Close()
-        {
-            PostMessage(_handle, 0x0010,0,0);
-        }
-
-        
-        [DllImport("user32.dll")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool GetClientRect(IntPtr hWnd, ref RECT lpRect);
-
-        [StructLayout(LayoutKind.Sequential)]
-        public struct RECT
-        {
-            public int Left;        // x position of upper-left corner
-            public int Top;         // y position of upper-left corner
-            public int Right;       // x position of lower-right corner
-            public int Bottom;      // y position of lower-right corner
-        }
-
-        [DllImport("user32.dll")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool GetWindowRect(IntPtr hWnd, ref RECT lpRect);
-
         public System.Windows.Rect GetBounds()
         {
-            RECT r = new RECT();
-            if (GetWindowRect(_handle, ref r))
+            InstallerAnalyzer1_Guest.NativeMethods.RECT r = new InstallerAnalyzer1_Guest.NativeMethods.RECT();
+            if (NativeMethods.GetWindowRect(_handle, ref r))
             {
                 return new System.Windows.Rect(r.Left, r.Top, Math.Abs(r.Right - r.Left), Math.Abs(r.Top - r.Bottom));
             }
@@ -126,8 +91,14 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
             
         }
 
+        public void Close()
+        {
+            NativeMethods.PostMessage(_handle, 0x0010, 0, 0);
+        }
+
         public Bitmap GetWindowsScreenshot()
         {
+            /*
             // Get bounds of the current window
             RECT bounds = new RECT();
             bool res = GetWindowRect(_handle, ref bounds);
@@ -145,6 +116,20 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
                 return bitmap;
             }
             throw new Exception("Cannot get Window Bitmap");
+             * */
+
+            InstallerAnalyzer1_Guest.NativeMethods.RECT bounds = new InstallerAnalyzer1_Guest.NativeMethods.RECT();
+            bool res = NativeMethods.GetWindowRect(_handle, ref bounds);
+            int width = Math.Abs(bounds.Right - bounds.Left);
+            int height = Math.Abs(bounds.Bottom - bounds.Top);
+
+            Bitmap bmp = new Bitmap(width, height);
+            Graphics memoryGraphics = Graphics.FromImage(bmp);
+            IntPtr dc = memoryGraphics.GetHdc();
+            bool success = NativeMethods.PrintWindow(Handle, dc, 0);
+            memoryGraphics.ReleaseHdc(dc);
+            // bmp now contains the screenshot
+            return bmp;
         }
     }
 

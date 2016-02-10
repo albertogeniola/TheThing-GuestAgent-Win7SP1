@@ -74,7 +74,7 @@ namespace InstallerAnalyzer1_Guest
         // everything from here on is from pinvoke.net
 
         [Flags]
-        private enum ExitWindows : uint
+        public enum ExitWindows : uint
         {
             // ONE of the following five:
             LogOff = 0x00,
@@ -88,7 +88,7 @@ namespace InstallerAnalyzer1_Guest
         }
 
         [Flags]
-        private enum ShutdownReason : uint
+        public enum ShutdownReason : uint
         {
             MajorApplication = 0x00040000,
             MajorHardware = 0x00010000,
@@ -131,59 +131,177 @@ namespace InstallerAnalyzer1_Guest
         }
 
         [StructLayout(LayoutKind.Sequential)]
-        private struct LUID
+        public struct LUID
         {
             public uint LowPart;
             public int HighPart;
         }
 
         [StructLayout(LayoutKind.Sequential)]
-        private struct LUID_AND_ATTRIBUTES
+        public struct LUID_AND_ATTRIBUTES
         {
             public LUID Luid;
             public UInt32 Attributes;
         }
 
-        private struct TOKEN_PRIVILEGES
+        public struct TOKEN_PRIVILEGES
         {
             public UInt32 PrivilegeCount;
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 1)]
             public LUID_AND_ATTRIBUTES[] Privileges;
         }
 
-        private const UInt32 TOKEN_QUERY = 0x0008;
-        private const UInt32 TOKEN_ADJUST_PRIVILEGES = 0x0020;
-        private const UInt32 SE_PRIVILEGE_ENABLED = 0x00000002;
-        private const string SE_SHUTDOWN_NAME = "SeShutdownPrivilege";
+        public const UInt32 TOKEN_QUERY = 0x0008;
+        public const UInt32 TOKEN_ADJUST_PRIVILEGES = 0x0020;
+        public const UInt32 SE_PRIVILEGE_ENABLED = 0x00000002;
+        public const string SE_SHUTDOWN_NAME = "SeShutdownPrivilege";
 
         [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool ExitWindowsEx(ExitWindows uFlags,
+        public static extern bool ExitWindowsEx(ExitWindows uFlags,
             ShutdownReason dwReason);
 
         [DllImport("advapi32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool OpenProcessToken(IntPtr ProcessHandle,
+        public static extern bool OpenProcessToken(IntPtr ProcessHandle,
             UInt32 DesiredAccess,
             out IntPtr TokenHandle);
 
         [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool LookupPrivilegeValue(string lpSystemName,
+        public static extern bool LookupPrivilegeValue(string lpSystemName,
             string lpName,
             out LUID lpLuid);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool CloseHandle(IntPtr hObject);
+        public static extern bool CloseHandle(IntPtr hObject);
 
         [DllImport("advapi32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool AdjustTokenPrivileges(IntPtr TokenHandle,
+        public static extern bool AdjustTokenPrivileges(IntPtr TokenHandle,
             [MarshalAs(UnmanagedType.Bool)]bool DisableAllPrivileges,
             ref TOKEN_PRIVILEGES NewState,
             UInt32 Zero,
             IntPtr Null1,
             IntPtr Null2);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool PrintWindow(IntPtr hwnd, IntPtr hDC, uint nFlags);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        public static extern IntPtr SetActiveWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr SetFocus(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool ShowWindow(IntPtr hWnd, ShowWindowCommands nCmdShow);
+        public enum ShowWindowCommands
+        {
+            /// <summary>
+            /// Hides the window and activates another window.
+            /// </summary>
+            Hide = 0,
+            /// <summary>
+            /// Activates and displays a window. If the window is minimized or 
+            /// maximized, the system restores it to its original size and position.
+            /// An application should specify this flag when displaying the window 
+            /// for the first time.
+            /// </summary>
+            Normal = 1,
+            /// <summary>
+            /// Activates the window and displays it as a minimized window.
+            /// </summary>
+            ShowMinimized = 2,
+            /// <summary>
+            /// Maximizes the specified window.
+            /// </summary>
+            Maximize = 3, // is this the right value?
+            /// <summary>
+            /// Activates the window and displays it as a maximized window.
+            /// </summary>       
+            ShowMaximized = 3,
+            /// <summary>
+            /// Displays a window in its most recent size and position. This value 
+            /// is similar to <see cref="Win32.ShowWindowCommand.Normal"/>, except 
+            /// the window is not activated.
+            /// </summary>
+            ShowNoActivate = 4,
+            /// <summary>
+            /// Activates the window and displays it in its current size and position. 
+            /// </summary>
+            Show = 5,
+            /// <summary>
+            /// Minimizes the specified window and activates the next top-level 
+            /// window in the Z order.
+            /// </summary>
+            Minimize = 6,
+            /// <summary>
+            /// Displays the window as a minimized window. This value is similar to
+            /// <see cref="Win32.ShowWindowCommand.ShowMinimized"/>, except the 
+            /// window is not activated.
+            /// </summary>
+            ShowMinNoActive = 7,
+            /// <summary>
+            /// Displays the window in its current size and position. This value is 
+            /// similar to <see cref="Win32.ShowWindowCommand.Show"/>, except the 
+            /// window is not activated.
+            /// </summary>
+            ShowNA = 8,
+            /// <summary>
+            /// Activates and displays the window. If the window is minimized or 
+            /// maximized, the system restores it to its original size and position. 
+            /// An application should specify this flag when restoring a minimized window.
+            /// </summary>
+            Restore = 9,
+            /// <summary>
+            /// Sets the show state based on the SW_* value specified in the 
+            /// STARTUPINFO structure passed to the CreateProcess function by the 
+            /// program that started the application.
+            /// </summary>
+            ShowDefault = 10,
+            /// <summary>
+            ///  <b>Windows 2000/XP:</b> Minimizes a window, even if the thread 
+            /// that owns the window is not responding. This flag should only be 
+            /// used when minimizing windows from a different thread.
+            /// </summary>
+            ForceMinimize = 11
+        }
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        public static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        public static extern int GetWindowTextLength(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        public static extern bool PostMessage(IntPtr hWnd, uint Msg, int wParam, int lParam);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool GetClientRect(IntPtr hWnd, ref RECT lpRect);
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct RECT
+        {
+            public int Left;        // x position of upper-left corner
+            public int Top;         // y position of upper-left corner
+            public int Right;       // x position of lower-right corner
+            public int Bottom;      // y position of lower-right corner
+        }
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool GetWindowRect(IntPtr hWnd, ref RECT lpRect);
     }
 }

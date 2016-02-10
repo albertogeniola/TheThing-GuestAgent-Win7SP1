@@ -1,4 +1,5 @@
 ﻿using InstallerAnalyzer1_Guest.Properties;
+using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -16,7 +17,6 @@ namespace InstallerAnalyzer1_Guest
     class Program
     {
         private static AnalyzerMainWindow mw;
-        private static ProgramLogger pl;
         private static XmlDocument _xmlLog;
         private static XmlElement _xmlRoot;
 
@@ -83,10 +83,9 @@ namespace InstallerAnalyzer1_Guest
                 mw.TopMost = true;
 
                 // Create and register the logger
-                pl = new ProgramLogger(Settings.Default.ApplicationLogFile);
-                pl.setTextBox(mw.getConsoleBox());
-                Console.SetOut(pl);
-                Console.SetError(pl);
+                ProgramLogger.Instance.setTextBox(mw.getConsoleBox());
+                Console.SetOut(ProgramLogger.Instance);
+                Console.SetError(ProgramLogger.Instance);
                 Console.ForegroundColor = ConsoleColor.Cyan;
 
                 // Run the application
@@ -105,7 +104,7 @@ namespace InstallerAnalyzer1_Guest
         static void OnProcessExit(object sender, EventArgs e)
         {
             // This is necessary to close gracefully the logfile.
-            pl.Close();
+            ProgramLogger.Instance.Close();
         }
 
         public static string GetMainWindowName()
@@ -148,6 +147,28 @@ namespace InstallerAnalyzer1_Guest
         {
             XmlNode node = _xmlLog.ImportNode(xmlElement,false);
             _xmlRoot.AppendChild(node);
+        }
+
+        public static List<string> ListInstalledPrograms() {
+            List<string> res = new List<string>();
+            string registry_key = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall";
+            using (Microsoft.Win32.RegistryKey key = Registry.LocalMachine.OpenSubKey(registry_key))
+            {
+                foreach (string subkey_name in key.GetSubKeyNames())
+                {
+                    using (RegistryKey subkey = key.OpenSubKey(subkey_name))
+                    {
+                        if (subkey.ValueCount > 0)
+                        {
+                            var value = subkey.GetValue("DisplayName");
+                            if (value!=null)
+                                res.Add(value.ToString());
+                        }
+                    }
+                }
+            }
+
+            return res;
         }
     }
 }
