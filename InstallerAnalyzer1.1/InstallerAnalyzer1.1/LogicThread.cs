@@ -607,63 +607,78 @@ namespace InstallerAnalyzer1_Guest
             _originalList = Program.ListInstalledPrograms();
 
             bool keepRunning = true;
-            try
+            
+            while (keepRunning)
             {
-                while (keepRunning)
-                {
-                    // Acquire the job from the server.
-                    // This may return null in case the server has nothing to do.
-                    Job j = AcquireWork();
+                Job j = null;
+                ProcessContainer proc = null;
+
+                // Acquire the job from the server.
+                // This may return null in case the server has nothing to do.
+                try {
+                    j = AcquireWork();
+                } catch(Exception e) {
+                    // Keep trying. The server mght be down.
+                    Console.WriteLine("Error when acquiring Job from server. "+e.Message+";\n"+e.StackTrace);
+                    Thread.Sleep(ACQUIRE_WORK_SLEEP_SECS * 1000);
+                    continue;
+                }
                     
-                    // If there is nothing to do, sleep and run again. Otherwise keep going.
-                    if (j == null)
-                    {
+                // If there is nothing to do, sleep and run again. Otherwise keep going.
+                if (j == null)
+                {
+                    Console.WriteLine("There is nothing to do at the moment. We sleep and retry in " + ACQUIRE_WORK_SLEEP_SECS + " seconds.");
+                    Thread.Sleep(ACQUIRE_WORK_SLEEP_SECS * 1000);
+                    continue;
+                }
+                else
+                {
+                    Console.WriteLine(String.Format("Job acquired from controller. Job ID {0}, file name {1}.", j.Id, j.LocalFullPath));
+                }
+                    
+                // Time to play with the installer!
+                try{
+                    proc = ExecuteJob(j, ranker, policy);
+                    Console.WriteLine("Installer process ended. ");
+                } catch(Exception e) {
+                    // I don't know what did it happen. Just report failure.
+                    proc.Result = InteractionResult.UnknownError;
+                    Console.WriteLine("Exception occurred when ExecutingJob: "+e.Message+"\n"+e.StackTrace);
+                }
+
+                // Collect info of the system and send them to the remote machine
+                var reported = false;
+                while(!reported) {
+                    try {
+                        Console.WriteLine("Collecting report...");
+                        string reportPath = PrepareReport(proc, DEFAULT_REPORT_PATH);
+                        Console.WriteLine("Sending report to HostController...");
+                        ReportWork(j,reportPath, Enum.GetName(typeof(InteractionResult), proc.Result));
+                        Console.WriteLine("Done.");
+                        reported = true;
+                    } catch(Exception e) {
+                        // In this case we want to keep trying. It is important to let the Controller know that the job was not ok.
                         Console.WriteLine("There is nothing to do at the moment. We sleep and retry in " + ACQUIRE_WORK_SLEEP_SECS + " seconds.");
                         Thread.Sleep(ACQUIRE_WORK_SLEEP_SECS * 1000);
-                        continue;
+                        reported = false;
                     }
-                    else
-                    {
-                        Console.WriteLine(String.Format("Job acquired from controller. Job ID {0}, file name {1}.", j.Id, j.LocalFullPath));
-                    }
-
-                    // Time to play with the installer!
-                    var proc = ExecuteJob(j, ranker, policy);
-                    Console.WriteLine("Installer process ended. ");
-
-                    // Collect info of the system and send them to the remote machine
-                    Console.WriteLine("Collecting report...");
-                    string reportPath = PrepareReport(proc, DEFAULT_REPORT_PATH);
-                    Console.WriteLine("Sending report to HostController...");
-                    ReportWork(j,reportPath,"completed");
-                    Console.WriteLine("Done.");
-
-                    // Done!
-                    Console.WriteLine("Job completed!");
-
-                    // We finished the test successfully. 
-                    // In case this was a bare-metal VM, we need to reboot now. 
-                    // In case of a VM, the situation may be different. For performance
-                    // reasons it would be nice to start again from a known snapshot
-                    // simply reverting the VM instead of full reboot. 
-                    // At the moment we just reboot ourself, but in future this operation
-                    // may be different.
-                    NativeMethods.Reboot();
-                    keepRunning = false;
                 }
-            }
-            catch (Exception e)
-            {
-                // TODO: if the error happened during execution of interaction whould we notify the server that we failed? 
-                // TOD: Notify the server!
 
-                //MessageBox.Show(e.Message + "\n" + e.StackTrace);
+                // Done!
+                Console.WriteLine("Job completed!");
+
+                // We finished the test successfully. 
+                // In case this was a bare-metal VM, we need to reboot now. 
+                // In case of a VM, the situation may be different. For performance
+                // reasons it would be nice to start again from a known snapshot
+                // simply reverting the VM instead of full reboot. 
+                // At the moment we just reboot ourself, but in future this operation
+                // may be different.
+                NativeMethods.Reboot();
                 keepRunning = false;
-                Console.Error.WriteLine("Exception " + e.Message + " occurred.");
-                //TODO shall we reboot?! For now I raise the same error
-                throw e; // FIXME!
             }
         }
+        
 
         private List<string> CheckNewPrograms() {
             List<string> res = new List<string>();
@@ -962,7 +977,7 @@ namespace InstallerAnalyzer1_Guest
                 }
 
                 // If none had the focus, grab the first. 
-                // TODO: we might use some heuristic here to get a better window...
+                // TODO: we might use some heuristic here to get a better window, such as dimensions, colors, etc.
                 if (winner == null)
                 {
                     winner = allae[0];
