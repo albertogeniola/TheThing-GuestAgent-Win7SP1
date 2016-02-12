@@ -50,27 +50,30 @@ namespace InstallerAnalyzer1_Guest.Properties {
             }
         }
         
-        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("c:\\users\\bot\\Desktop\\stable")]
         public string STABLE_SCREEN_PATH {
             get {
                 return ((string)(this["STABLE_SCREEN_PATH"]));
             }
-            set {
-                this["STABLE_SCREEN_PATH"] = value;
-            }
         }
         
-        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("c:\\users\\bot\\Desktop\\interaction")]
         public string INTERACTIONS_SCREEN_PATH {
             get {
                 return ((string)(this["INTERACTIONS_SCREEN_PATH"]));
             }
-            set {
-                this["INTERACTIONS_SCREEN_PATH"] = value;
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("600000")]
+        public int EXECUTE_JOB_TIMEOUT {
+            get {
+                return ((int)(this["EXECUTE_JOB_TIMEOUT"]));
             }
         }
     }

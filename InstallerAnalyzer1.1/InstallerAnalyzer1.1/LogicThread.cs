@@ -31,7 +31,7 @@ namespace InstallerAnalyzer1_Guest
     {
         const int STUCK_THRESHOLD = 10; //TODO: Fixme. This might be increased or decreased. 
         const int STUCK_NO_CONTROLS_THRESHOLD = 50;
-        const int REACTION_TIMEOUT = 1500;
+        const int REACTION_TIMEOUT = 500;
         const int IDLE_TIMEOUT = 600000; // Wait up to 10 minutes for heavy I/O timeout
         const int ACQUIRE_WORK_SLEEP_SECS = 10;
         const int CIRCULAR_LOOP_THRESHOLD = 5;
@@ -43,6 +43,9 @@ namespace InstallerAnalyzer1_Guest
 
         // This list will contain the list of installed programs as shown in Control Panel
         private List<string> _originalList;
+
+        // We will use a timer in order to stop if the process is taking too long.
+        private System.Timers.Timer _interactionTimer;
 
         // Network objects
         private IPAddress _remoteIp;
@@ -287,7 +290,8 @@ namespace InstallerAnalyzer1_Guest
 
             return true;
         }
-        
+
+        private bool _timeout;
         private ProcessContainer ExecuteJob(Job j, IUIRanker ranker, IRankingPolicy policy) {
             int c=0;
             int stuckCounter = 0;
@@ -298,12 +302,15 @@ namespace InstallerAnalyzer1_Guest
             Console.WriteLine("UI Bot: START");
             var proc = StartProcessWithInjector(j);
 
-            // It starts the loop of interactions, ended only when the process
-            // has exited, correctly (status = 0) or not (status != 0).
-            while (!AreProcsFinished())
+            // Keep interacting until we hit the timeout or the process exits normally.
+            while (!_timeout)
             {
                 try
                 {
+                    // Check if there is still some process running. If no, break!
+                    if (AreProcsFinished())
+                        throw new ProcessExitedException();
+
                     // Wait until the window is considered stable
                     Window waitingWindnow = null;
                     Console.WriteLine("UI Bot: WAIT WINDOW STABLE (PID: " + proc.Process.Id + ") " + "Interaction: " + c);
@@ -330,8 +337,6 @@ namespace InstallerAnalyzer1_Guest
                     Console.WriteLine("UI Bot: Stable hWND " + waitingWindnow.Handle.ToString("X") + ", loc: " + waitingWindnow.WindowLocation.ToString());
 
                     SaveStableScreen(waitingWindnow, c);
-
-                    // TODO: Timeout dealing?
 
                     // Analyze the window and build the controls rank.
                     Console.WriteLine("UI Bot: Analyze Window (PID: " + proc.Process.Id + ", HWND: " + waitingWindnow.Handle + ", TITLE: " + waitingWindnow.Title + ") " + "Interaction: " + c);
@@ -389,7 +394,7 @@ namespace InstallerAnalyzer1_Guest
                             }
                         }
 
-                    } while (!uiHasChanged);
+                    } while (!uiHasChanged && !_timeout);
 
                 }
                 catch (ControlNotFoundException e)
@@ -513,12 +518,27 @@ namespace InstallerAnalyzer1_Guest
                 }
             
                 // At this point we reiterate again, until the pocess runs.
+            } // End of the interaction Loop
+
+
+            // The control gets here when the previous interaction loop is finished. It may finish for the following reasons:
+            // -> All the processes end correctly: status will be Finished
+            // -> Detected UI Stuck: UIStuck
+            // -> An unhandled error occurs: Unknown
+            // However timeout check is performed within the while evaluation, so we need to check it separately and 
+            // act accordingly. If the timeout was hit, we have to kill everything and return the control to the caller.
+
+            // Make sure everything is terminated before continuing
+            if (!proc.Process.HasExited)
+                proc.Process.Kill();
+
+            // Check if we got a timeout
+            if (_timeout)
+            {
+                proc.Result = InteractionResult.TimeOut;
             }
-
-            // Process has exited at this point. We should check whether correctly or not.
-            if (proc.Result == InteractionResult.Unknown)
-                proc.Result = InteractionResult.Finished;
-
+            
+            // Return the result to the parent.
             return proc;
         }
 
@@ -587,13 +607,15 @@ namespace InstallerAnalyzer1_Guest
             _mac = GetMACAddr();
             _visitedVindows = new Dictionary<string, int>();
             _originalList = new List<string>();
+            _interactionTimer = new System.Timers.Timer(Settings.Default.EXECUTE_JOB_TIMEOUT);
         }
-
+        
         public void Start()
         {
             Thread t = new Thread(new ThreadStart(work));
             t.Start();
         }
+
 
         /// <summary>
         /// This method represents the entry point for the thread work.
@@ -638,12 +660,40 @@ namespace InstallerAnalyzer1_Guest
                     
                 // Time to play with the installer!
                 try{
+                    // Start a timeout in order to recover if the process gets stuck
+                    _interactionTimer.Elapsed += TimeoutReached;
+                    _timeout = false;
+                    
+                    _interactionTimer.Start();
                     proc = ExecuteJob(j, ranker, policy);
+                    _interactionTimer.Stop();
+
                     Console.WriteLine("Installer process ended. ");
                 } catch(Exception e) {
                     // I don't know what did it happen. Just report failure.
                     proc.Result = InteractionResult.UnknownError;
                     Console.WriteLine("Exception occurred when ExecutingJob: "+e.Message+"\n"+e.StackTrace);
+                }
+
+                // Kill the Injector process if it's still alive
+                if (!proc.Process.HasExited)
+                {
+                    Console.WriteLine("Killing injector process with pid "+proc.Process.Id);
+                    proc.Process.Kill();
+                }
+
+                // Kill any other process spawned by us
+                var pids = ProgramStatus.Instance.Pids;
+                foreach (var p in pids){
+                    try
+                    {
+                        var child = Process.GetProcessById((int)p);
+                        child.Kill();
+                        Console.WriteLine("Killed child process with pid " + child.Id);
+                    }
+                    catch (Exception e) { 
+                        // The process may already be dead. Ignore it.
+                    }
                 }
 
                 // Collect info of the system and send them to the remote machine
@@ -678,8 +728,13 @@ namespace InstallerAnalyzer1_Guest
                 keepRunning = false;
             }
         }
-        
 
+        private void TimeoutReached(object sender, System.Timers.ElapsedEventArgs e)
+        {
+            _timeout = true;
+            _interactionTimer.Stop();
+        }
+        
         private List<string> CheckNewPrograms() {
             List<string> res = new List<string>();
 
@@ -820,8 +875,15 @@ namespace InstallerAnalyzer1_Guest
              * 1. Detect the most-probable window handle of all the monitored PIDs.
              * 2. Scan it by taking a screenshot and calculating an hash which will be memorized
              * 3. Reiterate again until I find the same hash for at least 4 times.
-             * 4. Each time I reiterate, wait for a second, so the process has time to update itself.
+             * 4. Each time I reiterate, wait for half a second, so the process has time to update itself.
              * If no window is found, return null.
+             * 
+             * NOTES: Loops detection.
+             * It may happen that a window is presenting the same sequence of frames, such as an animation.
+             * This method tries to handle this situation by tracking the hashes of the frames into a dictionary
+             * with an associated counter. Whenever a new frame is detected, all the counters are resetted. 
+             * So, only when no new frames are detected and there is a counter > LOOP_THRESHOLD, the window
+             * is considered to be stable.
              * 
              * TODO
              * Please note that this mechanism could be heavily improved by hooking Win32 Drawing APIs to trigger
@@ -832,17 +894,31 @@ namespace InstallerAnalyzer1_Guest
              * Note that I am not taking track of stable window HASHES. It may be a good idea to store
              * them in a dictionary to detect loops (Abort->Cancel->Abort->Cancel->Abort->Cancel...)
              */
-            int stableThreshold = 3;
+            int LOOP_THRESHOLD = 4;
             int stableScans=0;
 
             IntPtr prevHandle = IntPtr.Zero;
             Window currentWindow = null;
             Window prevWindow = null;
             string prevHash = null;
+            // Use a dictionary to detect possible loops. 
+            Dictionary<string,int> previousHashes = new Dictionary<string,int>();
 
-            // Loop until we find the same window (i.e. stable) for at least stableThreshold
-            while (stableScans <= stableThreshold)
+            // Loop until we reach a minimum number of stable screenshots
+            while (stableScans <= LOOP_THRESHOLD && !_timeout)
             {
+                // Check if we are into a loop. For us a loop means stability!
+                bool loopDetected = false;
+                foreach (var k in previousHashes) {
+                    if (k.Value > LOOP_THRESHOLD)
+                    {
+                        loopDetected = true;
+                        break;
+                    }
+                }
+                if (loopDetected)
+                    break;
+
                 // Guess the UI window handle
                 IntPtr wH = GetProcUIWindowHandle();
                     
@@ -860,9 +936,10 @@ namespace InstallerAnalyzer1_Guest
                     return null;
                 }
 
-                // If the Handle of the mainWindow changes, reset the stability counter and iterate again.
+                // If the Handle of the mainWindow changes, reset the stability counters and iterate again.
                 if (!wH.Equals(prevHandle))
                 {
+                    previousHashes.Clear();
                     prevHandle = wH;
                     stableScans = 0;
                     Thread.Sleep(REACTION_TIMEOUT);
@@ -876,19 +953,44 @@ namespace InstallerAnalyzer1_Guest
                 {
                     prevWindow = currentWindow;
                     prevHash = UIAnalysis.NativeAndVisualRanker.CalculateHash(prevWindow);
+                    previousHashes.Add(prevHash,1);
+                    
+
+                    // Reset all the other counters
+                    for (int i = previousHashes.Count - 1; i >= 0; i--)
+                    {
+                        var k = previousHashes.ElementAt(i).Key;
+                        previousHashes[k] = 1;
+                    }
+
                     stableScans = 0;
                     Thread.Sleep(REACTION_TIMEOUT);
                     continue;
                 }
                     
                 // Here we have the situation in which prevWindow is not null and currentWindow is neither. 
-                // So I need to check if there are visual differences between the two windows.
+                // So I need to check weather there are visual differences between the two windows.
                 string currentHash = UIAnalysis.NativeAndVisualRanker.CalculateHash(currentWindow);
                 if (prevHash.CompareTo(currentHash) != 0)
                 {
                     // Something changed
                     prevWindow = currentWindow;
                     prevHash = currentHash;
+
+                    // Update the loop counter accordingly
+                    if (previousHashes.ContainsKey(currentHash))
+                        previousHashes[currentHash]++;
+                    else
+                    {
+                        previousHashes.Add(currentHash, 1);
+                        
+                        // Reset all the other counters
+                        for (int i = previousHashes.Count - 1; i >= 0; i--)
+                        {
+                            var k = previousHashes.ElementAt(i).Key;
+                            previousHashes[k] = 1;
+                        }
+                    }
 
                     // Reset the counter and loop again
                     stableScans = 0;
@@ -901,6 +1003,7 @@ namespace InstallerAnalyzer1_Guest
                 // TODO
 
                 // Ok, after all the check above, I can assume the window UI has not changed. Increase the counter.
+                previousHashes[prevHash]++;
                 stableScans++;
                 Thread.Sleep(REACTION_TIMEOUT);
                 
@@ -1097,7 +1200,6 @@ namespace InstallerAnalyzer1_Guest
 
         
         #endregion
-
     }
 
     /// <summary>
