@@ -103,9 +103,9 @@
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
-    <Reference Include="Tesseract, Version=3.0.0.0, Culture=neutral, PublicKeyToken=ebeb3d86bef60cbe, processorArchitecture=MSIL">
+    <Reference Include="Tesseract, Version=2.4.1.0, Culture=neutral, PublicKeyToken=ebeb3d86bef60cbe, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\Tesseract.3.0.0.0\lib\net40\Tesseract.dll</HintPath>
+      <HintPath>..\packages\Tesseract.2.4.1.0\lib\net40\Tesseract.dll</HintPath>
     </Reference>
     <Reference Include="UIAutomationClient" />
     <Reference Include="UIAutomationClientsideProviders" />
@@ -228,18 +228,17 @@
   <ItemGroup>
     <None Include="Resources\hal9000.png" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
-    <Content Include="x64\liblept171.dll">
+    <Content Include="x64\liblept168.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="x64\libtesseract304.dll">
+    <Content Include="x64\libtesseract302.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="x86\liblept171.dll">
+    <Content Include="x86\liblept168.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="x86\libtesseract304.dll">
+    <Content Include="x86\libtesseract302.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

@@ -19,6 +19,7 @@ namespace InstallerAnalyzer1_Guest
         private static AnalyzerMainWindow mw;
         private static XmlDocument _xmlLog;
         private static XmlElement _xmlRoot;
+        private static XmlElement _xmlNative;
 
         [STAThread]
         static void Main(string[] args)
@@ -30,8 +31,11 @@ namespace InstallerAnalyzer1_Guest
                 int _remotePort;
 
                 _xmlLog = new XmlDocument();
-                _xmlRoot = _xmlLog.CreateElement("ROOT");
+                _xmlRoot = _xmlLog.CreateElement("InstallerAnalyzerReport");
                 _xmlLog.AppendChild(_xmlRoot);
+
+                _xmlNative = _xmlLog.CreateElement("SyscallInvocations");
+                _xmlRoot.AppendChild(_xmlNative);
 
                 // Argument checking...
                 #region Arguments checking
@@ -107,46 +111,10 @@ namespace InstallerAnalyzer1_Guest
             ProgramLogger.Instance.Close();
         }
 
-        public static string GetMainWindowName()
-        {
-            return mw.Text;
-        }
-
-        public static XmlDocument GetInstallerLog()
-        {
-            if (mw == null)
-                throw new ApplicationException("You have to start the application before getting the log!");
-            else
-            {
-                return _xmlLog;
-            }
-                
-        }
-
-
-        public static void resetLog()
-        {
-            if (mw == null)
-                throw new ApplicationException("You have to start the application before resetting the log!");
-            else
-            {
-                _xmlLog = new XmlDocument();
-                _xmlRoot = _xmlLog.CreateElement("ROOT");
-                _xmlLog.AppendChild(_xmlRoot);
-
-                mw.resetInstallerLog();
-            }
-        }
-        
-        internal static void appendInstallerLog(string xmlElement)
-        {
-            mw.appendInstallerLog(xmlElement);
-        }
-
         public static void appendXmlLog(System.Xml.XmlElement xmlElement)
         {
             XmlNode node = _xmlLog.ImportNode(xmlElement,false);
-            _xmlRoot.AppendChild(node);
+            _xmlNative.AppendChild(node);
         }
 
         public static List<string> ListInstalledPrograms() {
@@ -169,6 +137,11 @@ namespace InstallerAnalyzer1_Guest
             }
 
             return res;
+        }
+
+        public static XmlElement GetInstallerLog()
+        {
+            return _xmlRoot;
         }
     }
 }

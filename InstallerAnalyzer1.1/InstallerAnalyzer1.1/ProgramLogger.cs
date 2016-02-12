@@ -27,7 +27,7 @@ namespace InstallerAnalyzer1_Guest
         private StreamWriter _outputFileStream;
         private string _logPath;
 
-        private ProgramLogger(string outputFile):base()
+        private ProgramLogger(string outputFile):base(new MyFormatProvider())
         {
             if (File.Exists(outputFile))
             {
@@ -47,8 +47,7 @@ namespace InstallerAnalyzer1_Guest
                 _outputFileStream = File.CreateText(_logPath); //TODO: this must be parametrized
                 _outputFileStream.AutoFlush = true;
             }
-            
-            
+
         }
 
         public string GetLogFile() {
@@ -89,6 +88,29 @@ namespace InstallerAnalyzer1_Guest
         public override Encoding Encoding
         {
             get { return System.Text.Encoding.UTF8; }
+        }
+
+        class MyFormatProvider : IFormatProvider, ICustomFormatter
+        {
+
+            public object GetFormat(Type formatType)
+            {
+                if (formatType == typeof(ICustomFormatter))
+                    return this;
+                else
+                    return null;
+            }
+
+            public string Format(string format, object arg, IFormatProvider formatProvider)
+            {
+                // Convert argument to a string.
+                string result = arg.ToString();
+
+                // Add a datetime
+                DateTime t = DateTime.Now;
+                return t.ToShortTimeString()+"> "+result;
+
+            }
         }
 
     }

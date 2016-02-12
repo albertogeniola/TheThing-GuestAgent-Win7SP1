@@ -46,6 +46,7 @@ namespace InstallerAnalyzer1_Guest
 
         // We will use a timer in order to stop if the process is taking too long.
         private System.Timers.Timer _interactionTimer;
+        private System.Timers.Timer _stuckUiWatcher;
 
         // Network objects
         private IPAddress _remoteIp;
@@ -608,6 +609,32 @@ namespace InstallerAnalyzer1_Guest
             _visitedVindows = new Dictionary<string, int>();
             _originalList = new List<string>();
             _interactionTimer = new System.Timers.Timer(Settings.Default.EXECUTE_JOB_TIMEOUT);
+            _stuckUiWatcher = new System.Timers.Timer(5000);
+            _stuckUiWatcher.Elapsed += _stuckUiWatcher_Elapsed;
+        }
+
+        void _stuckUiWatcher_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
+        {
+            // Check if there is any stuck window. If so, kill the owning process
+            var pids = ProgramStatus.Instance.Pids;
+            foreach (var p in pids) {
+                try
+                {
+                    Process proc = Process.GetProcessById((int)p);
+                    UIntPtr r;
+                    IntPtr res = NativeMethods.SendMessageTimeout(proc.MainWindowHandle, (uint)0, UIntPtr.Zero, IntPtr.Zero, NativeMethods.SendMessageTimeoutFlags.SMTO_ABORTIFHUNG | NativeMethods.SendMessageTimeoutFlags.SMTO_BLOCK, 5000, out r);
+                    if (res == IntPtr.Zero) { 
+                        // The window is stuck. Kill the owning process and proceed.
+                        Console.WriteLine("UI Watcher: Detected some UI stuck. Killing owning process "+proc.Id);
+                        proc.Kill();
+                    }
+                    
+                }
+                catch (Exception ex)
+                { 
+                    // Ignore everything. This is not crucial.
+                }
+            }
         }
         
         public void Start()
@@ -708,7 +735,7 @@ namespace InstallerAnalyzer1_Guest
                         reported = true;
                     } catch(Exception e) {
                         // In this case we want to keep trying. It is important to let the Controller know that the job was not ok.
-                        Console.WriteLine("There is nothing to do at the moment. We sleep and retry in " + ACQUIRE_WORK_SLEEP_SECS + " seconds.");
+                        Console.WriteLine("Cannot report work back to host controller. I will retry in a moment.");
                         Thread.Sleep(ACQUIRE_WORK_SLEEP_SECS * 1000);
                         reported = false;
                     }
@@ -750,7 +777,7 @@ namespace InstallerAnalyzer1_Guest
         private string PrepareReport(ProcessContainer p, string outfile)
         {
             var log = Program.GetInstallerLog();
-            var result = log.CreateElement("Result"); // Main element containing all the result info
+            var result = log.OwnerDocument.CreateElement("Result"); // Main element containing all the result info
             log.FirstChild.AppendChild(result);
 
             // Start collecting info and produce a nice report
@@ -759,25 +786,25 @@ namespace InstallerAnalyzer1_Guest
             int rtnCode = p.Process.ExitCode;
 
             // Add the Injector return code, stdout and stderr
-            var injector = log.CreateElement("Injector");
-            var stdout = log.CreateElement("StdOut");
+            var injector = log.OwnerDocument.CreateElement("Injector");
+            var stdout = log.OwnerDocument.CreateElement("StdOut");
             stdout.InnerText = output;
             injector.AppendChild(stdout);
-            
-            var stderr = log.CreateElement("StdErr");
+
+            var stderr = log.OwnerDocument.CreateElement("StdErr");
             stderr.InnerText = errors;
             injector.AppendChild(stderr);
 
-            var retcode = log.CreateElement("RetCode");
+            var retcode = log.OwnerDocument.CreateElement("RetCode");
             retcode.InnerText = "" + rtnCode;
             injector.AppendChild(retcode);
             result.AppendChild(injector);
 
 
             // UIBot results
-            var uiResult = log.CreateElement("UiBot");
-            var uiResultDescription = log.CreateElement("Description");
-            var uiResultValue = log.CreateElement("Value");
+            var uiResult = log.OwnerDocument.CreateElement("UiBot");
+            var uiResultDescription = log.OwnerDocument.CreateElement("Description");
+            var uiResultValue = log.OwnerDocument.CreateElement("Value");
             uiResultDescription.InnerText = Enum.GetName(typeof(InteractionResult), p.Result);
             uiResultValue.InnerText = ((int)p.Result).ToString();
             uiResult.AppendChild(uiResultValue);
@@ -785,11 +812,11 @@ namespace InstallerAnalyzer1_Guest
             result.AppendChild(uiResult);
 
             // New application detected
-            var deltaApps = log.CreateElement("NewApplications");
+            var deltaApps = log.OwnerDocument.CreateElement("NewApplications");
             var newProgs = CheckNewPrograms();
             deltaApps.SetAttribute("count", newProgs.Count.ToString());
-            foreach (var s in newProgs) { 
-                var app = log.CreateElement("Application");
+            foreach (var s in newProgs) {
+                var app = log.OwnerDocument.CreateElement("Application");
                 app.InnerText = s;
                 deltaApps.AppendChild(app);
             }
@@ -797,13 +824,13 @@ namespace InstallerAnalyzer1_Guest
 
             // Now collect logs and other info, like screenshots.
             ProgramLogger.Instance.Close();
-            var appLog = log.CreateElement("AppLog");
+            var appLog = log.OwnerDocument.CreateElement("AppLog");
             appLog.InnerText = File.ReadAllText(ProgramLogger.Instance.GetLogFile());
             log.FirstChild.AppendChild(appLog);
 
             string f = ZipScreens();
             // Add the zip file to the report
-            var screens = log.CreateElement("InteractionScreenshots");
+            var screens = log.OwnerDocument.CreateElement("InteractionScreenshots");
             screens.InnerText = Convert.ToBase64String(File.ReadAllBytes(f)); // This Kills memory!!! //TODO //FIXME
             log.FirstChild.AppendChild(screens);
 

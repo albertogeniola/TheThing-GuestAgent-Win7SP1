@@ -28,6 +28,8 @@ namespace InstallerAnalyzer1_Guest
         private readonly static IntPtr MESSAGE_NEW_PROC = new IntPtr(1);
         private readonly static IntPtr MESSAGE_PROC_DIED = new IntPtr(2);
         private LogicThread _t;
+        private Timer _timer;
+        private DateTime _startTime;
 
         public AnalyzerMainWindow(IPAddress ip, int port)
         {
@@ -41,12 +43,34 @@ namespace InstallerAnalyzer1_Guest
             _t = new LogicThread(ip, port);
             this.Width = SystemInformation.PrimaryMonitorSize.Width;
             this.Shown += AnalyzerMainWindow_Shown;
+            _timer = new Timer();
+            _timer.Interval = 1000;
+            _timer.Tick += _timer_Tick;
+
+        }
+
+        void _timer_Tick(object sender, EventArgs e)
+        {
+            string elapse = DateTime.Now.Subtract(_startTime).ToString();
+
+            // Update the timer on the UI
+            if (InvokeRequired)
+            {
+                Invoke(new Action(()=>{
+                    elapsedTime.Text = elapse;
+                }));
+            }
+            else {
+                elapsedTime.Text = elapse;
+            }
         }
 
         void AnalyzerMainWindow_Shown(object sender, EventArgs e)
         {
             ProgramStatus.Instance.Subscribe(this);
             _t.Start();
+            _startTime = DateTime.Now;
+            _timer.Start();
         }
 
 
@@ -180,6 +204,16 @@ namespace InstallerAnalyzer1_Guest
             else
                 action();
             
+        }
+
+        private void monitoredPids_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void timer1_Tick(object sender, EventArgs e)
+        {
+
         }
     }
 }

@@ -98,25 +98,8 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
 
         public Bitmap GetWindowsScreenshot()
         {
-            /*
-            // Get bounds of the current window
-            RECT bounds = new RECT();
-            bool res = GetWindowRect(_handle, ref bounds);
-            if (res)
-            {
-                int width = Math.Abs(bounds.Right - bounds.Left);
-                int height = Math.Abs(bounds.Bottom - bounds.Top);
+            // Note that if the destination window is hang, this method will stuck. Before running, check if the window is responding
 
-                Bitmap bitmap = new Bitmap(width, height);
-                using (Graphics g = Graphics.FromImage(bitmap))
-                {
-                    g.CopyFromScreen(new Point(bounds.Left, bounds.Top), new Point(0, 0), new Size(width, height));
-                    g.Flush();
-                }
-                return bitmap;
-            }
-            throw new Exception("Cannot get Window Bitmap");
-             * */
 
             InstallerAnalyzer1_Guest.NativeMethods.RECT bounds = new InstallerAnalyzer1_Guest.NativeMethods.RECT();
             bool res = NativeMethods.GetWindowRect(_handle, ref bounds);
@@ -124,10 +107,12 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
             int height = Math.Abs(bounds.Bottom - bounds.Top);
 
             Bitmap bmp = new Bitmap(width, height);
-            Graphics memoryGraphics = Graphics.FromImage(bmp);
-            IntPtr dc = memoryGraphics.GetHdc();
-            bool success = NativeMethods.PrintWindow(Handle, dc, 0);
-            memoryGraphics.ReleaseHdc(dc);
+            using (Graphics memoryGraphics = Graphics.FromImage(bmp))
+            {
+                IntPtr dc = memoryGraphics.GetHdc();
+                bool success = NativeMethods.PrintWindow(Handle, dc, 0);
+                memoryGraphics.ReleaseHdc(dc);
+            }
             // bmp now contains the screenshot
             return bmp;
         }
