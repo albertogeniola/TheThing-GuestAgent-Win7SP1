@@ -27,7 +27,7 @@ namespace InstallerAnalyzer1_Guest
         private StreamWriter _outputFileStream;
         private string _logPath;
 
-        private ProgramLogger(string outputFile):base(new MyFormatProvider())
+        private ProgramLogger(string outputFile):base()
         {
             if (File.Exists(outputFile))
             {
@@ -50,6 +50,50 @@ namespace InstallerAnalyzer1_Guest
 
         }
 
+        public override void Write(string value)
+        {
+            // Get the time 
+            string time = DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss.fff");
+            string line = time + "-> " + value;
+            
+            // Base calss write()
+            base.Write(line);
+
+            // If a stream has been defined, write there too
+            if (_outputFileStream != null && _outputFileStream.BaseStream != null)
+                _outputFileStream.Write(line);
+
+            // If an outputbox has been defined, write there too.
+            if (_output != null)
+                if (_output.InvokeRequired)
+                    _output.Invoke((MethodInvoker)delegate
+                    {
+                        _output.AppendText("" + line);
+                    });
+                else
+                    _output.AppendText("" + line);
+        }
+
+        public override void Write(char value)
+        {
+            // Base calss write()
+            base.Write(value);
+
+            // If a stream has been defined, write there too
+            if (_outputFileStream != null && _outputFileStream.BaseStream != null)
+                _outputFileStream.Write(value);
+
+            // If an outputbox has been defined, write there too.
+            if (_output != null)
+                if (_output.InvokeRequired)
+                    _output.Invoke((MethodInvoker)delegate
+                    {
+                        _output.AppendText("" + value);
+                    });
+                else
+                    _output.AppendText("" + value);
+        }
+
         public string GetLogFile() {
             return _logPath;
         }
@@ -64,53 +108,10 @@ namespace InstallerAnalyzer1_Guest
             base.Close();
             _outputFileStream.Close();
         }
-
-        public override void Write(char value)
-        {
-            // Base calss write()
-            base.Write(value);
-
-            // If a stream has been defined, write there too
-            if (_outputFileStream != null && _outputFileStream.BaseStream!=null)
-                _outputFileStream.Write(value);
-
-            // If an outputbox has been defined, write there too.
-            if (_output != null)
-                if (_output.InvokeRequired)
-                    _output.Invoke((MethodInvoker)delegate
-                    {
-                        _output.AppendText("" + value);
-                    });
-                else
-                    _output.AppendText("" + value);
-        }
-
+        
         public override Encoding Encoding
         {
             get { return System.Text.Encoding.UTF8; }
-        }
-
-        class MyFormatProvider : IFormatProvider, ICustomFormatter
-        {
-
-            public object GetFormat(Type formatType)
-            {
-                if (formatType == typeof(ICustomFormatter))
-                    return this;
-                else
-                    return null;
-            }
-
-            public string Format(string format, object arg, IFormatProvider formatProvider)
-            {
-                // Convert argument to a string.
-                string result = arg.ToString();
-
-                // Add a datetime
-                DateTime t = DateTime.Now;
-                return t.ToShortTimeString()+"> "+result;
-
-            }
         }
 
     }

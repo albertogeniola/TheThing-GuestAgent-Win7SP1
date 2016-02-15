@@ -215,5 +215,21 @@ namespace InstallerAnalyzer1_Guest
         {
 
         }
+
+        public void SetTimeoutExpired()
+        {
+            Action d = () =>
+                {
+                    timeout.Text = "TIMEOUT!";
+                };
+
+            if (InvokeRequired)
+            {
+                Invoke(d);
+            }
+            else {
+                d();
+            }
+        }
     }
 }

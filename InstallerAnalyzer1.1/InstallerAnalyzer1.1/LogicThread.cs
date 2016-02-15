@@ -692,8 +692,10 @@ namespace InstallerAnalyzer1_Guest
                     _timeout = false;
                     
                     _interactionTimer.Start();
+                    _stuckUiWatcher.Start();
                     proc = ExecuteJob(j, ranker, policy);
                     _interactionTimer.Stop();
+                    _stuckUiWatcher.Stop();
 
                     Console.WriteLine("Installer process ended. ");
                 } catch(Exception e) {
@@ -760,6 +762,7 @@ namespace InstallerAnalyzer1_Guest
         {
             _timeout = true;
             _interactionTimer.Stop();
+            Program.SetTimeoutExpired();
         }
         
         private List<string> CheckNewPrograms() {

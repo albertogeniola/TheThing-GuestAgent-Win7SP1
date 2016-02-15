@@ -39,6 +39,7 @@
             this.monitoredPids = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
             this.elapsedTime = new System.Windows.Forms.Label();
+            this.timeout = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             this.SuspendLayout();
             // 
@@ -121,7 +122,7 @@
             // 
             this.label2.AutoSize = true;
             this.label2.ForeColor = System.Drawing.Color.White;
-            this.label2.Location = new System.Drawing.Point(843, 9);
+            this.label2.Location = new System.Drawing.Point(761, 9);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(86, 13);
             this.label2.TabIndex = 7;
@@ -131,11 +132,18 @@
             // 
             this.elapsedTime.AutoSize = true;
             this.elapsedTime.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(192)))), ((int)(((byte)(128)))));
-            this.elapsedTime.Location = new System.Drawing.Point(935, 9);
+            this.elapsedTime.Location = new System.Drawing.Point(853, 9);
             this.elapsedTime.Name = "elapsedTime";
             this.elapsedTime.Size = new System.Drawing.Size(49, 13);
             this.elapsedTime.TabIndex = 8;
             this.elapsedTime.Text = "00:00:00";
+            // 
+            // timeout
+            // 
+            this.timeout.Location = new System.Drawing.Point(908, 9);
+            this.timeout.Name = "timeout";
+            this.timeout.Size = new System.Drawing.Size(115, 13);
+            this.timeout.TabIndex = 9;
             // 
             // AnalyzerMainWindow
             // 
@@ -144,6 +152,7 @@
             this.BackColor = System.Drawing.Color.Black;
             this.ClientSize = new System.Drawing.Size(1035, 82);
             this.ControlBox = false;
+            this.Controls.Add(this.timeout);
             this.Controls.Add(this.elapsedTime);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.monitoredPids);
@@ -177,5 +186,6 @@
         private System.Windows.Forms.Label monitoredPids;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Label elapsedTime;
+        private System.Windows.Forms.Label timeout;
     }
 }

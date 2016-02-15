@@ -143,5 +143,10 @@ namespace InstallerAnalyzer1_Guest
         {
             return _xmlRoot;
         }
+
+        public static void SetTimeoutExpired()
+        {
+            mw.SetTimeoutExpired();
+        }
     }
 }
