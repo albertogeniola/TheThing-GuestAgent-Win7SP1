@@ -27,6 +27,7 @@ namespace InstallerAnalyzer1_Guest
         private readonly static IntPtr MESSAGE_LOG = new IntPtr(0);
         private readonly static IntPtr MESSAGE_NEW_PROC = new IntPtr(1);
         private readonly static IntPtr MESSAGE_PROC_DIED = new IntPtr(2);
+        private readonly static IntPtr MESSAGE_FILE_ACCESS = new IntPtr(3);
         private LogicThread _t;
         private Timer _timer;
         private DateTime _startTime;
@@ -102,11 +103,20 @@ namespace InstallerAnalyzer1_Guest
                 } 
                 else if (d.dwData==MESSAGE_PROC_DIED) 
                 {
-                    
                     // Process died
                     var pid = BitConverter.ToUInt32(bb, 0);
                     ProgramStatus.Instance.RemovePid(pid);
-                }             
+                }
+                else if (d.dwData == MESSAGE_FILE_ACCESS) { 
+                    // Access to file!
+                    d = (CopyDataStruct)Marshal.PtrToStructure(m.LParam, typeof(CopyDataStruct));
+                    // Log data
+                    bb = new byte[d.cbData];
+                    for (int i = 0; i < bb.Length; i++)
+                        bb[i] = Marshal.ReadByte(d.lpData, i);
+                    string s = Encoding.Unicode.GetString(bb);
+                    Console.WriteLine("Access to file: "+s);
+                }
             }
             base.WndProc(ref m);
         }

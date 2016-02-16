@@ -10,6 +10,7 @@
 #define COPYDATA_LOG 0
 #define COPYDATA_PROC_SPAWNED 1
 #define COPYDATA_PROC_DIED 2
+#define COPYDATA_NOTIFY_FILE_ACCESS 3
 
 // Guest Controller window's name
 #ifdef UNICODE

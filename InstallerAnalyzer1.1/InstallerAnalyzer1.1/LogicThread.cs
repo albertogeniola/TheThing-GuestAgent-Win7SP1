@@ -609,7 +609,7 @@ namespace InstallerAnalyzer1_Guest
             _visitedVindows = new Dictionary<string, int>();
             _originalList = new List<string>();
             _interactionTimer = new System.Timers.Timer(Settings.Default.EXECUTE_JOB_TIMEOUT);
-            _stuckUiWatcher = new System.Timers.Timer(5000);
+            _stuckUiWatcher = new System.Timers.Timer(30000);
             _stuckUiWatcher.Elapsed += _stuckUiWatcher_Elapsed;
         }
 
@@ -622,11 +622,15 @@ namespace InstallerAnalyzer1_Guest
                 {
                     Process proc = Process.GetProcessById((int)p);
                     UIntPtr r;
-                    IntPtr res = NativeMethods.SendMessageTimeout(proc.MainWindowHandle, (uint)0, UIntPtr.Zero, IntPtr.Zero, NativeMethods.SendMessageTimeoutFlags.SMTO_ABORTIFHUNG | NativeMethods.SendMessageTimeoutFlags.SMTO_BLOCK, 5000, out r);
-                    if (res == IntPtr.Zero) { 
-                        // The window is stuck. Kill the owning process and proceed.
-                        Console.WriteLine("UI Watcher: Detected some UI stuck. Killing owning process "+proc.Id);
-                        proc.Kill();
+                    IntPtr res = NativeMethods.SendMessageTimeout(proc.MainWindowHandle, (uint)0, UIntPtr.Zero, IntPtr.Zero, NativeMethods.SendMessageTimeoutFlags.SMTO_ABORTIFHUNG | NativeMethods.SendMessageTimeoutFlags.SMTO_BLOCK, 30000, out r);
+                    if (res == IntPtr.Zero) {
+                        int err = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+                        if (err == 1460L)
+                        {
+                            // The window is stuck. Kill the owning process and proceed.
+                            Console.WriteLine("UI Watcher: Detected some UI stuck. Killing owning process " + proc.Id);
+                            proc.Kill();
+                        }
                     }
                     
                 }
@@ -780,8 +784,9 @@ namespace InstallerAnalyzer1_Guest
         private string PrepareReport(ProcessContainer p, string outfile)
         {
             var log = Program.GetInstallerLog();
+
             var result = log.OwnerDocument.CreateElement("Result"); // Main element containing all the result info
-            log.FirstChild.AppendChild(result);
+            log.AppendChild(result);
 
             // Start collecting info and produce a nice report
             string errors = p.Process.StandardError.ReadToEnd();
@@ -829,13 +834,13 @@ namespace InstallerAnalyzer1_Guest
             ProgramLogger.Instance.Close();
             var appLog = log.OwnerDocument.CreateElement("AppLog");
             appLog.InnerText = File.ReadAllText(ProgramLogger.Instance.GetLogFile());
-            log.FirstChild.AppendChild(appLog);
+            log.AppendChild(appLog);
 
             string f = ZipScreens();
             // Add the zip file to the report
             var screens = log.OwnerDocument.CreateElement("InteractionScreenshots");
             screens.InnerText = Convert.ToBase64String(File.ReadAllBytes(f)); // This Kills memory!!! //TODO //FIXME
-            log.FirstChild.AppendChild(screens);
+            log.AppendChild(screens);
 
             // Write the collected info to a local report.xml file.
             using (var fs = File.Create(outfile))

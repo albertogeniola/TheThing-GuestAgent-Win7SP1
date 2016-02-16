@@ -2,12 +2,17 @@
 #include "dllmain.h"
 #include "../../InstallerAnalyzer1.1/Common/common.h"
 
-/* Global variables */
+/* Global variables. 
+ * Each Porcess that loads this DLL will have its own copy of these. 
+ * However we should recall that each thread shares access to those variables
+ * so it cruacial that we keep all of them in READ ONLY.
+ */
 HWND cwHandle;
 HMODULE ntdllmod;
 HMODULE kern32dllmod;
 HMODULE wsmod;
 HMODULE ws2mod;
+
 
 /*
  * This is the Main DLL Entry. Detours will execute this code after the DLL has been injected.
@@ -634,7 +639,15 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 */
 NTSTATUS WINAPI MyNtCreateFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, PIO_STATUS_BLOCK IoStatusBlock, PLARGE_INTEGER AllocationSize, ULONG FileAttributes, ULONG ShareAccess, ULONG CreateDisposition, ULONG CreateOptions, PVOID EaBuffer, ULONG EaLength)
 {
-	
+	string s = string();
+	// If the handle has write access, it is a good idea to calculate the hash before the attached thread changes the file itself.
+	// To do so, we send a message to the GuestController everytime we see an NtOpenFile with write access. The Guest controller
+	// will then try to open the file and store, in its report, the hash of the file before any modification. After that, the Guest
+	// controller will answer to the SendMessage and this thread will continue (yeah, SendMessage blocks until the sender eats the message from the pump).
+	from_unicode_to_wstring(ObjectAttributes->ObjectName, &s);
+	NotifyFileOpenWrite(s); // This returns only after response has been received from GuestController
+
+
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtCreateFile(FileHandle, DesiredAccess, ObjectAttributes, IoStatusBlock, AllocationSize, FileAttributes, ShareAccess, CreateDisposition, CreateOptions, EaBuffer, EaLength);
 	
@@ -642,11 +655,14 @@ NTSTATUS WINAPI MyNtCreateFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, PO
 	pugi::xml_document doc;
 	pugi::xml_node element = doc.append_child(_T("NtCreateFile"));
 	
+	/*
 	// Write Access Mask: parse the flags
 	string s = string();
 	FileAccessMaskToString(DesiredAccess, &s);
 	element.addAttribute(_T("AccessMask"), s.c_str());
-	
+	*/
+	element.addAttribute(_T("AccessMask"), StandardAccessMaskToString(DesiredAccess).c_str());
+
 	// >>>>>>>>>>>>>>> ObjectAttributes (File Path) <<<<<<<<<<<<<<<
 	if (ObjectAttributes->RootDirectory != NULL)
 	{
@@ -717,37 +733,39 @@ NTSTATUS WINAPI MyNtCreateFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, PO
 }
 NTSTATUS WINAPI MyNtOpenFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, PIO_STATUS_BLOCK IoStatusBlock, ULONG ShareAccess, ULONG OpenOptions)
 {
+	string s = string();
+
+	// If the handle has write access, it is a good idea to calculate the hash before the attached thread changes the file itself.
+	// To do so, we send a message to the GuestController everytime we see an NtOpenFile with write access. The Guest controller
+	// will then try to open the file and store, in its report, the hash of the file before any modification. After that, the Guest
+	// controller will answer to the SendMessage and this thread will continue (yeah, SendMessage blocks until the sender eats the message from the pump).
+	if (((DesiredAccess & (FILE_WRITE_DATA)) == (FILE_WRITE_DATA)) || ((DesiredAccess & (FILE_APPEND_DATA)) == (FILE_APPEND_DATA))) {
+		
+		from_unicode_to_wstring(ObjectAttributes->ObjectName, &s);
+		NotifyFileOpenWrite(s); // This returns only after response has been received from GuestController
+	}
+	
+
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtOpenFile(FileHandle, DesiredAccess, ObjectAttributes, IoStatusBlock, ShareAccess, OpenOptions);
 
 	// Use a node object to create the XML string: this will contain all information about the SysCall
 	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtOpenFile"));
 
-	string s = string();
 	// >>>>>>>>>>>>>>> File Path <<<<<<<<<<<<<<<
-	if (ObjectAttributes->RootDirectory != NULL)
-	{
-		// The path specified in ObjectName is relative to the directory handle. Get the path of that directory
-		s.clear();
-		GetHandleFileName(ObjectAttributes->RootDirectory, &s);
-		element.addAttribute(_T("DirPath"), s.c_str());
-		s.clear();
-		from_unicode_to_wstring(ObjectAttributes->ObjectName, &s);
-		element.addAttribute(_T("Path"), s.c_str());
-	}
-	else
-	{
-		// The objectname contains a full path to the file
-		s.clear();
-		from_unicode_to_wstring(ObjectAttributes->ObjectName, &s);
-		element.addAttribute(_T("Path"), s.c_str());
-	}
-
+	// The objectname contains a full path to the file
+	s.clear();
+	from_unicode_to_wstring(ObjectAttributes->ObjectName, &s);
+	element.addAttribute(_T("Path"), s.c_str());
+	
 	
 	// >>>>>>>>>>>>>>> DESIRED ACCESS <<<<<<<<<<<<<<<
+	/*
 	s.clear();
 	FileAccessMaskToString(DesiredAccess, &s);
 	element.addAttribute(_T("DesiredAccess"), s.c_str());
+	*/
+	element.addAttribute(_T("AccessMask"), StandardAccessMaskToString(DesiredAccess).c_str());
 
 	// >>>>>>>>>>>>>>> IO STATUS BLOCK <<<<<<<<<<<<<<<
 	s.clear();
@@ -833,10 +851,13 @@ NTSTATUS WINAPI MyNtOpenDirectoryObject(PHANDLE DirectoryObject, ACCESS_MASK Des
 	element.addAttribute(_T("Path"), s.c_str());
 
 	// >>>>>>>>>>>>>>> DESIRED ACCESS <<<<<<<<<<<<<<<
+	/*
 	s.clear();
 	DirectoryAccessMaskToString(DesiredAccess, &s);
 	element.addAttribute(_T("DesiredAccess"), s.c_str());
-	
+	*/
+	element.addAttribute(_T("DesiredAccess"), StandardAccessMaskToString(DesiredAccess).c_str());
+
 	// >>>>>>>>>>>>>>> Result <<<<<<<<<<<<<<<
 	s.clear();
 	NtStatusToString(res, &s);
@@ -869,9 +890,12 @@ NTSTATUS WINAPI MyNtOpenKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJEC
 	element.addAttribute(_T("Path"), w.c_str());
 
 	// >>>>>>>>>>>>>>> Access Mask <<<<<<<<<<<<<<<
+	/*
 	w.clear();
 	KeyAccessMaskToString(DesiredAccess, &w);
 	element.addAttribute(_T("DesiredAccess"), w.c_str());
+	*/
+	element.addAttribute(_T("DesiredAccess"), StandardAccessMaskToString(DesiredAccess).c_str());
 
 	// >>>>>>>>>>>>>>> Result <<<<<<<<<<<<<<<
 	w.clear();
@@ -904,10 +928,13 @@ NTSTATUS WINAPI MyNtCreateKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJ
 	element.addAttribute(_T("Path"), w.c_str());
 	
 	// >>>>>>>>>>>>>>> Access Mask <<<<<<<<<<<<<<<
+	/*
 	w.clear();
 	KeyAccessMaskToString(DesiredAccess, &w);
 	element.addAttribute(_T("DesiredAccess"), w.c_str());
-	
+	*/
+	element.addAttribute(_T("DesiredAccess"), StandardAccessMaskToString(DesiredAccess).c_str());
+
 	// >>>>>>>>>>>>>>> Class <<<<<<<<<<<<<<<
 	if (Class != NULL)
 	{
@@ -1552,6 +1579,16 @@ extern "C" __declspec(dllexport)VOID NullExport(VOID)
 }
 
 
+void NotifyFileOpenWrite(std::wstring filepath) {
+	
+	COPYDATASTRUCT ds;
+	ds.dwData = COPYDATA_NOTIFY_FILE_ACCESS;
+	ds.cbData = filepath.length()*sizeof(wchar_t);
+	ds.lpData = (PVOID)filepath.c_str();
+
+	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);	
+}
+
 void log(pugi::xml_node *element)
 {
 	DWORD res = 0;
@@ -1621,7 +1658,8 @@ void FileAttributesToString(ULONG FileAttributes, string* s)
 		(*s) = _T("NA");
 }
 
-void FileAccessMaskToString(ACCESS_MASK DesiredAccess, string* s)
+/*
+string FileAccessMaskToString(ACCESS_MASK DesiredAccess)
 {
 	bool mustCut = false;
 	StandardAccessMaskToString(DesiredAccess, s);
@@ -1655,7 +1693,9 @@ void FileAccessMaskToString(ACCESS_MASK DesiredAccess, string* s)
 		(*s) = s->substr(1, s->length() - 1);
 	}
 }
+*/
 
+/*
 void DirectoryAccessMaskToString(ACCESS_MASK DesiredAccess, string* s)
 {
 	bool mustCut = false;
@@ -1686,7 +1726,9 @@ void DirectoryAccessMaskToString(ACCESS_MASK DesiredAccess, string* s)
 		(*s) = s->substr(1, s->length() - 1);
 	}
 }
+*/
 
+/*
 void KeyAccessMaskToString(ACCESS_MASK DesiredAccess, string* s)
 {
 	bool mustCut = false;
@@ -1714,11 +1756,17 @@ void KeyAccessMaskToString(ACCESS_MASK DesiredAccess, string* s)
 	}
 
 }
+*/
 
-void StandardAccessMaskToString(ACCESS_MASK DesiredAccess, string* s)
+string StandardAccessMaskToString(ACCESS_MASK DesiredAccess)
 {
-	s->clear();
+	// We know how long will be our result
+	TCHAR mask[11]; mask[0] = '\0';
+	_stprintf_s(mask, _countof(mask), TEXT("0x%X"), DesiredAccess);
+	mask[8] = '\0';
+	return string(mask);
 
+	/*
 	if ((DesiredAccess & DELETE) == DELETE)
 		s->append(_T("|DELETE"));
 
@@ -1748,6 +1796,7 @@ void StandardAccessMaskToString(ACCESS_MASK DesiredAccess, string* s)
 
 	if (s->length() > 0)
 		(*s) = s->substr(1, s->length() - 1);
+	*/
 }
 
 void IoStatusToString(IO_STATUS_BLOCK* IoStatusBlock, string* s)

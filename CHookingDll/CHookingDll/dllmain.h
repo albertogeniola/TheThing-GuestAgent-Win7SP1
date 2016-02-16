@@ -221,10 +221,12 @@ static pSend realSend;
 
 // >>>>>>>>>>>>>> Utilities <<<<<<<<<<<<<<<<<<< 
 void GetHandleFileName(HANDLE hHandle, std::wstring* fname);
-void StandardAccessMaskToString(ACCESS_MASK DesiredAccess, std::wstring* s);
-void FileAccessMaskToString(ACCESS_MASK DesiredAccess, std::wstring* s);
-void DirectoryAccessMaskToString(ACCESS_MASK DesiredAccess, std::wstring* s);
-void KeyAccessMaskToString(ACCESS_MASK DesiredAccess, std::wstring* s);
+string StandardAccessMaskToString(ACCESS_MASK DesiredAccess);
+void NotifyFileOpenWrite(std::wstring filepath);
+//void FileAccessMaskToString(ACCESS_MASK DesiredAccess, std::wstring* s);
+//void DirectoryAccessMaskToString(ACCESS_MASK DesiredAccess, std::wstring* s);
+//void KeyAccessMaskToString(ACCESS_MASK DesiredAccess, std::wstring* s);
+
 void FileCreateOptionsToString(ULONG OpenCreateOption, std::wstring* s);
 void ShareAccessToString(ULONG ShareAccess, std::wstring* s);
 void IoStatusToString(IO_STATUS_BLOCK* IoStatusBlock, std::wstring* s);

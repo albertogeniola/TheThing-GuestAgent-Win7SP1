@@ -130,19 +130,18 @@
             // 
             // elapsedTime
             // 
-            this.elapsedTime.AutoSize = true;
             this.elapsedTime.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(192)))), ((int)(((byte)(128)))));
             this.elapsedTime.Location = new System.Drawing.Point(853, 9);
             this.elapsedTime.Name = "elapsedTime";
-            this.elapsedTime.Size = new System.Drawing.Size(49, 13);
+            this.elapsedTime.Size = new System.Drawing.Size(77, 13);
             this.elapsedTime.TabIndex = 8;
             this.elapsedTime.Text = "00:00:00";
             // 
             // timeout
             // 
-            this.timeout.Location = new System.Drawing.Point(908, 9);
+            this.timeout.Location = new System.Drawing.Point(936, 9);
             this.timeout.Name = "timeout";
-            this.timeout.Size = new System.Drawing.Size(115, 13);
+            this.timeout.Size = new System.Drawing.Size(87, 13);
             this.timeout.TabIndex = 9;
             // 
             // AnalyzerMainWindow
