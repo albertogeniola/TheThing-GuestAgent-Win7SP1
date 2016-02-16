@@ -1580,13 +1580,15 @@ extern "C" __declspec(dllexport)VOID NullExport(VOID)
 
 
 void NotifyFileOpenWrite(std::wstring filepath) {
-	
+	// TODO: somewhy this won't work.
+	/*
 	COPYDATASTRUCT ds;
 	ds.dwData = COPYDATA_NOTIFY_FILE_ACCESS;
 	ds.cbData = filepath.length()*sizeof(wchar_t);
 	ds.lpData = (PVOID)filepath.c_str();
 
 	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);	
+	*/
 }
 
 void log(pugi::xml_node *element)
