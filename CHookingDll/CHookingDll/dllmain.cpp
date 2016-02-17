@@ -640,14 +640,8 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 NTSTATUS WINAPI MyNtCreateFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, PIO_STATUS_BLOCK IoStatusBlock, PLARGE_INTEGER AllocationSize, ULONG FileAttributes, ULONG ShareAccess, ULONG CreateDisposition, ULONG CreateOptions, PVOID EaBuffer, ULONG EaLength)
 {
 	string s = string();
-	// If the handle has write access, it is a good idea to calculate the hash before the attached thread changes the file itself.
-	// To do so, we send a message to the GuestController everytime we see an NtOpenFile with write access. The Guest controller
-	// will then try to open the file and store, in its report, the hash of the file before any modification. After that, the Guest
-	// controller will answer to the SendMessage and this thread will continue (yeah, SendMessage blocks until the sender eats the message from the pump).
-	from_unicode_to_wstring(ObjectAttributes->ObjectName, &s);
-	NotifyFileOpenWrite(s); // This returns only after response has been received from GuestController
-
-
+	NotifyFileAccess(DesiredAccess, ObjectAttributes->ObjectName);
+		
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtCreateFile(FileHandle, DesiredAccess, ObjectAttributes, IoStatusBlock, AllocationSize, FileAttributes, ShareAccess, CreateDisposition, CreateOptions, EaBuffer, EaLength);
 	
@@ -735,17 +729,8 @@ NTSTATUS WINAPI MyNtOpenFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJ
 {
 	string s = string();
 
-	// If the handle has write access, it is a good idea to calculate the hash before the attached thread changes the file itself.
-	// To do so, we send a message to the GuestController everytime we see an NtOpenFile with write access. The Guest controller
-	// will then try to open the file and store, in its report, the hash of the file before any modification. After that, the Guest
-	// controller will answer to the SendMessage and this thread will continue (yeah, SendMessage blocks until the sender eats the message from the pump).
-	if (((DesiredAccess & (FILE_WRITE_DATA)) == (FILE_WRITE_DATA)) || ((DesiredAccess & (FILE_APPEND_DATA)) == (FILE_APPEND_DATA))) {
-		
-		from_unicode_to_wstring(ObjectAttributes->ObjectName, &s);
-		NotifyFileOpenWrite(s); // This returns only after response has been received from GuestController
-	}
+	NotifyFileAccess(DesiredAccess, ObjectAttributes->ObjectName);
 	
-
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtOpenFile(FileHandle, DesiredAccess, ObjectAttributes, IoStatusBlock, ShareAccess, OpenOptions);
 
@@ -803,6 +788,9 @@ NTSTATUS WINAPI MyNtDeleteFile(POBJECT_ATTRIBUTES ObjectAttributes)
 {
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtDeleteFile(ObjectAttributes);
+
+	// Ok we notify our component only after the call has happened, so the GuestController will understand file has been deleted
+	NotifyFileAccess(GENERIC_WRITE, ObjectAttributes->ObjectName);
 
 	// Use a node object to create the XML string: this will contain all information about the SysCall
 	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtDeleteFile"));
@@ -1579,16 +1567,37 @@ extern "C" __declspec(dllexport)VOID NullExport(VOID)
 }
 
 
-void NotifyFileOpenWrite(std::wstring filepath) {
-	// TODO: somewhy this won't work.
-	/*
+void NotifyFileAccess(ACCESS_MASK DesiredAccess, PUNICODE_STRING ObjectName) {
+	
 	COPYDATASTRUCT ds;
-	ds.dwData = COPYDATA_NOTIFY_FILE_ACCESS;
-	ds.cbData = filepath.length()*sizeof(wchar_t);
-	ds.lpData = (PVOID)filepath.c_str();
+	std::wstring filepath;
+	bool notification = false;
 
-	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);	
-	*/
+	// If the handle has write access, it is a good idea to calculate the hash before the attached thread changes the file itself.
+	// To do so, we send a message to the GuestController everytime we see an NtOpenFile with write access. The Guest controller
+	// will then try to open the file and store, in its report, the hash of the file before any modification. After that, the Guest
+	// controller will answer to the SendMessage and this thread will continue (yeah, SendMessage blocks until the sender eats the message from the pump).
+	
+	if (ObjectName == nullptr){
+		OutputDebugString(TEXT("------------------ OBJECTNAME WAS NULL!!!!------------------"));
+		return;
+	}
+	
+	for (int i = 0; i < sizeof(WRITE_FLAGS); i++) {
+		if (((DesiredAccess & (WRITE_FLAGS[i])) == (WRITE_FLAGS[i]))){
+			notification = true; break;
+		}
+	}
+
+	if (notification) {
+		from_unicode_to_wstring(ObjectName, &filepath);
+		
+		// TODO: somewhy this won't work.
+		ds.dwData = COPYDATA_NOTIFY_FILE_ACCESS;
+		ds.cbData = filepath.length()*sizeof(wchar_t);
+		ds.lpData = (PVOID)filepath.c_str();
+		SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);
+	}
 }
 
 void log(pugi::xml_node *element)

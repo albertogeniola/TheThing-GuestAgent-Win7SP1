@@ -74,9 +74,9 @@ namespace InstallerAnalyzer1_Guest
             _timer.Start();
         }
 
-
         protected override void WndProc(ref Message m)
         {
+            
             // Intercept CopyData messages
             if (m.Msg == 0x004A)
             {
@@ -86,7 +86,8 @@ namespace InstallerAnalyzer1_Guest
                 for (int i = 0; i < bb.Length; i++)
                     bb[i] = Marshal.ReadByte(d.lpData, i);
 
-                if (d.dwData == MESSAGE_LOG) {
+                if (d.dwData == MESSAGE_LOG)
+                {
                     // Let the program status we are receiving logs from the process.
                     // This can give us a hint about how hard are the background processes
                     // working on the system.
@@ -97,28 +98,23 @@ namespace InstallerAnalyzer1_Guest
                 else if (d.dwData == MESSAGE_NEW_PROC)
                 {
                     // New process spawned
-                    var pid = BitConverter.ToUInt32(bb,0);
+                    var pid = BitConverter.ToUInt32(bb, 0);
                     ProgramStatus.Instance.AddPid(pid);
-
-                } 
-                else if (d.dwData==MESSAGE_PROC_DIED) 
+                }
+                else if (d.dwData == MESSAGE_PROC_DIED)
                 {
                     // Process died
                     var pid = BitConverter.ToUInt32(bb, 0);
                     ProgramStatus.Instance.RemovePid(pid);
                 }
-                else if (d.dwData == MESSAGE_FILE_ACCESS) { 
-                    // Access to file!
-                    d = (CopyDataStruct)Marshal.PtrToStructure(m.LParam, typeof(CopyDataStruct));
-                    // Log data
-                    bb = new byte[d.cbData];
-                    for (int i = 0; i < bb.Length; i++)
-                        bb[i] = Marshal.ReadByte(d.lpData, i);
+                else if (d.dwData == MESSAGE_FILE_ACCESS)
+                {
                     string s = Encoding.Unicode.GetString(bb);
-                    Console.WriteLine("Access to file: "+s);
+                    ProgramStatus.Instance.NotifyFileAccess(s);
                 }
             }
             base.WndProc(ref m);
+            
         }
 
 

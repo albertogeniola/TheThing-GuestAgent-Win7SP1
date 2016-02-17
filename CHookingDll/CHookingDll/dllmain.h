@@ -222,7 +222,7 @@ static pSend realSend;
 // >>>>>>>>>>>>>> Utilities <<<<<<<<<<<<<<<<<<< 
 void GetHandleFileName(HANDLE hHandle, std::wstring* fname);
 string StandardAccessMaskToString(ACCESS_MASK DesiredAccess);
-void NotifyFileOpenWrite(std::wstring filepath);
+void NotifyFileAccess(ACCESS_MASK DesiredAccess, PUNICODE_STRING ObjectName);
 //void FileAccessMaskToString(ACCESS_MASK DesiredAccess, std::wstring* s);
 //void DirectoryAccessMaskToString(ACCESS_MASK DesiredAccess, std::wstring* s);
 //void KeyAccessMaskToString(ACCESS_MASK DesiredAccess, std::wstring* s);
@@ -247,3 +247,15 @@ void log(pugi::xml_node *element);
 bool configureWindowName();
 void notifyNewPid(HWND cwHandle, DWORD pid);
 void notifyRemovedPid(HWND cwHandle, DWORD pid);
+
+
+const DWORD WRITE_FLAGS[] = { FILE_WRITE_DATA,
+FILE_APPEND_DATA,
+FILE_ADD_FILE,
+FILE_ADD_SUBDIRECTORY,
+FILE_WRITE_EA,
+FILE_DELETE_CHILD,
+FILE_WRITE_ATTRIBUTES,
+FILE_ALL_ACCESS,
+FILE_GENERIC_WRITE,
+};
