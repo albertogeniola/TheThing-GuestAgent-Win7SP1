@@ -27,7 +27,9 @@ namespace InstallerAnalyzer1_Guest
         private readonly static IntPtr MESSAGE_LOG = new IntPtr(0);
         private readonly static IntPtr MESSAGE_NEW_PROC = new IntPtr(1);
         private readonly static IntPtr MESSAGE_PROC_DIED = new IntPtr(2);
-        private readonly static IntPtr MESSAGE_FILE_ACCESS = new IntPtr(3);
+        private readonly static IntPtr MESSAGE_FILE_CREATED = new IntPtr(3);
+        private readonly static IntPtr MESSAGE_FILE_DELETED = new IntPtr(4);
+        private readonly static IntPtr MESSAGE_FILE_OPENED = new IntPtr(5);
         private LogicThread _t;
         private Timer _timer;
         private DateTime _startTime;
@@ -107,7 +109,17 @@ namespace InstallerAnalyzer1_Guest
                     var pid = BitConverter.ToUInt32(bb, 0);
                     ProgramStatus.Instance.RemovePid(pid);
                 }
-                else if (d.dwData == MESSAGE_FILE_ACCESS)
+                else if (d.dwData == MESSAGE_FILE_CREATED)
+                {
+                    string s = Encoding.Unicode.GetString(bb);
+                    ProgramStatus.Instance.NotifyFileAccess(s);
+                }
+                else if (d.dwData == MESSAGE_FILE_DELETED)
+                {
+                    string s = Encoding.Unicode.GetString(bb);
+                    ProgramStatus.Instance.NotifyFileAccess(s);
+                }
+                else if (d.dwData == MESSAGE_FILE_OPENED)
                 {
                     string s = Encoding.Unicode.GetString(bb);
                     ProgramStatus.Instance.NotifyFileAccess(s);

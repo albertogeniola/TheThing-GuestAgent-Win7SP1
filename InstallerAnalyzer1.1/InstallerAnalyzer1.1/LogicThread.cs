@@ -819,6 +819,42 @@ namespace InstallerAnalyzer1_Guest
             uiResult.AppendChild(uiResultDescription);
             result.AppendChild(uiResult);
 
+            // Modified files
+            var fileAccess = log.OwnerDocument.CreateElement("FileAccess");
+            var newFiles = fileAccess.OwnerDocument.CreateElement("NewFiles");
+            var modifiedFiles = fileAccess.OwnerDocument.CreateElement("ModifiedFiles");
+            var deletedFiles = fileAccess.OwnerDocument.CreateElement("DeletedFiles");
+            var otherFiles = fileAccess.OwnerDocument.CreateElement("OtherAccessFiles");
+            var files = ProgramStatus.Instance.FileAccessLog;
+            fileAccess.SetAttribute("count", files.Count().ToString());
+            foreach (var file in files)
+            {
+                var fl = log.OwnerDocument.CreateElement("File");
+                fl.SetAttribute("Path", file.Path);
+                fl.SetAttribute("OriginalSize", file.OriginalSize.ToString());
+                fl.SetAttribute("OriginalHash", file.OriginalHash);
+                fl.SetAttribute("FinalSize", file.FinalSize.ToString());
+                fl.SetAttribute("FinalHash", file.FinalHash);
+                fl.SetAttribute("Deleted", file.IsDeleted.ToString());
+                fl.SetAttribute("Modified", file.IsModified.ToString());
+                fl.SetAttribute("New", file.IsNew.ToString());
+
+                if (file.IsNew)
+                    newFiles.AppendChild(fl);
+                else if (file.IsDeleted)
+                    deletedFiles.AppendChild(fl);
+                else if (file.IsModified)
+                    modifiedFiles.AppendChild(fl);
+                else
+                    otherFiles.AppendChild(fl);
+            }
+            fileAccess.AppendChild(newFiles);
+            fileAccess.AppendChild(modifiedFiles);
+            fileAccess.AppendChild(deletedFiles);
+            fileAccess.AppendChild(otherFiles);
+
+            result.AppendChild(fileAccess);
+
             // New application detected
             var deltaApps = log.OwnerDocument.CreateElement("NewApplications");
             var newProgs = CheckNewPrograms();

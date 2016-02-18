@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "dllmain.h"
 #include "../../InstallerAnalyzer1.1/Common/common.h"
+#include "HandleMap.h"
 
 /* Global variables. 
  * Each Porcess that loads this DLL will have its own copy of these. 
@@ -12,7 +13,7 @@ HMODULE ntdllmod;
 HMODULE kern32dllmod;
 HMODULE wsmod;
 HMODULE ws2mod;
-
+HandleMap handleMap;
 
 /*
  * This is the Main DLL Entry. Detours will execute this code after the DLL has been injected.
@@ -70,7 +71,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		realNtSetInformationFile = (pNtSetInformationFile)(GetProcAddress(ntdllmod, "NtSetInformationFile"));
 		realNtSetValueKey = (pNtSetValueKey)(GetProcAddress(ntdllmod, "NtSetValueKey"));
 		realNtTerminateProcess = (pNtTerminateProcess)(GetProcAddress(ntdllmod, "NtTerminateProcess"));
-		//realNtClose = (pNtClose)(GetProcAddress(ntdllmod, "NtClose"));
+		realNtClose = (pNtClose)(GetProcAddress(ntdllmod, "NtClose"));
 		realCreateProcessA = (pCreateProcessA)(GetProcAddress(kern32dllmod, "CreateProcessA"));
 		realCreateProcessW = (pCreateProcessA)(GetProcAddress(kern32dllmod, "CreateProcessW"));
 		realNtQueryInformationProcess = (pNtQueryInformationProcess)(GetProcAddress(ntdllmod, "NtQueryInformationProcess"));
@@ -259,7 +260,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 			OutputDebugString(_T("NtTerminateProcess not derouted correctly"));
 		else
 			OutputDebugString(_T("NtTerminateProcess successful"));
-		/*
+
 		// NtClose
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
@@ -268,7 +269,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 			OutputDebugString(_T("NtClose not derouted correctly"));
 		else
 			OutputDebugString(_T("NtClose successfully"));
-			*/
+
 		// CreateProcessA
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
@@ -362,7 +363,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		DisableThreadLibraryCalls(hDLL);
 		
 		// NtClose
-		/*
+		
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
 		DetourDetach(&(PVOID&)realNtClose, MyNtClose);
@@ -370,7 +371,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 			OutputDebugString(_T("NtClose not detached correctly"));
 		else
 			OutputDebugString(_T("NtClose detached successfully"));
-			*/
+		
 		// NtCreateFile
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
@@ -639,43 +640,32 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 */
 NTSTATUS WINAPI MyNtCreateFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, PIO_STATUS_BLOCK IoStatusBlock, PLARGE_INTEGER AllocationSize, ULONG FileAttributes, ULONG ShareAccess, ULONG CreateDisposition, ULONG CreateOptions, PVOID EaBuffer, ULONG EaLength)
 {
-	string s = string();
-	NotifyFileAccess(DesiredAccess, ObjectAttributes->ObjectName);
+	
+	// If the handle has write access, it is a good idea to calculate the hash before the attached thread changes the file itself.
+	// To do so, we send a message to the GuestController everytime we see an NtOpenFile with write access. The Guest controller
+	// will then try to open the file and store, in its report, the hash of the file before any modification. After that, the Guest
+	// controller will answer to the SendMessage and this thread will continue (yeah, SendMessage blocks until the sender eats the message from the pump).
+	string s = GetFullPathByObjectAttributes(ObjectAttributes);
+	if (IsRequestingWriteAccess(DesiredAccess))
+		NotifyFileAccess(s, COPYDATA_FILE_CREATED);
 		
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtCreateFile(FileHandle, DesiredAccess, ObjectAttributes, IoStatusBlock, AllocationSize, FileAttributes, ShareAccess, CreateDisposition, CreateOptions, EaBuffer, EaLength);
 	
+	// If the file has been created successfully, keep track of it.
+	if (res == 0)
+		handleMap.Insert(*FileHandle, s);
+
 	// Use a node object to create the XML string: this will contain all information about the SysCall
 	pugi::xml_document doc;
 	pugi::xml_node element = doc.append_child(_T("NtCreateFile"));
 	
-	/*
-	// Write Access Mask: parse the flags
-	string s = string();
-	FileAccessMaskToString(DesiredAccess, &s);
-	element.addAttribute(_T("AccessMask"), s.c_str());
-	*/
-	element.addAttribute(_T("AccessMask"), StandardAccessMaskToString(DesiredAccess).c_str());
-
 	// >>>>>>>>>>>>>>> ObjectAttributes (File Path) <<<<<<<<<<<<<<<
-	if (ObjectAttributes->RootDirectory != NULL)
-	{
-		// The path specified in ObjectName is relative to the directory handle. Get the path of that directory
-		s.clear();
-		GetHandleFileName(ObjectAttributes->RootDirectory, &s);
-		element.addAttribute(_T("DirPath"), s.c_str());
-		s.clear();
-		from_unicode_to_wstring(ObjectAttributes->ObjectName, &s);
-		element.addAttribute(_T("Path"), s.c_str());
-	}
-	else
-	{
-		// The objectname contains a full path to the file
-		s.clear();
-		from_unicode_to_wstring(ObjectAttributes->ObjectName, &s);
-		element.addAttribute(_T("Path"), s.c_str());
-	}
-	
+	s.clear();
+	element.addAttribute(_T("Path"), s.c_str());
+
+	// >>>>>>>>>>>>>>> AccessMask (File Path) <<<<<<<<<<<<<<<
+	element.addAttribute(_T("AccessMask"), StandardAccessMaskToString(DesiredAccess).c_str());
 	
 	// >>>>>>>>>>>>>>> IO_STATUS_BLOCK <<<<<<<<<<<<<<<
 	// Write IO status block: parse its 
@@ -715,7 +705,7 @@ NTSTATUS WINAPI MyNtCreateFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, PO
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, _T("%p"), *FileHandle);
+		wsprintf(buff, _T("0x%p"), *FileHandle);
 		element.addAttribute(_T("Handle"), buff);
 	}
 	
@@ -727,29 +717,28 @@ NTSTATUS WINAPI MyNtCreateFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, PO
 }
 NTSTATUS WINAPI MyNtOpenFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, PIO_STATUS_BLOCK IoStatusBlock, ULONG ShareAccess, ULONG OpenOptions)
 {
-	string s = string();
-
-	NotifyFileAccess(DesiredAccess, ObjectAttributes->ObjectName);
+	// If the handle has write access, it is a good idea to calculate the hash before the attached thread changes the file itself.
+	// To do so, we send a message to the GuestController everytime we see an NtOpenFile with write access. The Guest controller
+	// will then try to open the file and store, in its report, the hash of the file before any modification. After that, the Guest
+	// controller will answer to the SendMessage and this thread will continue (yeah, SendMessage blocks until the sender eats the message from the pump).
+	string s = GetFullPathByObjectAttributes(ObjectAttributes);
+	if (IsRequestingWriteAccess(DesiredAccess))
+		NotifyFileAccess(s, COPYDATA_FILE_OPENED);
 	
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtOpenFile(FileHandle, DesiredAccess, ObjectAttributes, IoStatusBlock, ShareAccess, OpenOptions);
+
+	if (res == 0)
+		handleMap.Insert(*FileHandle, s);
 
 	// Use a node object to create the XML string: this will contain all information about the SysCall
 	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtOpenFile"));
 
 	// >>>>>>>>>>>>>>> File Path <<<<<<<<<<<<<<<
 	// The objectname contains a full path to the file
-	s.clear();
-	from_unicode_to_wstring(ObjectAttributes->ObjectName, &s);
 	element.addAttribute(_T("Path"), s.c_str());
 	
-	
 	// >>>>>>>>>>>>>>> DESIRED ACCESS <<<<<<<<<<<<<<<
-	/*
-	s.clear();
-	FileAccessMaskToString(DesiredAccess, &s);
-	element.addAttribute(_T("DesiredAccess"), s.c_str());
-	*/
 	element.addAttribute(_T("AccessMask"), StandardAccessMaskToString(DesiredAccess).c_str());
 
 	// >>>>>>>>>>>>>>> IO STATUS BLOCK <<<<<<<<<<<<<<<
@@ -776,7 +765,7 @@ NTSTATUS WINAPI MyNtOpenFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJ
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, _T("%p"), *FileHandle);
+		wsprintf(buff, _T("0x%p"), *FileHandle);
 		element.addAttribute(_T("Handle"), buff);
 	}
 
@@ -790,7 +779,7 @@ NTSTATUS WINAPI MyNtDeleteFile(POBJECT_ATTRIBUTES ObjectAttributes)
 	NTSTATUS res = realNtDeleteFile(ObjectAttributes);
 
 	// Ok we notify our component only after the call has happened, so the GuestController will understand file has been deleted
-	NotifyFileAccess(GENERIC_WRITE, ObjectAttributes->ObjectName);
+	NotifyFileAccess(GetFullPathByObjectAttributes(ObjectAttributes), COPYDATA_FILE_DELETED);
 
 	// Use a node object to create the XML string: this will contain all information about the SysCall
 	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtDeleteFile"));
@@ -855,7 +844,7 @@ NTSTATUS WINAPI MyNtOpenDirectoryObject(PHANDLE DirectoryObject, ACCESS_MASK Des
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, _T("%p"), *DirectoryObject);
+		wsprintf(buff, _T("0x%p"), *DirectoryObject);
 		element.addAttribute(_T("Handle"), buff);
 	}
 
@@ -894,7 +883,7 @@ NTSTATUS WINAPI MyNtOpenKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJEC
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, _T("%p"), *KeyHandle);
+		wsprintf(buff, _T("0x%p"), *KeyHandle);
 		element.addAttribute(_T("Handle"), buff);
 	}
 
@@ -954,7 +943,7 @@ NTSTATUS WINAPI MyNtCreateKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJ
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, _T("%p"), *KeyHandle);
+		wsprintf(buff, _T("0x%p"), *KeyHandle);
 		element.addAttribute(_T("Handle"), buff);
 	}
 
@@ -989,7 +978,7 @@ NTSTATUS WINAPI MyNtQueryKey(HANDLE KeyHandle, KEY_INFORMATION_CLASS KeyInformat
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, _T("%p"), KeyHandle);
+		wsprintf(buff, _T("0x%p"), KeyHandle);
 		element.addAttribute(_T("Handle"), buff);
 	}
 
@@ -1021,7 +1010,7 @@ NTSTATUS WINAPI MyNtDeleteKey(HANDLE KeyHandle)
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, _T("%p"), KeyHandle);
+		wsprintf(buff, _T("0x%p"), KeyHandle);
 		element.addAttribute(_T("Handle"), buff);
 	}
 
@@ -1056,7 +1045,7 @@ NTSTATUS WINAPI MyNtDeleteValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName){
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, _T("%p"), KeyHandle);
+		wsprintf(buff, _T("0x%p"), KeyHandle);
 		element.addAttribute(_T("Handle"), buff);
 	}
 
@@ -1088,7 +1077,7 @@ NTSTATUS WINAPI MyNtEnumerateKey(HANDLE KeyHandle, ULONG Index, KEY_INFORMATION_
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, _T("%p"), KeyHandle);
+		wsprintf(buff, _T("0x%p"), KeyHandle);
 		element.addAttribute(_T("Handle"), buff);
 	}
 
@@ -1124,7 +1113,7 @@ NTSTATUS WINAPI MyNtEnumerateValueKey(HANDLE KeyHandle, ULONG Index, KEY_VALUE_I
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, _T("%p"), KeyHandle);
+		wsprintf(buff, _T("0x%p"), KeyHandle);
 		element.addAttribute(_T("Handle"), buff);
 	}
 
@@ -1174,7 +1163,7 @@ NTSTATUS WINAPI MyNtLockFile(HANDLE FileHandle, HANDLE Event, PIO_APC_ROUTINE Ap
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, _T("%p"), FileHandle);
+		wsprintf(buff, _T("0x%p"), FileHandle);
 		element.addAttribute(_T("Handle"),buff);
 	}
 
@@ -1249,7 +1238,7 @@ NTSTATUS WINAPI MyNtQueryDirectoryFile(HANDLE FileHandle, HANDLE Event, PIO_APC_
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, _T("%p"), FileHandle);
+		wsprintf(buff, _T("0x%p"), FileHandle);
 		element.addAttribute(_T("Handle"), buff);
 	}
 
@@ -1320,7 +1309,7 @@ NTSTATUS WINAPI MyNtQueryValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName, K
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, _T("%p"), KeyHandle);
+		wsprintf(buff, _T("0x%p"), KeyHandle);
 		element.addAttribute(_T("Handle"), buff);
 	}
 
@@ -1357,7 +1346,7 @@ NTSTATUS WINAPI MyNtSetInformationFile(HANDLE FileHandle, PIO_STATUS_BLOCK IoSta
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, _T("%p"), FileHandle);
+		wsprintf(buff, _T("0x%p"), FileHandle);
 		element.addAttribute(_T("Handle"),buff);
 	}
 
@@ -1396,7 +1385,7 @@ NTSTATUS WINAPI MyNtSetValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName, ULO
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, _T("%p"), KeyHandle);
+		wsprintf(buff, _T("0x%p"), KeyHandle);
 		element.addAttribute(_T("Handle"),buff);
 	}
 
@@ -1426,7 +1415,7 @@ NTSTATUS WINAPI MyNtTerminateProcess(HANDLE ProcessHandle, NTSTATUS ExitStatus)
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, _T("%p"), ProcessHandle);
+		wsprintf(buff, _T("0x%p"), ProcessHandle);
 		element.addAttribute(_T("Handle"),buff);
 	}
 
@@ -1434,31 +1423,46 @@ NTSTATUS WINAPI MyNtTerminateProcess(HANDLE ProcessHandle, NTSTATUS ExitStatus)
 
 	return res;
 }
-/*NTSTATUS WINAPI MyNtClose(HANDLE Handle)
+
+NTSTATUS WINAPI MyNtClose(HANDLE Handle)
 {
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtClose(Handle);
 	
+	string path;
+	bool pathFound = handleMap.Lookup(Handle, path);
+
+	// Unfortunately, we cannot rely on the NtClose for IO-flushing. NtClose does not guarantee file will be written 
+	// right after the close. For this reason we just recalculate all file hases only when the entire process is dead
+	// and this is done by the GuestController, which can see this process/DLL terminating.
+	// Thus, the HandleTable would not be needed. For now I'll leve it where it is.
+	//if (pathFound)
+	//	NotifyFileAccess(path, COPYDATA_FILE_CLOSED);
+
 	// Use a node object to create the XML string: this will contain all information about the SysCall
 	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtClose")); 
 
 	// >>>>>>>>>>>>>>> Result <<<<<< <<<<<<<<<
 	string w = string();
 	NtStatusToString(res, &w);
-	element.addAttribute(_T("Result"), w);
+	element.addAttribute(_T("Result"), w.c_str());
 	
+	// >>>>>>>>>>>>>>> Path (only if it was a file) <<<<<< <<<<<<<<<
+	if (pathFound)
+		element.addAttribute(_T("Path"), path.c_str());
 
 	if (NT_SUCCESS(res))
 	{
 		wchar_t buff[32];
-		wsprintf(buff, _T("%p"), Handle);
-		element.addAttribute(_T("Handle"), string(buff));
+		buff[0] = '\0';
+		wsprintf(buff, _T("0x%p"), Handle);
+		element.addAttribute(_T("Handle"), buff);
 	}
 
 	log(&element);
 	
 	return res;
-}*/
+}
 
 
 // TODO: NtCreateProcess?
@@ -1567,37 +1571,15 @@ extern "C" __declspec(dllexport)VOID NullExport(VOID)
 }
 
 
-void NotifyFileAccess(ACCESS_MASK DesiredAccess, PUNICODE_STRING ObjectName) {
+void NotifyFileAccess(std::wstring fullPath, const int AccessMode) {
 	
 	COPYDATASTRUCT ds;
-	std::wstring filepath;
-	bool notification = false;
-
-	// If the handle has write access, it is a good idea to calculate the hash before the attached thread changes the file itself.
-	// To do so, we send a message to the GuestController everytime we see an NtOpenFile with write access. The Guest controller
-	// will then try to open the file and store, in its report, the hash of the file before any modification. After that, the Guest
-	// controller will answer to the SendMessage and this thread will continue (yeah, SendMessage blocks until the sender eats the message from the pump).
-	
-	if (ObjectName == nullptr){
-		OutputDebugString(TEXT("------------------ OBJECTNAME WAS NULL!!!!------------------"));
-		return;
-	}
-	
-	for (int i = 0; i < sizeof(WRITE_FLAGS); i++) {
-		if (((DesiredAccess & (WRITE_FLAGS[i])) == (WRITE_FLAGS[i]))){
-			notification = true; break;
-		}
-	}
-
-	if (notification) {
-		from_unicode_to_wstring(ObjectName, &filepath);
 		
-		// TODO: somewhy this won't work.
-		ds.dwData = COPYDATA_NOTIFY_FILE_ACCESS;
-		ds.cbData = filepath.length()*sizeof(wchar_t);
-		ds.lpData = (PVOID)filepath.c_str();
-		SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);
-	}
+	// TODO: somewhy this won't work.
+	ds.dwData = AccessMode;
+	ds.cbData = fullPath.length()*sizeof(wchar_t);
+	ds.lpData = (PVOID)fullPath.c_str();
+	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);
 }
 
 void log(pugi::xml_node *element)
@@ -1639,6 +1621,38 @@ void log(pugi::xml_node *element)
 	// Send message...
 	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);
 	
+}
+
+bool IsRequestingWriteAccess(ACCESS_MASK DesiredAccess) {
+	bool notification = false;
+	// Check if we really need to continue. We keep going only if the file access is in write mode. 
+	for (int i = 0; i < sizeof(WRITE_FLAGS); i++) {
+		if (((DesiredAccess & (WRITE_FLAGS[i])) == (WRITE_FLAGS[i]))){
+			notification = true; break;
+		}
+	}
+
+	return notification;
+}
+
+std::wstring GetFullPathByObjectAttributes(POBJECT_ATTRIBUTES ObjectAttributes) {
+	// Time to build the filepath. As stated here https://msdn.microsoft.com/en-us/library/windows/hardware/ff557749(v=vs.85).aspx, the ObjectAttribute
+	// structure contains a couple of information. The full file path can be either relative to a folder or be full qualifield. In both cases we need
+	// to construct a unique string pointing to the actual file. So, if the RootDirectory attribute of the struct is not null, we need to resolve the directory
+	// handle and compose the full path.
+	// Populate the root dir path, if needed.
+	std::wstring w = std::wstring();
+	if (ObjectAttributes->RootDirectory != nullptr) {
+		// Resolve the root directory handle
+		GetFileNameFromHandle(ObjectAttributes->RootDirectory, &w);
+	}
+
+	// Populate the rest of the path.
+	std::wstring s = std::wstring();
+	from_unicode_to_wstring(ObjectAttributes->ObjectName, &s);
+	w.append(s);
+
+	return w;
 }
 
 /* 
@@ -1921,7 +1935,7 @@ void KeyCreateOptionsToString(ULONG CreateOption, string* s){
 void NtStatusToString(NTSTATUS status, string* s)
 {
 	s->clear();
-	*s = to_string((unsigned long)status);	
+	*s = to_string(status);	
 }
 
 const wchar_t* CreateDispositionToString(ULONG CreateDisposition)
@@ -2042,6 +2056,7 @@ const wchar_t* KeyValueInformationClassToString(KEY_VALUE_INFORMATION_CLASS valu
 	}
 }
 
+// Taken from MICROSOFT DOCUMENTATION: https://msdn.microsoft.com/en-us/library/aa366789.aspx
 BOOL GetFileNameFromHandle(HANDLE hFile, string* w)
 {
 	BOOL bSuccess = FALSE;

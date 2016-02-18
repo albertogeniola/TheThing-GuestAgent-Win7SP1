@@ -165,11 +165,10 @@ typedef ULONG(WINAPI * pNtTerminateProcess)(HANDLE ProcessHandle, NTSTATUS ExitS
 NTSTATUS WINAPI MyNtTerminateProcess(HANDLE ProcessHandle, NTSTATUS ExitStatus);
 static pNtTerminateProcess realNtTerminateProcess;
 
-/* >>>>>>>>>>>>>> NtClose <<<<<<<<<<<<<<< 
+/* >>>>>>>>>>>>>> NtClose <<<<<<<<<<<<<<< */
 typedef ULONG(WINAPI * pNtClose)(HANDLE Handle);
 NTSTATUS WINAPI MyNtClose(HANDLE Handle);
 static pNtClose realNtClose;
-*/
 
 /* >>>>>>>>>>>>>> CreateProcessA <<<<<<<<<<<<<<< */
 typedef BOOL(WINAPI * pCreateProcessA)(LPCTSTR lpApplicationName, LPTSTR lpCommandLine, LPSECURITY_ATTRIBUTES lpProcessAttributes,LPSECURITY_ATTRIBUTES lpThreadAttributes, BOOL bInheritHandles,  DWORD dwCreationFlags, LPVOID lpEnvironment, LPCTSTR lpCurrentDirectory, LPSTARTUPINFO lpStartupInfo, LPPROCESS_INFORMATION lpProcessInformation);
@@ -222,7 +221,9 @@ static pSend realSend;
 // >>>>>>>>>>>>>> Utilities <<<<<<<<<<<<<<<<<<< 
 void GetHandleFileName(HANDLE hHandle, std::wstring* fname);
 string StandardAccessMaskToString(ACCESS_MASK DesiredAccess);
-void NotifyFileAccess(ACCESS_MASK DesiredAccess, PUNICODE_STRING ObjectName);
+void NotifyFileAccess(std::wstring fullPath, const int AccessMode);
+bool IsRequestingWriteAccess(ACCESS_MASK DesiredAccess);
+std::wstring GetFullPathByObjectAttributes(POBJECT_ATTRIBUTES ObjectAttributes);
 //void FileAccessMaskToString(ACCESS_MASK DesiredAccess, std::wstring* s);
 //void DirectoryAccessMaskToString(ACCESS_MASK DesiredAccess, std::wstring* s);
 //void KeyAccessMaskToString(ACCESS_MASK DesiredAccess, std::wstring* s);

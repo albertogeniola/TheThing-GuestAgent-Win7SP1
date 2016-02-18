@@ -48,67 +48,85 @@ namespace InstallerAnalyzer1_Guest
         private Dictionary<string, FileAccessInfo> _fileMap;
 
         private MD5 md5 = MD5.Create(); // TODO: implement Disposable to free this
-        public void NotifyFileAccess(string ss)
-        {
+
+        private string calculateFileHash(string fielPath){
+            string hash = null;
+            using (var stream = new FileStream(fielPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            {
+                hash = BitConverter.ToString(md5.ComputeHash(stream)).Replace("-", string.Empty);
+            }
+            return hash;
+        }
+
+        // Triggered synchronously just before NtCreateFile()
+        public void NotifyFileAccess(string ss) {
             string s = "";
             if (ss.StartsWith(@"\??\"))
                 s = ss.Substring(4);
-            lock (_filesLock)
-            { 
-                // Check if this is the first time we access the program. If our dictionary contains no rows
-                // associated with this path, then it's the first time. 
-                if (!_fileMap.ContainsKey(s)) { 
-                    // First time:
-                    // Create a file info and caclulate the initial path of the file. This, only if the file exists.
-                    // In case of error we might skip everything.
-                    if (!File.Exists(s))
-                        return;
 
-                    string hash = null;
-                    try {
-                        using (var stream = File.OpenRead(s))
-                        {
-                            hash = BitConverter.ToString(md5.ComputeHash(stream)).Replace("-", string.Empty);
-                        }
-                        FileAccessInfo t = new FileAccessInfo();
-                        t.OriginalHash = hash;
-                        t.OriginalSize = (new FileInfo(s)).Length;
-                        t.Deleted = false;
-                        t.Path = s;
-                        _fileMap.Add(s, t);
-                        
-                        return;
-                    } catch(Exception e){
-                        // Ignore!
-                        return;
-                    }
+            lock (_filesLock)
+            {
+                // Check if this is the first time we get a notification for this file. If so, check if the file exists and calculate its original hash.
+                // This message is handled *BEFORE* the NtCreateFile/NtOpenFile function is called. So this is a perfect moment to check
+                // whether the NtCreateFile will replace an existing file or not.
+
+                bool firstTime = true;
+                if (_fileMap.ContainsKey(s))
+                {
+                    firstTime = false;
+                }
+
+                bool fileExists = File.Exists(s);
+
+                // If this is the first notification and the file didn't exist yet...
+                if (!fileExists && firstTime) {
+                    var t = new FileAccessInfo();
+                    t.Path = s;
+
+                    // Seems to be a create file attempt.
+                    t.OriginalSize = 0;
+                    t.OriginalHash = null;
+                    t.OriginalExisted = false;
+                    _fileMap.Add(s, t);
                 }
                 
-                // Otherwise this is a second-access. The file might be deleted or updated
-                if (!File.Exists(s))
+                // If this is the first notification buy the file already existed...
+                else if (fileExists && firstTime)
                 {
-                    _fileMap[s].Deleted = true;
+                    var t = new FileAccessInfo();
+                    t.Path = s;
+
+                    // Seems to be a create/append/open file attempt.
+                    FileInfo info = new FileInfo(s);
+                    t.OriginalSize = info.Length;
+                    t.OriginalHash = calculateFileHash(s);
+                    t.OriginalExisted = true;
+                    _fileMap.Add(s, t);
                 }
-                else {
-                    try
-                    {
-                        string hash = null;
-                        using (var stream = File.OpenRead(s))
-                        {
-                            hash = BitConverter.ToString(md5.ComputeHash(stream)).Replace("-", string.Empty);
-                        }
-                        _fileMap[s].FinalSize = (new FileInfo(s)).Length;
-                        _fileMap[s].FinalHash = hash;
-                        
-                        return;
-                    }
-                    catch (Exception e)
-                    {
-                        // Ignore!
-                        return;
-                    }
+                
+                // If this is another access to a file and the file exists....
+                else if (fileExists && !firstTime)
+                { 
+                    // Definetely looks like and openfile
+                    // Nothing to do. Updated methods will be calculated on the fly.
                 }
 
+                // If this is another access to a file and the file still does not exist....
+                else if (!fileExists && !firstTime) { }
+                {
+                    // Looks like a previous attempt has gone wrong. Do nothing for now
+                    // Nothing to do. Updated methods will be calculated on the fly.
+                }
+
+                return;
+            }
+        }
+
+        public IEnumerable<FileAccessInfo> FileAccessLog {
+            get {
+                lock (_filesLock) {
+                    return _fileMap.Values;
+                }
             }
         }
 
@@ -221,13 +239,69 @@ namespace InstallerAnalyzer1_Guest
         #endregion
     }
 
-    class FileAccessInfo {
+    public class FileAccessInfo {
+
+        private static string CalculateHash(string filePath) {
+            string hash = null;
+            using(var md5 = MD5.Create())
+                using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                {
+                    hash = BitConverter.ToString(md5.ComputeHash(stream)).Replace("-", string.Empty);
+                }
+            return hash;
+        }
+
         public String Path { get; set; }
-        public String OriginalHash { get; set; }
-        public String FinalHash { get; set; }
-        public bool Deleted { get; set; }
+        public bool OriginalExisted { get; set; }
         public long OriginalSize { get; set; }
-        public long FinalSize { get; set; }
+        public string OriginalHash { get; set; }
+        public String FinalHash { 
+            get {
+                if (Path == null)
+                    return null;
+
+                if (!File.Exists(Path))
+                    return null;
+                else
+                    return CalculateHash(Path);
+            } 
+        }
+
+        public long FinalSize {
+            get
+            {
+                if (Path == null)
+                    return 0;
+
+                if (!File.Exists(Path))
+                    return 0;
+                else
+                    return (new FileInfo(Path)).Length;
+            } 
+        }
+        public bool IsNew { 
+            get {
+                
+                if (Path == null)
+                    return false;
+
+                return !OriginalExisted && File.Exists(Path);
+            } 
+        }
+        public bool IsModified {
+            get {
+                
+                if (Path == null)
+                    return false;
+
+                return OriginalExisted && OriginalHash != FinalHash;
+            }
+        }
+        public bool IsDeleted { get {
+            if (Path == null)
+                return false;
+            return OriginalExisted && !File.Exists(Path);
+        } }
     }
 
     internal class Unsubscriber<Object> : IDisposable
