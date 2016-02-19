@@ -112,11 +112,11 @@ namespace InstallerAnalyzer1_Guest
                     {
                         StringBuilder sb = new StringBuilder(150);
                         NativeMethods.fuzzy_hash_filename(s, sb);
-                        t.FinalFuzzyHash = sb.ToString();
+                        t.OriginalFuzzyHash = sb.ToString();
                     }
                     catch (Exception e) { 
                         // I'm not sure if this fails frequently. Log if it happens
-                        t.FinalFuzzyHash = "INVALID";
+                        t.OriginalFuzzyHash = "INVALID";
                     }
                     t.OriginalExisted = true;
                     _fileMap.Add(s, t);
@@ -291,7 +291,23 @@ namespace InstallerAnalyzer1_Guest
                     return CalculateHash(Path);
             } 
         }
-        public string FinalFuzzyHash { get; set; }
+        public string FinalFuzzyHash { get {
+
+            if (Path == null)
+                return null;
+
+            try
+            {
+                StringBuilder sb = new StringBuilder(150);
+                NativeMethods.fuzzy_hash_filename(Path, sb);
+                return sb.ToString();
+            }
+            catch (Exception e)
+            {
+                // I'm not sure if this fails frequently. Log if it happens
+                return "INVALID";
+            }
+        } }
         public long FinalSize {
             get
             {
