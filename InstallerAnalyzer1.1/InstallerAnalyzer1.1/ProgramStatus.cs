@@ -51,9 +51,16 @@ namespace InstallerAnalyzer1_Guest
 
         private string calculateFileHash(string fielPath){
             string hash = null;
-            using (var stream = new FileStream(fielPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            try
             {
-                hash = BitConverter.ToString(md5.ComputeHash(stream)).Replace("-", string.Empty);
+                using (var stream = new FileStream(fielPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                {
+                    hash = BitConverter.ToString(md5.ComputeHash(stream)).Replace("-", string.Empty);
+                }
+            }
+            catch (Exception e) { 
+                // File can be already in exclusive mode. In that case we might fail here.
+                // There is little we can do trying to recover, so we just skip this.
             }
             return hash;
         }
@@ -86,6 +93,7 @@ namespace InstallerAnalyzer1_Guest
                     // Seems to be a create file attempt.
                     t.OriginalSize = 0;
                     t.OriginalHash = null;
+                    t.OriginalFuzzyHash = null;
                     t.OriginalExisted = false;
                     _fileMap.Add(s, t);
                 }
@@ -100,6 +108,16 @@ namespace InstallerAnalyzer1_Guest
                     FileInfo info = new FileInfo(s);
                     t.OriginalSize = info.Length;
                     t.OriginalHash = calculateFileHash(s);
+                    try
+                    {
+                        StringBuilder sb = new StringBuilder(150);
+                        NativeMethods.fuzzy_hash_filename(s, sb);
+                        t.FinalFuzzyHash = sb.ToString();
+                    }
+                    catch (Exception e) { 
+                        // I'm not sure if this fails frequently. Log if it happens
+                        t.FinalFuzzyHash = "INVALID";
+                    }
                     t.OriginalExisted = true;
                     _fileMap.Add(s, t);
                 }
@@ -243,11 +261,17 @@ namespace InstallerAnalyzer1_Guest
 
         private static string CalculateHash(string filePath) {
             string hash = null;
-            using(var md5 = MD5.Create())
+            try
+            {
+                using (var md5 = MD5.Create())
                 using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                 {
                     hash = BitConverter.ToString(md5.ComputeHash(stream)).Replace("-", string.Empty);
                 }
+            }
+            catch (Exception e) { 
+                // This should never happen at this time, but we don't want to stuck the process if it happens.
+            }
             return hash;
         }
 
@@ -255,7 +279,8 @@ namespace InstallerAnalyzer1_Guest
         public bool OriginalExisted { get; set; }
         public long OriginalSize { get; set; }
         public string OriginalHash { get; set; }
-        public String FinalHash { 
+        public string OriginalFuzzyHash { get; set; }
+        public string FinalHash { 
             get {
                 if (Path == null)
                     return null;
@@ -266,7 +291,7 @@ namespace InstallerAnalyzer1_Guest
                     return CalculateHash(Path);
             } 
         }
-
+        public string FinalFuzzyHash { get; set; }
         public long FinalSize {
             get
             {

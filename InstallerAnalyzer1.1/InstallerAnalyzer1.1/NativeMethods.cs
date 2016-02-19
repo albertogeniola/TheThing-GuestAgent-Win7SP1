@@ -323,5 +323,20 @@ namespace InstallerAnalyzer1_Guest
             SendMessageTimeoutFlags fuFlags,
             uint uTimeout,
             out UIntPtr lpdwResult);
+
+
+        //int fuzzy_hash_buf(const unsigned char *buf, uint32_t buf_len, char *result)
+        [DllImport(@"ssdeep\fuzzy.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int fuzzy_hash_buf(StringBuilder buf, int buf_len, StringBuilder result);
+
+        //int fuzzy_hash_filename(const char* filename, char* result)   
+        [DllImport(@"ssdeep\fuzzy.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int fuzzy_hash_filename(string filename, StringBuilder result);
+
+        //int fuzzy_compare (const char *sig1, const char *sig2)
+        [DllImport(@"ssdeep\fuzzy.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int fuzzy_compare(string sig1, string sig2); 
+
     }
+
 }

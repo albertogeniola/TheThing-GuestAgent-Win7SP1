@@ -622,7 +622,7 @@ namespace InstallerAnalyzer1_Guest
                 {
                     Process proc = Process.GetProcessById((int)p);
                     UIntPtr r;
-                    IntPtr res = NativeMethods.SendMessageTimeout(proc.MainWindowHandle, (uint)0, UIntPtr.Zero, IntPtr.Zero, NativeMethods.SendMessageTimeoutFlags.SMTO_ABORTIFHUNG | NativeMethods.SendMessageTimeoutFlags.SMTO_BLOCK, 30000, out r);
+                    IntPtr res = NativeMethods.SendMessageTimeout(proc.MainWindowHandle, (uint)0, UIntPtr.Zero, IntPtr.Zero, NativeMethods.SendMessageTimeoutFlags.SMTO_ABORTIFHUNG | NativeMethods.SendMessageTimeoutFlags.SMTO_BLOCK, 5000, out r);
                     if (res == IntPtr.Zero) {
                         int err = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
                         if (err == 1460L)
@@ -833,8 +833,10 @@ namespace InstallerAnalyzer1_Guest
                 fl.SetAttribute("Path", file.Path);
                 fl.SetAttribute("OriginalSize", file.OriginalSize.ToString());
                 fl.SetAttribute("OriginalHash", file.OriginalHash);
+                fl.SetAttribute("OriginalFuzzyHash", file.OriginalFuzzyHash);
                 fl.SetAttribute("FinalSize", file.FinalSize.ToString());
                 fl.SetAttribute("FinalHash", file.FinalHash);
+                fl.SetAttribute("FinalFuzzyHash", file.FinalFuzzyHash);
                 fl.SetAttribute("Deleted", file.IsDeleted.ToString());
                 fl.SetAttribute("Modified", file.IsModified.ToString());
                 fl.SetAttribute("New", file.IsNew.ToString());
