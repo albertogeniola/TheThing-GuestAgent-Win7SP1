@@ -113,7 +113,7 @@ namespace InstallerAnalyzer1_Guest
 
         public static void appendXmlLog(System.Xml.XmlElement xmlElement)
         {
-            XmlNode node = _xmlLog.ImportNode(xmlElement,false);
+            XmlNode node = _xmlLog.ImportNode(xmlElement,true);
             _xmlNative.AppendChild(node);
         }
 

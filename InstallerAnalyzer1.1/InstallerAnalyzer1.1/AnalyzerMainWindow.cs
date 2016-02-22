@@ -95,7 +95,7 @@ namespace InstallerAnalyzer1_Guest
                     // working on the system.
                     ProgramStatus.Instance.IncLogRate();
                     string s = Encoding.Unicode.GetString(bb);
-                    AddRow(s);
+                    LogSyscall(s);
                 }
                 else if (d.dwData == MESSAGE_NEW_PROC)
                 {
@@ -129,38 +129,70 @@ namespace InstallerAnalyzer1_Guest
             
         }
 
-
-        private void AddRow(string r)
+        private int _seq = 0;
+        private void LogSyscall(string xmlIn)
         {
             string row = null;
             try
             {
-                row = r.Normalize();
+                row = xmlIn.Normalize();
             }
             catch (Exception e) {
-                row = UnicodeEncoding.Unicode.GetString(UnicodeEncoding.Unicode.GetBytes(r));
+                row = UnicodeEncoding.Unicode.GetString(UnicodeEncoding.Unicode.GetBytes(xmlIn));
             }
                 
+            
+            // Load the XML
+            XmlDocument doc = new XmlDocument();
             try
             {
-                XmlDocument doc = new XmlDocument();
                 doc.LoadXml(row);
-
-                // TODO: is this really necessary?
-                // Now encode base64 each value
-                /*
-                XmlNode el = doc.DocumentElement;
-                foreach (XmlAttribute attr in el.Attributes)
-                {
-                    byte[] b = Encoding.UTF8.GetBytes(attr.Value);
-                    attr.Value = Convert.ToBase64String(b);
-                }
-                */
-                Program.appendXmlLog(doc.DocumentElement);
-                logbox.Text = row;
-            } catch (Exception e) {
-                logbox.Text = "Error parsing." + row;
             }
+            catch (Exception e) {
+                // This kind of error may happen when we receive invalid XML. Load it in base64
+                // format for further investigation
+                var sc = doc.CreateElement("Syscall");
+                sc.SetAttribute("Method", "UNKNOWN");
+                sc.SetAttribute("Sequence", _seq.ToString());
+                doc.AppendChild(sc);
+                
+                // Encode in base 64 and add it to the raw data
+                var rawData = doc.CreateElement("RawData");
+                byte[] b = Encoding.UTF8.GetBytes(row);
+                rawData.InnerText = Convert.ToBase64String(b);
+                sc.AppendChild(rawData);
+
+                _seq++;
+                Program.appendXmlLog(sc);
+                logbox.Text = row;
+                return;
+            }
+                
+            XmlElement root = doc.DocumentElement;
+                
+            // Now translate into a structured form
+            string syscallName = root.Name;
+            var el = doc.CreateElement("Syscall");
+            el.SetAttribute("Method", syscallName);
+            el.SetAttribute("Sequence", _seq.ToString());
+            doc.RemoveChild(root);
+            doc.AppendChild(el);
+
+            // Add the syscall name
+            var method = doc.CreateElement("Method");
+            method.InnerText = syscallName;
+            el.AppendChild(method);
+
+            foreach (XmlAttribute attr in root.Attributes) {
+                var child = doc.CreateElement(attr.Name);
+                child.InnerText = attr.Value;
+                el.AppendChild(child);
+            }
+
+            _seq++;
+            Program.appendXmlLog(el);
+            logbox.Text = row;
+            
         }
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
@@ -189,7 +221,7 @@ namespace InstallerAnalyzer1_Guest
 
         public void appendInstallerLog(string xmlElement)
         {
-            AddRow(xmlElement);
+            LogSyscall(xmlElement);
         }
 
         public RichTextBox getConsoleBox()
