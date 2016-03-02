@@ -185,48 +185,12 @@ typedef VOID(WINAPI * pExitProcess)(UINT uExitCode);
 VOID WINAPI MyExitProcess(UINT uExitCode);
 static pExitProcess realExitProcess;
 
-
-/*
-// >>>>>>>>>>>>>> WSAConnect <<<<<<<<<<<<<<< 
-typedef int(WINAPI *pWSAConnect)(SOCKET s, const struct sockaddr* name, int namelen, LPWSABUF lpCallerData, LPWSABUF lpCalleeData, LPQOS lpSQOS, LPQOS lpGQOS);
-int WINAPI MyWSAConnect(SOCKET s, const struct sockaddr* name, int namelen, LPWSABUF lpCallerData, LPWSABUF lpCalleeData, LPQOS lpSQOS, LPQOS lpGQOS);
-static pWSAConnect realWSAConnect;
-
-// >>>>>>>>>>>>>> WSAConnectByName <<<<<<<<<<<<<<< 
-typedef BOOL(WINAPI *pWSAConnectByName)(SOCKET s, LPTSTR nodename, LPTSTR servicename, LPDWORD LocalAddressLength, LPSOCKADDR LocalAddress, LPDWORD RemoteAddressLength, LPSOCKADDR RemoteAddress, const struct timeval *timeout, LPWSAOVERLAPPED Reserved);
-BOOL WINAPI MyWSAConnectByName(SOCKET s, LPTSTR nodename, LPTSTR servicename, LPDWORD LocalAddressLength, LPSOCKADDR LocalAddress, LPDWORD RemoteAddressLength, LPSOCKADDR RemoteAddress, const struct timeval *timeout, LPWSAOVERLAPPED Reserved);
-static pWSAConnectByName realWSAConnectByName;
-
- // >>>>>>>>>>>>>> Connect <<<<<<<<<<<<<<< 
-typedef int(WINAPI *pConnect)(SOCKET s, const struct sockaddr* name, int namelen);
-int WINAPI MyConnect(SOCKET s, const struct sockaddr* name, int namelen);
-static pConnect realConnect;
-
-// >>>>>>>>>>>>>> WSASend <<<<<<<<<<<<<<< 
-typedef int(WINAPI *pWSASend)(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine);
-int WINAPI MyWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine);
-static pWSASend realWSASend;
-
-// >>>>>>>>>>>>>> WSARecv <<<<<<<<<<<<<<< 
-typedef int(WINAPI *pWSARecv)(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesRecvd, LPDWORD lpFlags, LPWSAOVERLAPPED lpOverlapped,LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine);
-int WINAPI MyWSARecv(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesRecvd, LPDWORD lpFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine);;
-static pWSARecv realWSARecv;
-
-// >>>>>>>>>>>>>> send <<<<<<<<<<<<<<< 
-typedef int(WINAPI *pSend)(SOCKET s, const char* buf, int len, int flags);
-int WINAPI MySend(SOCKET s, const char* buf, int len, int flags);
-static pSend realSend;
-*/
-
 // >>>>>>>>>>>>>> Utilities <<<<<<<<<<<<<<<<<<< 
 void GetHandleFileName(HANDLE hHandle, std::wstring* fname);
 string StandardAccessMaskToString(ACCESS_MASK DesiredAccess);
-void NotifyFileAccess(std::wstring fullPath, const int AccessMode);
 bool IsRequestingWriteAccess(ACCESS_MASK DesiredAccess);
+bool IsRequestingRegistryWriteAccess(ACCESS_MASK DesiredAccess);
 std::wstring GetFullPathByObjectAttributes(POBJECT_ATTRIBUTES ObjectAttributes);
-//void FileAccessMaskToString(ACCESS_MASK DesiredAccess, std::wstring* s);
-//void DirectoryAccessMaskToString(ACCESS_MASK DesiredAccess, std::wstring* s);
-//void KeyAccessMaskToString(ACCESS_MASK DesiredAccess, std::wstring* s);
 
 void FileCreateOptionsToString(ULONG OpenCreateOption, std::wstring* s);
 void ShareAccessToString(ULONG ShareAccess, std::wstring* s);
@@ -240,23 +204,32 @@ void GetKeyPathFromKKEY(HANDLE keym, std::wstring* s);
 const wchar_t* KeyValueInformationClassToString(KEY_VALUE_INFORMATION_CLASS value_info_class);
 BOOL GetFileNameFromHandle(HANDLE hFile, std::wstring* w);
 void add_value_name(pugi::xml_node * element, PUNICODE_STRING ValueName);
-//const wchar_t* FileInformationClassToString(FILE_INFORMATION_CLASS FileInformationClass);
 void from_unicode_to_wstring(PUNICODE_STRING u, std::wstring* w);
 
-/* Messages storage functions */
+/* Messages functions */
 void log(pugi::xml_node *element);
 bool configureWindowName();
 void notifyNewPid(HWND cwHandle, DWORD pid);
 void notifyRemovedPid(HWND cwHandle, DWORD pid);
+void NotifyFileAccess(std::wstring fullPath, const int AccessMode);
+void NotifyRegistryAccess(std::wstring fullPath, const int AccessMode);
 
+const DWORD WRITE_FLAGS[] = { 
+	FILE_WRITE_DATA,
+	FILE_APPEND_DATA,
+	FILE_ADD_FILE,
+	FILE_ADD_SUBDIRECTORY,
+	FILE_WRITE_EA,
+	FILE_DELETE_CHILD,
+	FILE_WRITE_ATTRIBUTES,
+	FILE_ALL_ACCESS,
+	FILE_GENERIC_WRITE
+};
 
-const DWORD WRITE_FLAGS[] = { FILE_WRITE_DATA,
-FILE_APPEND_DATA,
-FILE_ADD_FILE,
-FILE_ADD_SUBDIRECTORY,
-FILE_WRITE_EA,
-FILE_DELETE_CHILD,
-FILE_WRITE_ATTRIBUTES,
-FILE_ALL_ACCESS,
-FILE_GENERIC_WRITE,
+const DWORD REGISTRY_WRITE_FLAGS[] = {
+	KEY_SET_VALUE,
+	KEY_CREATE_SUB_KEY,
+	KEY_CREATE_LINK,
+	KEY_WRITE,
+	KEY_ALL_ACCESS
 };

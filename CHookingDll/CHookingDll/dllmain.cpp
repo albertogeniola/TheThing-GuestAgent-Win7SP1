@@ -854,6 +854,14 @@ NTSTATUS WINAPI MyNtOpenDirectoryObject(PHANDLE DirectoryObject, ACCESS_MASK Des
 }
 NTSTATUS WINAPI MyNtOpenKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes)
 {
+	// We need to notify the GuestController that this process is going to manipulate, somehow, this key. By sending a synch. notification
+	// before any operation happens on the key, we give a chance to the GuestController to retrieve the original value of the key before any
+	// change happens. When the process is done, the GuestController will compare original values with the final ones.
+	// For this reason we just need to notify it when we open Keys with write mode.
+	string s = GetFullPathByObjectAttributes(ObjectAttributes);
+	if (IsRequestingRegistryWriteAccess(DesiredAccess))
+		NotifyRegistryAccess(s, COPYDATA_KEY_OPEN);
+
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtOpenKey(KeyHandle, DesiredAccess, ObjectAttributes);
 
@@ -893,6 +901,11 @@ NTSTATUS WINAPI MyNtOpenKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJEC
 }
 NTSTATUS WINAPI MyNtCreateKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, ULONG TitleIndex, PUNICODE_STRING Class, ULONG CreateOptions, PULONG Disposition)
 {
+	// Notify the GuestController the process wants to create a key
+	string s = GetFullPathByObjectAttributes(ObjectAttributes);
+	if (IsRequestingRegistryWriteAccess(DesiredAccess))
+		NotifyRegistryAccess(s, COPYDATA_KEY_CREATED);
+
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtCreateKey(KeyHandle, DesiredAccess, ObjectAttributes, TitleIndex, Class, CreateOptions, Disposition);
 	
@@ -1019,7 +1032,7 @@ NTSTATUS WINAPI MyNtDeleteKey(HANDLE KeyHandle)
 	return res;
 }
 NTSTATUS WINAPI MyNtDeleteValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName){
-
+	
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtDeleteValueKey(KeyHandle, ValueName);
 
@@ -1575,7 +1588,16 @@ void NotifyFileAccess(std::wstring fullPath, const int AccessMode) {
 	
 	COPYDATASTRUCT ds;
 		
-	// TODO: somewhy this won't work.
+	ds.dwData = AccessMode;
+	ds.cbData = fullPath.length()*sizeof(wchar_t);
+	ds.lpData = (PVOID)fullPath.c_str();
+	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);
+}
+
+void NotifyRegistryAccess(std::wstring fullPath, const int AccessMode) {
+
+	COPYDATASTRUCT ds;
+
 	ds.dwData = AccessMode;
 	ds.cbData = fullPath.length()*sizeof(wchar_t);
 	ds.lpData = (PVOID)fullPath.c_str();
@@ -1635,6 +1657,18 @@ bool IsRequestingWriteAccess(ACCESS_MASK DesiredAccess) {
 	return notification;
 }
 
+bool IsRequestingRegistryWriteAccess(ACCESS_MASK DesiredAccess) {
+	bool notification = false;
+	// Check if we really need to continue. We keep going only if the file access is in write mode. 
+	for (int i = 0; i < sizeof(REGISTRY_WRITE_FLAGS); i++) {
+		if (((DesiredAccess & (REGISTRY_WRITE_FLAGS[i])) == (REGISTRY_WRITE_FLAGS[i]))){
+			notification = true; break;
+		}
+	}
+
+	return notification;
+}
+
 std::wstring GetFullPathByObjectAttributes(POBJECT_ATTRIBUTES ObjectAttributes) {
 	// Time to build the filepath. As stated here https://msdn.microsoft.com/en-us/library/windows/hardware/ff557749(v=vs.85).aspx, the ObjectAttribute
 	// structure contains a couple of information. The full file path can be either relative to a folder or be full qualifield. In both cases we need
@@ -1683,106 +1717,6 @@ void FileAttributesToString(ULONG FileAttributes, string* s)
 		(*s) = _T("NA");
 }
 
-/*
-string FileAccessMaskToString(ACCESS_MASK DesiredAccess)
-{
-	bool mustCut = false;
-	StandardAccessMaskToString(DesiredAccess, s);
-
-	if (s->length() == 0)
-		mustCut = true;
-
-	if ((DesiredAccess & FILE_READ_DATA) == FILE_READ_DATA)
-		s->append(_T("|FILE_READ_DATA"));
-	if ((DesiredAccess & FILE_READ_ATTRIBUTES) == FILE_READ_ATTRIBUTES)
-		s->append(_T("|FILE_READ_ATTRIBUTES"));
-	if ((DesiredAccess & FILE_READ_EA) == FILE_READ_EA)
-		s->append(_T("|FILE_READ_EA"));
-	if ((DesiredAccess & FILE_WRITE_DATA) == FILE_WRITE_DATA)
-		s->append(_T("|FILE_WRITE_DATA"));
-	if ((DesiredAccess & FILE_WRITE_ATTRIBUTES) == FILE_WRITE_ATTRIBUTES)
-		s->append(_T("|FILE_WRITE_ATTRIBUTES"));
-	if ((DesiredAccess & FILE_WRITE_EA) == FILE_WRITE_EA)
-		s->append(_T("|FILE_WRITE_EA"));
-	if ((DesiredAccess & FILE_APPEND_DATA) == FILE_APPEND_DATA)
-		s->append(_T("|FILE_APPEND_DATA"));
-	if ((DesiredAccess & FILE_EXECUTE) == FILE_EXECUTE)
-		s->append(_T("|FILE_EXECUTE"));
-	if ((DesiredAccess & FILE_LIST_DIRECTORY) == FILE_LIST_DIRECTORY)
-		s->append(_T("|FILE_LIST_DIRECTORY"));
-	if ((DesiredAccess & FILE_TRAVERSE) == FILE_TRAVERSE)
-		s->append(_T("|FILE_TRAVERSE"));
-
-	if (s->length() > 0 && mustCut)
-	{
-		(*s) = s->substr(1, s->length() - 1);
-	}
-}
-*/
-
-/*
-void DirectoryAccessMaskToString(ACCESS_MASK DesiredAccess, string* s)
-{
-	bool mustCut = false;
-	StandardAccessMaskToString(DesiredAccess, s);
-
-	if (s->length() == 0)
-		mustCut = true;
-
-	if ((DesiredAccess & 0x0001) == 0x0001)
-		s->append(_T("|DIRECTORY_QUERY"));
-	if ((DesiredAccess & FILE_READ_DATA) == FILE_READ_DATA)
-		s->append(_T("|DIRECTORY_TRAVERSE"));
-
-	if ((DesiredAccess & 0x0002) == 0x0002)
-		s->append(_T("|FILE_READ_ATTRIBUTES"));
-
-	if ((DesiredAccess & 0x0004) == 0x0004)
-		s->append(_T("|DIRECTORY_CREATE_OBJECT"));
-
-	if ((DesiredAccess & 0x0008) == 0x0008)
-		s->append(_T("|DIRECTORY_CREATE_SUBDIRECTORY"));
-
-	if ((DesiredAccess & (STANDARD_RIGHTS_REQUIRED | 0xF)) == (STANDARD_RIGHTS_REQUIRED | 0xF))
-		s->append(_T("|DIRECTORY_ALL_ACCESS"));
-
-	if (s->length() > 0 && mustCut)
-	{
-		(*s) = s->substr(1, s->length() - 1);
-	}
-}
-*/
-
-/*
-void KeyAccessMaskToString(ACCESS_MASK DesiredAccess, string* s)
-{
-	bool mustCut = false;
-	StandardAccessMaskToString(DesiredAccess, s);
-
-	if (s->length() == 0)
-		mustCut = true;
-
-	if ((DesiredAccess & KEY_QUERY_VALUE) == KEY_QUERY_VALUE)
-		s->append(_T("|KEY_QUERY_VALUE"));
-	if ((DesiredAccess & KEY_ENUMERATE_SUB_KEYS) == KEY_ENUMERATE_SUB_KEYS)
-		s->append(_T("|KEY_ENUMERATE_SUB_KEYS"));
-	if ((DesiredAccess & KEY_NOTIFY) == KEY_NOTIFY)
-		s->append(_T("|KEY_NOTIFY"));
-	if ((DesiredAccess & KEY_SET_VALUE) == KEY_SET_VALUE)
-		s->append(_T("|KEY_SET_VALUE"));
-	if ((DesiredAccess & KEY_CREATE_SUB_KEY) == KEY_CREATE_SUB_KEY)
-		s->append(_T("|KEY_CREATE_SUB_KEY"));
-	if ((DesiredAccess & KEY_CREATE_LINK) == KEY_CREATE_LINK)
-		s->append(_T("|KEY_CREATE_LINK"));
-
-	if (s->length() > 0 && mustCut)
-	{
-		(*s) = s->substr(1, s->length() - 1);
-	}
-
-}
-*/
-
 string StandardAccessMaskToString(ACCESS_MASK DesiredAccess)
 {
 	// We know how long will be our result
@@ -1790,38 +1724,6 @@ string StandardAccessMaskToString(ACCESS_MASK DesiredAccess)
 	_stprintf_s(mask, _countof(mask), TEXT("0x%X"), DesiredAccess);
 	mask[8] = '\0';
 	return string(mask);
-
-	/*
-	if ((DesiredAccess & DELETE) == DELETE)
-		s->append(_T("|DELETE"));
-
-	if ((DesiredAccess & READ_CONTROL) == READ_CONTROL)
-		s->append(_T("|READ_CONTROL"));
-
-	if ((DesiredAccess & SYNCHRONIZE) == SYNCHRONIZE)
-		s->append(_T("|SYNCHRONIZE"));
-
-	if ((DesiredAccess & WRITE_DAC) == WRITE_DAC)
-		s->append(_T("|WRITE_DAC"));
-
-	if ((DesiredAccess & WRITE_OWNER) == WRITE_OWNER)
-		s->append(_T("|WRITE_OWNER"));
-
-	if ((DesiredAccess & GENERIC_READ) == GENERIC_READ)
-		s->append(_T("|GENERIC_READ"));
-
-	if ((DesiredAccess & GENERIC_WRITE) == GENERIC_WRITE)
-		s->append(_T("|GENERIC_WRITE"));
-
-	if ((DesiredAccess & GENERIC_EXECUTE) == GENERIC_EXECUTE)
-		s->append(_T("|GENERIC_EXECUTE"));
-
-	if ((DesiredAccess & GENERIC_ALL) == GENERIC_ALL)
-		s->append(_T("|GENERIC_ALL"));
-
-	if (s->length() > 0)
-		(*s) = s->substr(1, s->length() - 1);
-	*/
 }
 
 void IoStatusToString(IO_STATUS_BLOCK* IoStatusBlock, string* s)
@@ -2149,36 +2051,6 @@ BOOL GetFileNameFromHandle(HANDLE hFile, string* w)
 	*w = string(pszFilename);
 	return(bSuccess);
 }
-/*
-const wchar_t* FileInformationClassToString(FILE_INFORMATION_CLASS FileInformationClass)
-{
-	switch (FileInformationClass)
-	{
-	case FileBasicInformation:
-		return _T("FileBasicInformation";
-	case FileDispositionInformation:
-		return _T("FileDispositionInformation";
-	case FileEndOfFileInformation:
-		return _T("FileEndOfFileInformation";
-	case FileIoPriorityHintInformation:
-		return _T("FileIoPriorityHintInformation";
-	case FileLinkInformation:
-		return _T("FileLinkInformation";
-	case FilePositionInformation:
-		return _T("FilePositionInformation";
-	case FileRenameInformation:
-		return _T("FileRenameInformation";
-	case FileShortNameInformation:
-		return _T("FileShortNameInformation";
-	case FileValidDataLengthInformation:
-		return _T("FileValidDataLengthInformation";
-	case FileReplaceCompletionInformation:
-		return _T("FileReplaceCompletionInformation";
-	default:
-		return _T("N/A";
-	}
-}
-*/
 
 void from_unicode_to_wstring(PUNICODE_STRING u, string* w)
 {

@@ -30,6 +30,9 @@ namespace InstallerAnalyzer1_Guest
         private readonly static IntPtr MESSAGE_FILE_CREATED = new IntPtr(3);
         private readonly static IntPtr MESSAGE_FILE_DELETED = new IntPtr(4);
         private readonly static IntPtr MESSAGE_FILE_OPENED = new IntPtr(5);
+        private readonly static IntPtr MESSAGE_REG_KEY_CREATED = new IntPtr(10);
+        private readonly static IntPtr MESSAGE_REG_KEY_OPEN = new IntPtr(11);
+
         private LogicThread _t;
         private Timer _timer;
         private DateTime _startTime;
@@ -109,20 +112,14 @@ namespace InstallerAnalyzer1_Guest
                     var pid = BitConverter.ToUInt32(bb, 0);
                     ProgramStatus.Instance.RemovePid(pid);
                 }
-                else if (d.dwData == MESSAGE_FILE_CREATED)
+                else if (d.dwData == MESSAGE_FILE_CREATED || d.dwData == MESSAGE_FILE_OPENED || d.dwData == MESSAGE_FILE_DELETED)
                 {
                     string s = Encoding.Unicode.GetString(bb);
                     ProgramStatus.Instance.NotifyFileAccess(s);
                 }
-                else if (d.dwData == MESSAGE_FILE_DELETED)
-                {
+                else if (d.dwData == MESSAGE_REG_KEY_OPEN || d.dwData == MESSAGE_REG_KEY_CREATED) {
                     string s = Encoding.Unicode.GetString(bb);
-                    ProgramStatus.Instance.NotifyFileAccess(s);
-                }
-                else if (d.dwData == MESSAGE_FILE_OPENED)
-                {
-                    string s = Encoding.Unicode.GetString(bb);
-                    ProgramStatus.Instance.NotifyFileAccess(s);
+                    ProgramStatus.Instance.NotifyRegistryAccess(s);
                 }
             }
             base.WndProc(ref m);

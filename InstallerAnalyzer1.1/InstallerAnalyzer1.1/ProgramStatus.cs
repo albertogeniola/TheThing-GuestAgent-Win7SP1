@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Win32;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -31,6 +32,7 @@ namespace InstallerAnalyzer1_Guest
         private ProgramStatus() {
             _monitoredPids = new List<uint>();
             _fileMap = new Dictionary<string, FileAccessInfo>();
+            _regMap = new Dictionary<string, RegAccessInfo>();
             _clients = new List<IObserver<uint[]>>();
             _firstDone = false;
             _logRateVal = 0;
@@ -43,9 +45,11 @@ namespace InstallerAnalyzer1_Guest
 
         #region AccessedFiles: lock on _fileMap.
         private static object _filesLock = new object();
+        private static object _regLock = new object();
         // This dictionary contains a set of path->FileInfo that represents the modifications
         // made by the logged program(s) to the Filesystem.
         private Dictionary<string, FileAccessInfo> _fileMap;
+        private Dictionary<string, RegAccessInfo> _regMap;
 
         private MD5 md5 = MD5.Create(); // TODO: implement Disposable to free this
 
@@ -65,7 +69,6 @@ namespace InstallerAnalyzer1_Guest
             return hash;
         }
 
-        // Triggered synchronously just before NtCreateFile()
         public void NotifyFileAccess(string ss) {
             string s = "";
             if (ss.StartsWith(@"\??\"))
@@ -136,6 +139,52 @@ namespace InstallerAnalyzer1_Guest
                     // Nothing to do. Updated methods will be calculated on the fly.
                 }
 
+                return;
+            }
+        }
+
+        public void NotifyRegistryAccess(string regPath) { 
+            lock (_regLock)
+            {
+                var path = regPath.ToLower();
+
+                // Every registry key should start with "\\REGISTRY"" prefix. Catch only them.
+                if (!path.StartsWith(@"\registry"))
+                    return;
+                
+                // Check if this is the first time we get a notification for this registry key. If so, check if it exists and save its original value.
+                // This message is handled *BEFORE* the NtCreateKey/NtOpenKey function is called.
+                bool firstTime = true;
+                
+                if (_regMap.ContainsKey(path))
+                {
+                    firstTime = false;
+                }
+                
+                bool keyExists = RegAccessInfo.KeyExists(path);
+
+                // If this is the first notification and the key didn't exist yet...
+                if (!keyExists && firstTime)
+                {
+                    var t = new RegAccessInfo();
+                    t.Path = path;
+
+                    // Seems to be a create key attempt.
+                    t.PopulateOriginalValues();
+                    _regMap.Add(path, t);
+                }
+
+                // If this is the first notification buy the key already existed...
+                else if (keyExists && firstTime)
+                {
+                    var t = new RegAccessInfo();
+                    t.Path = path;
+
+                    // Seems to be a create/append/open key attempt.
+                    t.PopulateOriginalValues();
+                    t.OriginalExisted = true;
+                    _regMap.Add(path, t);
+                }
                 return;
             }
         }
@@ -343,6 +392,81 @@ namespace InstallerAnalyzer1_Guest
                 return false;
             return OriginalExisted && !File.Exists(Path);
         } }
+    }
+
+    public class RegAccessInfo
+    {
+        public String Path { get; set; }
+        public bool OriginalExisted { get; set; }
+
+        public static bool KeyExists(string path) {
+            // Make it lowercase and purge any "\registry" prefix
+            var p = path.ToLower();
+            var subkey = p;
+            if (p.StartsWith(@"\registry"))
+                subkey = p.Split(new string[]{@"\registry\"}, StringSplitOptions.RemoveEmptyEntries)[0];
+
+            // Check which part of the registry has been queried
+            RegistryKey root = null;
+            string leaf = null;
+            if (subkey.StartsWith("users")) {
+                root = Registry.Users;
+                leaf = subkey.Split(new string[]{@"users\"}, StringSplitOptions.RemoveEmptyEntries)[0];
+            }
+            
+            else if (subkey.StartsWith("user")) {
+                root = Registry.CurrentUser;
+                leaf = subkey.Split(new string[] { @"user\" }, StringSplitOptions.RemoveEmptyEntries)[0];
+            }
+
+            else if (subkey.StartsWith("machine"))
+            {
+                root = Registry.LocalMachine;
+                leaf = subkey.Split(new string[] { @"machine\" }, StringSplitOptions.RemoveEmptyEntries)[0];
+            }
+            else
+            {
+                // Invalid key!
+                //TODO
+                throw new ApplicationException("The logger has reported an invalid key for the registry: "+p);
+            }
+            
+            //todo
+            
+            var key = root.OpenSubKey(leaf);
+            var existed = key != null;
+
+            if (existed)
+                key.Dispose();
+            
+            root.Dispose();
+
+            return existed;
+        }
+
+        public bool IsNew
+        {
+            //todo
+            get;
+            set;
+        }
+        public bool IsModified
+        {
+            //todo
+            get;
+            set;
+        }
+        public bool IsDeleted
+        {
+            //todo
+            get;
+            set;
+        }
+
+        public void PopulateOriginalValues()
+        {
+            //todo
+        }
     }
 
     internal class Unsubscriber<Object> : IDisposable
