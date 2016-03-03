@@ -819,6 +819,118 @@ namespace InstallerAnalyzer1_Guest
             uiResult.AppendChild(uiResultDescription);
             result.AppendChild(uiResult);
 
+            // Regsitry access
+            var regAccess = log.OwnerDocument.CreateElement("RegistryAccess");
+            var newKeys = regAccess.OwnerDocument.CreateElement("NewKeys");
+            var editedKeys = regAccess.OwnerDocument.CreateElement("EditedKeys");
+            var deletedKeys = regAccess.OwnerDocument.CreateElement("DeletedKeys");
+            var otherAccessKeys = regAccess.OwnerDocument.CreateElement("OtherAccessKeys");
+            var accesses = ProgramStatus.Instance.RegAccessLog;
+            foreach (var k in accesses)
+            {
+                // Calculate the diffs.
+                k.UpdateDifferences();
+
+                var fl = log.OwnerDocument.CreateElement("Key");
+                fl.SetAttribute("Path", k.FullName);
+                fl.SetAttribute("Deleted", k.IsDeleted.ToString());
+                fl.SetAttribute("Modified", k.IsModified.ToString());
+                fl.SetAttribute("New", k.IsNew.ToString());
+
+                if (k.IsNew)
+                {
+                    // List all the new VALUES created alongside this key.
+                    var new_values = log.OwnerDocument.CreateElement("Values");
+                    foreach (var kv in k.NewValues) {
+                        var key_value = log.OwnerDocument.CreateElement("KeyValue");
+                        var k_name = log.OwnerDocument.CreateElement("Name");
+                        var k_val = log.OwnerDocument.CreateElement("Value");
+                        k_name.InnerText = kv.Key.ToString();
+                        k_val.InnerText = kv.Value.ToString();
+                        
+                        key_value.AppendChild(k_name);
+                        key_value.AppendChild(k_val);
+                        new_values.AppendChild(key_value);
+                    }
+                    fl.AppendChild(new_values);
+
+                    // List all the new SUBKEYS created alongside this key.
+                    var new_subkeys = log.OwnerDocument.CreateElement("SubKeys");
+                    foreach (var kv in k.NewSubeys)
+                    {
+                        var key_value = log.OwnerDocument.CreateElement("Key");
+                        key_value.InnerText = kv;
+                        new_values.AppendChild(key_value);
+                    }
+                    fl.AppendChild(new_subkeys);
+
+                    newKeys.AppendChild(fl);
+                }
+                else if (k.IsDeleted)
+                {
+                    var old_values = log.OwnerDocument.CreateElement("PreviousValues");
+                    foreach (var kv in k.DeletedValues)
+                    {
+                        var key_value = log.OwnerDocument.CreateElement("KeyValue");
+                        var k_name = log.OwnerDocument.CreateElement("Name");
+                        var k_val = log.OwnerDocument.CreateElement("Value");
+                        k_name.InnerText = kv.Key.ToString();
+                        k_val.InnerText = kv.Value.ToString();
+
+                        key_value.AppendChild(k_name);
+                        key_value.AppendChild(k_val);
+                        old_values.AppendChild(key_value);
+                    }
+                    fl.AppendChild(old_values);
+
+                    // List all the new SUBKEYS created alongside this key.
+                    var old_subkeys = log.OwnerDocument.CreateElement("OldSubKeys");
+                    foreach (var kv in k.DeletedSubkeys)
+                    {
+                        var key_value = log.OwnerDocument.CreateElement("Key");
+                        key_value.InnerText = kv;
+                        old_subkeys.AppendChild(key_value);
+                    }
+                    fl.AppendChild(old_subkeys);
+
+
+                    deletedKeys.AppendChild(fl);
+                }
+                else if (k.IsModified)
+                {
+                    var edited_values = log.OwnerDocument.CreateElement("EditedValues");
+                    foreach (var kv in k.ModifiedValues)
+                    {
+                        var key_value = log.OwnerDocument.CreateElement("KeyValue");
+                        var k_name = log.OwnerDocument.CreateElement("Name");
+                        var k_val = log.OwnerDocument.CreateElement("OriginalValue");
+                        var k_new_val = log.OwnerDocument.CreateElement("NewValue");
+
+                        k_name.InnerText = kv.Key.ToString();
+                        k_val.InnerText = ((dynamic)(kv.Value)).OriginalValue.ToString();
+                        k_new_val.InnerText = ((dynamic)(kv.Value)).CurrentValue.ToString();
+
+                        key_value.AppendChild(k_name);
+                        key_value.AppendChild(k_val);
+                        key_value.AppendChild(k_new_val);
+                        edited_values.AppendChild(key_value);
+                    }
+                    fl.AppendChild(edited_values);
+
+                    var edited_subkeys = log.OwnerDocument.CreateElement("EditedSubKeys");
+                    fl.AppendChild(edited_subkeys);
+
+                    editedKeys.AppendChild(fl);
+                }
+                else
+                    otherAccessKeys.AppendChild(fl);
+            }
+            regAccess.AppendChild(newKeys);
+            regAccess.AppendChild(editedKeys);
+            regAccess.AppendChild(deletedKeys);
+            regAccess.AppendChild(otherAccessKeys);
+            result.AppendChild(regAccess);
+
             // Modified files
             var fileAccess = log.OwnerDocument.CreateElement("FileAccess");
             var newFiles = fileAccess.OwnerDocument.CreateElement("NewFiles");

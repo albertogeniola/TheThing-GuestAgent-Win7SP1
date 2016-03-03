@@ -160,15 +160,20 @@ namespace InstallerAnalyzer1_Guest
                 {
                     firstTime = false;
                 }
-                
-                bool keyExists = RegAccessInfo.KeyExists(path);
+
+                string fullname = RegAccessInfo.ConvertToFullName(regPath);
+                if (fullname == null) { 
+                    // This was invalid. Skip.
+                    return;
+                }
+
+                bool keyExists = RegAccessInfo.KeyExists(fullname);
 
                 // If this is the first notification and the key didn't exist yet...
                 if (!keyExists && firstTime)
                 {
-                    var t = new RegAccessInfo();
-                    t.Path = path;
-
+                    var t = new RegAccessInfo(fullname);
+                    
                     // Seems to be a create key attempt.
                     t.PopulateOriginalValues();
                     _regMap.Add(path, t);
@@ -177,9 +182,8 @@ namespace InstallerAnalyzer1_Guest
                 // If this is the first notification buy the key already existed...
                 else if (keyExists && firstTime)
                 {
-                    var t = new RegAccessInfo();
-                    t.Path = path;
-
+                    var t = new RegAccessInfo(fullname);
+                    
                     // Seems to be a create/append/open key attempt.
                     t.PopulateOriginalValues();
                     t.OriginalExisted = true;
@@ -193,6 +197,14 @@ namespace InstallerAnalyzer1_Guest
             get {
                 lock (_filesLock) {
                     return _fileMap.Values;
+                }
+            }
+        }
+
+        public IEnumerable<RegAccessInfo> RegAccessLog {
+            get {
+                lock (_regLock) {
+                    return _regMap.Values;
                 }
             }
         }
@@ -396,49 +408,176 @@ namespace InstallerAnalyzer1_Guest
 
     public class RegAccessInfo
     {
-        public String Path { get; set; }
+        private string _fullName;
+        private string _root;
+        public RegAccessInfo(string fullName) {
+            // We do not accept null path
+            if (fullName == null)
+                throw new ApplicationException("FullName cannot be null");
+
+            _fullName = fullName;
+            
+            // Precalculate other define values, such as FullName, root, etc.
+            var parts = FullName.Split(new string[] { @"\" }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length<1) 
+                throw new ApplicationException("The FullName of the registry key is invalid. ");
+
+            _root = parts[0].ToUpper();
+            if (_root != "HKEY_CURRENT_USER" &&
+                _root != "HKEY_LOCAL_MACHINE" &&
+                _root != "HKEY_CLASSES_ROOT" &&
+                _root != "HKEY_USERS" &&
+                _root != "HKEY_PERFORMANCE_DATA" &&
+                _root != "HKEY_CURRENT_CONFIG" &&
+                _root != "HKEY_DYN_DATA")
+            {
+                throw new ApplicationException("Invalid ROOT KEY specified.");
+            }
+
+        }
+
+        public string FullName { 
+            get { 
+                return _fullName; 
+            } 
+        }
+
+        public string Root
+        {
+            get
+            {
+                return _root;
+            }
+        }
+
+        public string SubkeyPath {
+            get{
+                if (FullName == null)
+                    throw new ArgumentException("Cannot get subkey of a null key");
+
+                return FullName.ToLower().Split(new string[] { Root.ToLower() + "\\" }, StringSplitOptions.RemoveEmptyEntries)[0];
+            }
+        }
+
+        public RegistryKey GetRootKey() { 
+            if (FullName == null)
+                throw new ApplicationException("FullName cannot be null!");
+
+            if (_root == "HKEY_CURRENT_USER")
+                return Registry.CurrentUser;
+            else if (_root == "HKEY_LOCAL_MACHINE")
+                return Registry.LocalMachine;
+            else if (_root == "HKEY_CLASSES_ROOT")
+                return Registry.ClassesRoot;
+            else if (_root == "HKEY_USERS")
+                return Registry.Users;
+            else if (_root == "HKEY_PERFORMANCE_DATA")
+                return Registry.PerformanceData;
+            else if (_root == "HKEY_CURRENT_CONFIG")
+                return Registry.CurrentConfig;
+            else if (_root == "HKEY_DYN_DATA")
+                return Registry.CurrentConfig;
+            else
+                throw new ArgumentException("Invalid ROOT KEY specified.");
+        }
+        
         public bool OriginalExisted { get; set; }
 
-        public static bool KeyExists(string path) {
-            // Make it lowercase and purge any "\registry" prefix
-            var p = path.ToLower();
-            var subkey = p;
-            if (p.StartsWith(@"\registry"))
-                subkey = p.Split(new string[]{@"\registry\"}, StringSplitOptions.RemoveEmptyEntries)[0];
-
-            // Check which part of the registry has been queried
-            RegistryKey root = null;
-            string leaf = null;
-            if (subkey.StartsWith("users")) {
-                root = Registry.Users;
-                leaf = subkey.Split(new string[]{@"users\"}, StringSplitOptions.RemoveEmptyEntries)[0];
-            }
-            
-            else if (subkey.StartsWith("user")) {
-                root = Registry.CurrentUser;
-                leaf = subkey.Split(new string[] { @"user\" }, StringSplitOptions.RemoveEmptyEntries)[0];
-            }
-
-            else if (subkey.StartsWith("machine"))
-            {
-                root = Registry.LocalMachine;
-                leaf = subkey.Split(new string[] { @"machine\" }, StringSplitOptions.RemoveEmptyEntries)[0];
-            }
+        public static string ConvertToFullName(string regPath)
+        {
+            string path = regPath.ToLower();
+            if (!path.StartsWith(@"\registry"))
+                return null;
             else
+                path = path.Substring(@"\registry".Length);
+
+            // Check parts of the key
+            var parts = path.Split(new string[] { @"\" }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length < 1)
+                return null;
+
+            string root = null;
+
+            switch (parts[0])
             {
-                // Invalid key!
-                //TODO
-                throw new ApplicationException("The logger has reported an invalid key for the registry: "+p);
+                case "user":
+                    root = "hkey_current_user";
+                    break;
+                case "machine":
+                    root = "hkey_local_machine";
+                    break;
+                case "root":
+                    root = "hkey_classes_root";
+                    break;
+                case "users":
+                    root = "hkey_users";
+                    break;
+                default:
+                    return null;
             }
+
+            StringBuilder result = new StringBuilder();
+            result.Append(root);
+            for (int i = 1; i < parts.Length; i++) {
+                result.Append(@"\");
+                result.Append(parts[i]);
+            }
+            return result.ToString();
+
+        }
+
+
+
+        public static bool KeyExists(string fullPath) {
+            // Make it lowercase
+            var p = fullPath.ToLower();
             
-            //todo
-            
-            var key = root.OpenSubKey(leaf);
+            // Check parts of the key
+            var parts = fullPath.Split(new string[] { @"\" }, StringSplitOptions.RemoveEmptyEntries);
+            RegistryKey root = null;
+
+            switch (parts[0]) { 
+                case "hkey_current_user":
+                    root = Registry.CurrentUser;
+                    break;
+                case "hkey_local_machine":
+                    root = Registry.LocalMachine;
+                    break;
+                case "hkey_classes_root":
+                    root = Registry.ClassesRoot;
+                    break;
+                case "hkey_users":
+                    root = Registry.Users;
+                    break;
+                case "hkey_performance_data":
+                    root = Registry.PerformanceData;
+                    break;
+                case "hkey_current_config":
+                    root = Registry.CurrentConfig;
+                    break;
+                case "hkey_dyn_data":
+                    root = Registry.DynData;
+                    break;
+                default:
+                    return false;
+            }
+
+            StringBuilder b = new StringBuilder();
+            for (int i = 1; i < parts.Length; i++) {
+                
+                b.Append(parts[i]);
+
+                if (i<(parts.Length-1))
+                    b.Append(@"\");
+            }
+
+            var key = root.OpenSubKey(b.ToString());
             var existed = key != null;
 
             if (existed)
+            {
                 key.Dispose();
-            
+            }            
             root.Dispose();
 
             return existed;
@@ -446,27 +585,145 @@ namespace InstallerAnalyzer1_Guest
 
         public bool IsNew
         {
-            //todo
-            get;
-            set;
+            get {
+                if (FullName == null)
+                    throw new ArgumentException("FullName cannot be null");
+                
+                // A key is new if didn't exist and now exists. The GetValue() returns null if the key does not exist. 
+                // This is a simple trick to check if a key exists by its full path.
+                return !OriginalExisted && Registry.GetValue(FullName,"test","test") != null;
+            }
         }
         public bool IsModified
         {
             //todo
-            get;
-            set;
+            get {
+                if (FullName == null)
+                    throw new ArgumentException("FullName cannot be null");
+
+                return UpdateDifferences();
+            }
         }
+
+
+        public List<string> NewSubeys;
+        public List<string> DeletedSubkeys;
+        public Dictionary<string, object> DeletedValues;
+        public Dictionary<string, object> NewValues;
+        public Dictionary<string, object> ModifiedValues;
+        public bool UpdateDifferences() {
+            // Obtain actual status
+            Dictionary<string, object> new_key_values = GetCurrentKeyValues();
+            List<string> new_subs = GetCurrentKeySubkeys();
+
+            // Compare and save differences
+            // Look for new subkeys: ones that are now present and were not present before.
+            NewSubeys = new List<string>();
+            foreach (var newsub in new_subs) {
+                if (!OriginalSubkeys.Contains(newsub))
+                    NewSubeys.Add(newsub);
+            }
+            // Look for deleted subkeys: ones that are now inexistent and were present before.
+            DeletedSubkeys = new List<string>();
+            foreach (var oldsub in OriginalSubkeys)
+            {
+                if (!new_subs.Contains(oldsub))
+                    DeletedSubkeys.Add(oldsub);
+            }
+
+            // Look for deleted values: ones that are now inexistent and were present before.
+            DeletedValues = new Dictionary<string, object>();
+            foreach (var old_key_value in OriginalKeyValues)
+            {
+                if (!new_key_values.ContainsKey(old_key_value.Key))
+                    DeletedValues.Add(old_key_value.Key, old_key_value.Value);
+            }
+            
+            // Look for new values: ones that didn't exist at the beginning but are now present
+            NewValues = new Dictionary<string, object>();
+            foreach (var new_key_value in new_key_values)
+            {
+                if (!OriginalKeyValues.ContainsKey(new_key_value.Key))
+                    NewValues.Add(new_key_value.Key, new_key_value.Value);
+            }
+            
+            // Look for modified values: present before and now but with different values
+            ModifiedValues = new Dictionary<string, object>();
+            foreach (var new_key_value in new_key_values)
+            {
+                if (OriginalKeyValues.ContainsKey(new_key_value.Key)) { 
+                    // Add it to the list only if the value has changed or if the type has changed
+                    if (new_key_value.Value.ToString() != OriginalKeyValues[new_key_value.Key].ToString())
+                    {
+                        ModifiedValues.Add(new_key_value.Key, new
+                        {
+                            OriginalValue = OriginalKeyValues[new_key_value.Key],
+                            CurrentValue = new_key_value.Value,
+                        });
+                    }
+                }
+                    
+            }
+
+            return NewSubeys.Count > 0 || DeletedSubkeys.Count > 0 || DeletedValues.Count > 0 || NewValues.Count > 0 || ModifiedValues.Count > 0;
+        }
+
+        private Dictionary<string, object> GetCurrentKeyValues() {
+            if (FullName == null)
+                throw new Exception ("FullName cannot be null");
+
+            Dictionary<string, object> res = new Dictionary<string, object>();
+            using (var rootkey = GetRootKey()) {
+                var subpath = SubkeyPath;
+                using (var key = rootkey.OpenSubKey(subpath)) {
+                    if (key != null)
+                        foreach (var name in key.GetValueNames()) {
+                            res.Add(name, key.GetValue(name));
+                        }
+                }
+            }
+
+            return res;
+        }
+
+        private List<string> GetCurrentKeySubkeys()
+        {
+            if (FullName == null)
+                throw new ArgumentException("FullName cannot be null");
+
+            List<string> res = new List<string>();
+            using (var rootkey = GetRootKey())
+            {
+                var subpath = SubkeyPath;
+                using (var key = rootkey.OpenSubKey(subpath))
+                {
+                    if (key!=null)
+                        foreach (var name in key.GetSubKeyNames())
+                        {
+                            res.Add(name);
+                        }
+                }
+            }
+
+            return res;
+        }
+
         public bool IsDeleted
         {
-            //todo
-            get;
-            set;
+            get {
+                return Registry.GetValue(FullName, "test", "test") == null && OriginalExisted;
+            }
         }
 
         public void PopulateOriginalValues()
         {
-            //todo
+            OriginalKeyValues = GetCurrentKeyValues();
+            OriginalSubkeys = GetCurrentKeySubkeys();
         }
+
+        public Dictionary<string, object> OriginalKeyValues { get; set; }
+        public List<string> OriginalSubkeys { get; set; }
+
     }
 
     internal class Unsubscriber<Object> : IDisposable

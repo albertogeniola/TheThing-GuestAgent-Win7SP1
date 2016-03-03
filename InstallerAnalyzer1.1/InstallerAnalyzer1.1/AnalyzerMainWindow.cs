@@ -118,8 +118,14 @@ namespace InstallerAnalyzer1_Guest
                     ProgramStatus.Instance.NotifyFileAccess(s);
                 }
                 else if (d.dwData == MESSAGE_REG_KEY_OPEN || d.dwData == MESSAGE_REG_KEY_CREATED) {
-                    string s = Encoding.Unicode.GetString(bb);
-                    ProgramStatus.Instance.NotifyRegistryAccess(s);
+                    try
+                    {
+                        string s = Encoding.Unicode.GetString(bb);
+                        ProgramStatus.Instance.NotifyRegistryAccess(s);
+                    }
+                    catch (Exception e) {
+                        var c = e.StackTrace;
+                    }
                 }
             }
             base.WndProc(ref m);
