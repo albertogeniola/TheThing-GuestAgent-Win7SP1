@@ -69,74 +69,100 @@ namespace InstallerAnalyzer1_Guest
             return hash;
         }
 
-        public void NotifyFileAccess(string ss) {
-            string s = "";
-            if (ss.StartsWith(@"\??\"))
-                s = ss.Substring(4);
+        public void NotifyFileRename(string oPath, string nPath)
+        {
+            string oldPath = null;
+            string newPath = null;
 
             lock (_filesLock)
             {
-                // Check if this is the first time we get a notification for this file. If so, check if the file exists and calculate its original hash.
-                // This message is handled *BEFORE* the NtCreateFile/NtOpenFile function is called. So this is a perfect moment to check
-                // whether the NtCreateFile will replace an existing file or not.
+                // Purge the file names
+                if (oPath.StartsWith(@"\??\"))
+                    oldPath = oPath.Substring(4);
+                if (nPath.StartsWith(@"\??\"))
+                    newPath = nPath.Substring(4);
+                if (String.IsNullOrEmpty(oPath))
+                    return;
+                if (String.IsNullOrEmpty(nPath))
+                    return;
 
-                bool firstTime = true;
-                if (_fileMap.ContainsKey(s))
+                // TODO: wildcard? Can they appear here?
+                bool knownFile = _fileMap.ContainsKey(oPath);
+                FileAccessInfo t = null;
+
+                // Get the file log associated to that path or create a new one.
+                if (knownFile)
+                    t = _fileMap[oPath];
+                else
                 {
-                    firstTime = false;
+                    t = new FileAccessInfo();
+                    t.Path = oPath;
+                    _fileMap.Add(oPath, t);
                 }
 
-                bool fileExists = File.Exists(s);
+                // Let the object register the file access
+                t.NotifyRenamedTo(nPath);
+            }
+        }
 
-                // If this is the first notification and the file didn't exist yet...
-                if (!fileExists && firstTime) {
-                    var t = new FileAccessInfo();
-                    t.Path = s;
+        public void NotifyFileAccess(string ss) {
+            string wild_path = "";
+            if (ss.StartsWith(@"\??\"))
+                wild_path = ss.Substring(4);
 
-                    // Seems to be a create file attempt.
-                    t.OriginalSize = 0;
-                    t.OriginalHash = null;
-                    t.OriginalFuzzyHash = null;
-                    t.OriginalExisted = false;
-                    _fileMap.Add(s, t);
-                }
-                
-                // If this is the first notification buy the file already existed...
-                else if (fileExists && firstTime)
+            lock (_filesLock)
+            {
+                string[] files = null;
+
+                // File path may contain wildcard. It is necessary to expand them here and perform analysis on each file.
+                // This, of course, KILLs performance, but gives to us much more interesting data.
+                if (wild_path.Contains('*'))
                 {
-                    var t = new FileAccessInfo();
-                    t.Path = s;
-
-                    // Seems to be a create/append/open file attempt.
-                    FileInfo info = new FileInfo(s);
-                    t.OriginalSize = info.Length;
-                    t.OriginalHash = calculateFileHash(s);
                     try
                     {
-                        StringBuilder sb = new StringBuilder(150);
-                        NativeMethods.fuzzy_hash_filename(s, sb);
-                        t.OriginalFuzzyHash = sb.ToString();
+                        var dir = Path.GetDirectoryName(wild_path);
+                        var fname = Path.GetFileName(wild_path);
+                        if (Directory.Exists(dir))
+                        {
+                            // Try to expand the wildcard, if any
+                            files = System.IO.Directory.GetFiles(dir, fname);
+                        }
                     }
-                    catch (Exception e) { 
-                        // I'm not sure if this fails frequently. Log if it happens
-                        t.OriginalFuzzyHash = "INVALID";
+                    catch (Exception e)
+                    {
+                        // An error occurred. Just take into account the root file
+                        files = new String[] { wild_path };
                     }
-                    t.OriginalExisted = true;
-                    _fileMap.Add(s, t);
                 }
-                
-                // If this is another access to a file and the file exists....
-                else if (fileExists && !firstTime)
-                { 
-                    // Definetely looks like and openfile
-                    // Nothing to do. Updated methods will be calculated on the fly.
+                else { // If the file does not contain any wildcard, just add it.
+                    files = new String[] { wild_path };
                 }
 
-                // If this is another access to a file and the file still does not exist....
-                else if (!fileExists && !firstTime) { }
+
+                if (files == null) {
+                    return;
+                }
+
+                foreach (var s in files)
                 {
-                    // Looks like a previous attempt has gone wrong. Do nothing for now
-                    // Nothing to do. Updated methods will be calculated on the fly.
+                    if (String.IsNullOrEmpty(s))
+                        continue;
+
+                    bool knownFile = _fileMap.ContainsKey(s);
+                    FileAccessInfo t = null;
+
+                    // Get the file log associated to that path or create a new one.
+                    if (knownFile)
+                        t = _fileMap[s];
+                    else
+                    {
+                        t = new FileAccessInfo();
+                        t.Path = s;
+                        _fileMap.Add(s, t);
+                    }
+
+                    // Let the object register the file access
+                    t.NotifyAccess();
                 }
 
                 return;
@@ -318,9 +344,113 @@ namespace InstallerAnalyzer1_Guest
         #endregion
     }
 
+    #region Helper classes
+    public struct AccessInfo
+    {
+        public bool exists;
+        public long size;
+        public string md5_hash;
+        public string fuzzyHash;
+        public string path;
+    }
+
     public class FileAccessInfo {
 
-        private static string CalculateHash(string filePath) {
+        private List<AccessInfo> _info = new List<AccessInfo>();
+        
+        // This flag is used to detect whether the file analysis has been already performed.
+        // Indeed, when anyone of the callers calls "checkout()", this flag is raised and the 
+        // history is frozen.
+        private bool _finalized = false;
+        public String Path { get; set; }
+
+        public void NotifyAccess()
+        {
+            if (_finalized)
+                // Skip
+                return;
+
+            // Collect info on a new struct
+            AccessInfo info = new AccessInfo();
+            info.path = Path;
+            info.exists = File.Exists(Path);
+
+            // If the file exists, collect more information about that
+            if (info.exists)
+            {
+                FileInfo finfo = new FileInfo(Path);
+                info.size = finfo.Length;
+                info.md5_hash = CalculateHash(Path);
+                info.fuzzyHash = CalculateFuzzyHash(Path);
+            }
+
+            // Since a new access has been performed, we might want to save this into the history.
+            // A new history line is relevant if something has changed into the file from last version.
+            // So compare the struct with the last one in memory and add it to the track if it is different.
+            if (_info.Count == 0)
+                // If this is the first time we see the file, it is necessary to add it!
+                _info.Add(info);
+            else {
+                var lastinfo = _info.Last();
+                if (lastinfo.exists != info.exists ||
+                    lastinfo.fuzzyHash != info.fuzzyHash ||
+                    lastinfo.md5_hash != info.md5_hash ||
+                    lastinfo.size != info.size || 
+                    lastinfo.path != info.path)
+                    // Something has changed, add this item to the history chain
+                    _info.Add(info);
+            }
+        }
+
+        public IEnumerable<AccessInfo> CheckoutHistory()
+        {
+            // Check any new change and freeze the history of the file.
+            NotifyAccess();
+            _finalized = true;
+            return _info;
+        }
+
+        /// <summary>
+        /// Calculates if the file was new to the current FS or if it was already present.
+        /// </summary>
+        /// <returns></returns>
+        public bool IsNew() {
+            if (_info.Count > 0)
+                return !_info[0].exists;
+            else
+                return false;
+        }
+
+        /// <summary>
+        /// Return true if the file existed on its first version on the FS and if the latest version 
+        /// differs from the original one
+        /// </summary>
+        /// <returns></returns>
+        public bool IsModified()
+        {
+            if (_info.Count > 0)
+                return _info[0].exists && _info[0].md5_hash != _info.Last().md5_hash;
+            else
+                return false;
+        }
+
+        private static string CalculateFuzzyHash(string filePath) {
+            string res = null;
+            try
+            {
+                StringBuilder sb = new StringBuilder(150);
+                NativeMethods.fuzzy_hash_filename(filePath, sb);
+                res = sb.ToString();
+            }
+            catch (Exception e)
+            {
+                // I'm not sure if this fails frequently. Log if it happens
+                res = "INVALID";
+            }
+            return res;
+        }
+        private static string CalculateHash(string filePath)
+        {
             string hash = null;
             try
             {
@@ -330,80 +460,43 @@ namespace InstallerAnalyzer1_Guest
                     hash = BitConverter.ToString(md5.ComputeHash(stream)).Replace("-", string.Empty);
                 }
             }
-            catch (Exception e) { 
+            catch (Exception e)
+            {
                 // This should never happen at this time, but we don't want to stuck the process if it happens.
             }
             return hash;
         }
 
-        public String Path { get; set; }
-        public bool OriginalExisted { get; set; }
-        public long OriginalSize { get; set; }
-        public string OriginalHash { get; set; }
-        public string OriginalFuzzyHash { get; set; }
-        public string FinalHash { 
-            get {
-                if (Path == null)
-                    return null;
-
-                if (!File.Exists(Path))
-                    return null;
-                else
-                    return CalculateHash(Path);
-            } 
-        }
-        public string FinalFuzzyHash { get {
-
-            if (Path == null)
-                return null;
-
-            try
-            {
-                StringBuilder sb = new StringBuilder(150);
-                NativeMethods.fuzzy_hash_filename(Path, sb);
-                return sb.ToString();
-            }
-            catch (Exception e)
-            {
-                // I'm not sure if this fails frequently. Log if it happens
-                return "INVALID";
-            }
-        } }
-        public long FinalSize {
-            get
-            {
-                if (Path == null)
-                    return 0;
-
-                if (!File.Exists(Path))
-                    return 0;
-                else
-                    return (new FileInfo(Path)).Length;
-            } 
-        }
-        public bool IsNew { 
-            get {
-                
-                if (Path == null)
-                    return false;
-
-                return !OriginalExisted && File.Exists(Path);
-            } 
-        }
-        public bool IsModified {
-            get {
-                
-                if (Path == null)
-                    return false;
-
-                return OriginalExisted && OriginalHash != FinalHash;
-            }
-        }
-        public bool IsDeleted { get {
-            if (Path == null)
+        /// <summary>
+        /// Returns true if the file existed originally on the FS and if it is no more on it.
+        /// </summary>
+        /// <returns></returns>
+        public bool IsDeleted()
+        {
+            if (_info.Count > 0)
+                return _info[0].exists && !_info.Last().exists;
+            else
                 return false;
-            return OriginalExisted && !File.Exists(Path);
-        } }
+        }
+
+        /// <summary>
+        /// Returns true if the file is new and survived the installation process. This means
+        /// it will be resident on the FS.
+        /// </summary>
+        /// <returns></returns>
+        public bool LeftOver()
+        {
+            if (_info.Count > 0)
+                return !_info[0].exists && _info.Last().exists;
+            else
+                return false;
+        }
+
+        public void NotifyRenamedTo(string nPath)
+        {
+            Path = nPath;
+            NotifyAccess();
+        }
     }
 
     public class RegAccessInfo
@@ -743,4 +836,6 @@ namespace InstallerAnalyzer1_Guest
                 _observers.Remove(_observer);
         }
     }
+#endregion
+
 }

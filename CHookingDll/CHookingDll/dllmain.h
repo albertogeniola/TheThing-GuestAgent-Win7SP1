@@ -1,6 +1,6 @@
 #define BUFSIZE 512
 #define SHMEMSIZE 4096
-//#define SHARED_MEM_NAME "loggerwindowname"
+
 #include <cstdio>
 #include <string>
 #include <tchar.h>
@@ -213,6 +213,7 @@ void notifyNewPid(HWND cwHandle, DWORD pid);
 void notifyRemovedPid(HWND cwHandle, DWORD pid);
 void NotifyFileAccess(std::wstring fullPath, const int AccessMode);
 void NotifyRegistryAccess(std::wstring fullPath, const int AccessMode);
+void NotifyFileRename(std::wstring oldPath, std::wstring newPath);
 
 const DWORD WRITE_FLAGS[] = { 
 	FILE_WRITE_DATA,
@@ -233,3 +234,10 @@ const DWORD REGISTRY_WRITE_FLAGS[] = {
 	KEY_WRITE,
 	KEY_ALL_ACCESS
 };
+
+typedef struct FILE_RENAME_INFORMATION {
+	BOOLEAN ReplaceIfExists;
+	HANDLE  RootDirectory;
+	ULONG   FileNameLength;
+	WCHAR   FileName[1];
+} FILE_RENAME_INFORMATION, *PFILE_RENAME_INFORMATION;

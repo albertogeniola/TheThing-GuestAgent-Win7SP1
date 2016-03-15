@@ -1330,11 +1330,55 @@ NTSTATUS WINAPI MyNtQueryValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName, K
 	
 	return res;
 }
+
 NTSTATUS WINAPI MyNtSetInformationFile(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock, PVOID FileInformation, ULONG Length, FILE_INFORMATION_CLASS FileInformationClass)
 {
-	// Call first because we want to store the result to the call too.
-	NTSTATUS res = realNtSetInformationFile(FileHandle,IoStatusBlock,FileInformation, Length,FileInformationClass);
+	// _FILE_INFORMATION_CLASS::FileRenameInformation = 10 /*0xA*/
+	// FILE_INFORMATION_CLASS::FileRenameInformationBypassAccessCheck => only valid in kernel mode and for Windows 8. So we do not care about this right now.
+	bool isRename = (FileInformationClass == 0xA);
+	string oldPath;
+	bool pathFound = false;
+
+	// We need to save current file path in case this is a rename
+	if (isRename) {
+		pathFound = handleMap.Lookup(FileHandle, oldPath);
+	}
+		
+	// Immediately perform the call to the real API
+	NTSTATUS res = realNtSetInformationFile(FileHandle, IoStatusBlock, FileInformation, Length, FileInformationClass);
 	
+	// This API has the capability of renaming a file. For us, it is crucial to detect this so we can keep track of the history of a file.
+	// Only notify the GuestController IF the operation was a RENAME and only if it was successful.
+	if (res == STATUS_SUCCESS && isRename) {
+		// Information about this operation is given by the FIleInformation buffer, that has to be casted to a FILE_RENAME_INFORMATION struct
+		PFILE_RENAME_INFORMATION info = ((PFILE_RENAME_INFORMATION)FileInformation);
+		
+		// Build info about the new path. If the path is relative to a directory, prepend the directory path.
+		string newPath;
+		if (info->RootDirectory != NULL) {
+			// The file name is not absolute, but depends on the directory
+			GetHandleFileName(info->RootDirectory, &newPath);
+		}
+		
+		// Put now the relative path.
+		WCHAR * tmp = new WCHAR[info->FileNameLength + 1];
+		memcpy(tmp, info->FileName, info->FileNameLength);
+		tmp[info->FileNameLength] = '\0';
+			
+		// This will copy the memory so we can get rid of tmp buffer
+		newPath.append(string(tmp));
+		delete[] tmp;
+
+		// The old path may be unknown for some reason (implementation bug?). In that case, simulate a create file behaviour, so we don't loose any info
+		if (!pathFound) {
+			NotifyFileAccess(newPath, COPYDATA_FILE_CREATED);
+		}
+		else {
+			// Otherwise trigger a rename
+			NotifyFileRename(oldPath, newPath);
+		}
+	}
+
 	// Use a node object to create the XML string: this will contain all information about the SysCall
 	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtSetInformationFile"));
 
@@ -1591,6 +1635,25 @@ void NotifyFileAccess(std::wstring fullPath, const int AccessMode) {
 	ds.dwData = AccessMode;
 	ds.cbData = fullPath.length()*sizeof(wchar_t);
 	ds.lpData = (PVOID)fullPath.c_str();
+	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);
+}
+
+void NotifyFileRename(std::wstring oldPath, std::wstring newPath) {
+
+	COPYDATASTRUCT ds;
+	rename_file_info data;
+
+	// Fill in data: that will be the struct sent to the Guest Controller
+	oldPath.copy(data.oldPath, PATH_MAX_LEN, 0);
+	data.oldPath[oldPath.length()] = '\0';
+
+	newPath.copy(data.newPath, PATH_MAX_LEN, 0);
+	data.newPath[newPath.length()] = '\0';
+
+	ds.dwData = COPYDATA_FILE_RENAMED;
+	ds.cbData = sizeof(rename_file_info);
+	ds.lpData = &data;
+
 	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);
 }
 

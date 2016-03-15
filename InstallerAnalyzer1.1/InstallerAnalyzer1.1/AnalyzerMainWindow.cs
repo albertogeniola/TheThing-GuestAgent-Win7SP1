@@ -24,12 +24,15 @@ namespace InstallerAnalyzer1_Guest
 {
     public partial class AnalyzerMainWindow : Form, IObserver<uint[]>
     {
+        private const int PATH_MAX_LEN = 260;
         private readonly static IntPtr MESSAGE_LOG = new IntPtr(0);
         private readonly static IntPtr MESSAGE_NEW_PROC = new IntPtr(1);
         private readonly static IntPtr MESSAGE_PROC_DIED = new IntPtr(2);
         private readonly static IntPtr MESSAGE_FILE_CREATED = new IntPtr(3);
         private readonly static IntPtr MESSAGE_FILE_DELETED = new IntPtr(4);
         private readonly static IntPtr MESSAGE_FILE_OPENED = new IntPtr(5);
+        private readonly static IntPtr MESSAGE_FILE_RENAMED = new IntPtr(6);
+
         private readonly static IntPtr MESSAGE_REG_KEY_CREATED = new IntPtr(10);
         private readonly static IntPtr MESSAGE_REG_KEY_OPEN = new IntPtr(11);
 
@@ -116,6 +119,13 @@ namespace InstallerAnalyzer1_Guest
                 {
                     string s = Encoding.Unicode.GetString(bb);
                     ProgramStatus.Instance.NotifyFileAccess(s);
+                }
+                else if (d.dwData == MESSAGE_FILE_RENAMED)
+                {
+                    // Convert raw bytes received by the message pump into a conveniente struct and parse the strings
+                    RenameFileStruct data = (RenameFileStruct)Marshal.PtrToStructure(d.lpData, typeof(RenameFileStruct));
+                    // Now notify the file rename
+                    ProgramStatus.Instance.NotifyFileRename(data.oldPath, data.newPath);
                 }
                 else if (d.dwData == MESSAGE_REG_KEY_OPEN || d.dwData == MESSAGE_REG_KEY_CREATED) {
                     try
@@ -282,7 +292,17 @@ namespace InstallerAnalyzer1_Guest
             }
             else {
                 d();
-            }
+            } 
         }
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+        public struct RenameFileStruct
+        {
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = PATH_MAX_LEN)]
+            public string oldPath;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = PATH_MAX_LEN)]
+            public string newPath;
+        };
+
     }
 }

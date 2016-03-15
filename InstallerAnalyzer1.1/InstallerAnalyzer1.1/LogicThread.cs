@@ -741,7 +741,7 @@ namespace InstallerAnalyzer1_Guest
                         reported = true;
                     } catch(Exception e) {
                         // In this case we want to keep trying. It is important to let the Controller know that the job was not ok.
-                        Console.WriteLine("Cannot report work back to host controller. I will retry in a moment.");
+                        Console.WriteLine("Cannot report work back to host controller. I will retry in a moment. Error: "+e.Message);
                         Thread.Sleep(ACQUIRE_WORK_SLEEP_SECS * 1000);
                         reported = false;
                     }
@@ -755,9 +755,11 @@ namespace InstallerAnalyzer1_Guest
                 // In case of a VM, the situation may be different. For performance
                 // reasons it would be nice to start again from a known snapshot
                 // simply reverting the VM instead of full reboot. 
-                // At the moment we just reboot ourself, but in future this operation
-                // may be different.
-                NativeMethods.Reboot();
+                // TODO: add a flag to the job-message so the worker knows if it is supposed to reboot automatically or not.
+                // The following statement is necessary in case of bare-metal implementations
+                //NativeMethods.Reboot();
+
+
                 keepRunning = false;
             }
         }
@@ -784,6 +786,13 @@ namespace InstallerAnalyzer1_Guest
         private string PrepareReport(ProcessContainer p, string outfile)
         {
             var log = Program.GetInstallerLog();
+
+            // Add information on this specific run
+            var experiment = log.OwnerDocument.CreateElement("Experiment");
+            var installerName = log.OwnerDocument.CreateElement("InstallerName");
+            installerName.InnerText = p.Process.StartInfo.FileName;
+            experiment.AppendChild(installerName);
+            log.PrependChild(experiment);
 
             var result = log.OwnerDocument.CreateElement("Result"); // Main element containing all the result info
             log.AppendChild(result);
@@ -931,7 +940,7 @@ namespace InstallerAnalyzer1_Guest
             regAccess.AppendChild(otherAccessKeys);
             result.AppendChild(regAccess);
 
-            // Modified files
+            // New/Modified/Deleted/Renamed files
             var fileAccess = log.OwnerDocument.CreateElement("FileAccess");
             var newFiles = fileAccess.OwnerDocument.CreateElement("NewFiles");
             var modifiedFiles = fileAccess.OwnerDocument.CreateElement("ModifiedFiles");
@@ -941,23 +950,59 @@ namespace InstallerAnalyzer1_Guest
             fileAccess.SetAttribute("count", files.Count().ToString());
             foreach (var file in files)
             {
+                // Note: we need to invoke this method before all the others.
+                // This triggers some last checks on the file and freezes its history.
+                var records = file.CheckoutHistory();
+
+                bool newfile = file.IsNew();
+                bool modifiedfile = file.IsModified();
+                bool deletedfile = file.IsDeleted();
+                bool leftOver = file.LeftOver();
+
                 var fl = log.OwnerDocument.CreateElement("File");
                 fl.SetAttribute("Path", file.Path);
-                fl.SetAttribute("OriginalSize", file.OriginalSize.ToString());
-                fl.SetAttribute("OriginalHash", file.OriginalHash);
-                fl.SetAttribute("OriginalFuzzyHash", file.OriginalFuzzyHash);
-                fl.SetAttribute("FinalSize", file.FinalSize.ToString());
-                fl.SetAttribute("FinalHash", file.FinalHash);
-                fl.SetAttribute("FinalFuzzyHash", file.FinalFuzzyHash);
-                fl.SetAttribute("Deleted", file.IsDeleted.ToString());
-                fl.SetAttribute("Modified", file.IsModified.ToString());
-                fl.SetAttribute("New", file.IsNew.ToString());
+                fl.SetAttribute("Deleted", deletedfile.ToString());
+                fl.SetAttribute("Modified", modifiedfile.ToString());
+                fl.SetAttribute("New", newfile.ToString());
+                fl.SetAttribute("LeftOver", leftOver.ToString());
+                var history = log.OwnerDocument.CreateElement("AccessHistory");
+                // Build the story of the file
+                int count = 0;
+                foreach (var record in records) {
+                    var erec = log.OwnerDocument.CreateElement("FileStatus");
+                    erec.SetAttribute("Sequence", count.ToString());
 
-                if (file.IsNew)
+                    var path = log.OwnerDocument.CreateElement("Path");
+                    path.InnerText = record.path;
+                    erec.AppendChild(path);
+
+                    var md5_hash = log.OwnerDocument.CreateElement("Md5Hash");
+                    md5_hash.InnerText = record.md5_hash;
+                    erec.AppendChild(md5_hash);
+
+                    var fuzzyHash = log.OwnerDocument.CreateElement("FuzzyHash");
+                    fuzzyHash.InnerText = record.fuzzyHash;
+                    erec.AppendChild(fuzzyHash);
+
+                    var size = log.OwnerDocument.CreateElement("Size");
+                    size.InnerText = record.size.ToString();
+                    erec.AppendChild(size);
+
+                    var exists = log.OwnerDocument.CreateElement("Exists");
+                    exists.InnerText = record.exists.ToString();
+                    erec.AppendChild(exists);
+
+                    history.AppendChild(erec);
+                    count++;
+                }
+                fl.AppendChild(history);
+                
+
+                if (newfile)
                     newFiles.AppendChild(fl);
-                else if (file.IsDeleted)
+                else if (deletedfile)
                     deletedFiles.AppendChild(fl);
-                else if (file.IsModified)
+                else if (modifiedfile)
                     modifiedFiles.AppendChild(fl);
                 else
                     otherFiles.AppendChild(fl);
