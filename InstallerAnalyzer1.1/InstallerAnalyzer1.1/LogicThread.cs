@@ -1035,7 +1035,7 @@ namespace InstallerAnalyzer1_Guest
             Process strings = new Process();
             strings.StartInfo.FileName = "strings/strings.exe";
             strings.StartInfo.UseShellExecute = false;
-            strings.StartInfo.Arguments = String.Format("-accepteula -n {0} {1}", Settings.Default.STRINGS_MIN_LEN, p.Job.LocalFullPath);
+            strings.StartInfo.Arguments = String.Format("-n {0} {1} /accepteula", Settings.Default.STRINGS_MIN_LEN, p.Job.LocalFullPath);
             strings.StartInfo.RedirectStandardOutput = true;
             strings.Start();
             strings.WaitForExit();
