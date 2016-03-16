@@ -302,6 +302,7 @@ namespace InstallerAnalyzer1_Guest
             // Start the process to analyze
             Console.WriteLine("UI Bot: START");
             var proc = StartProcessWithInjector(j);
+            j.StartTime = DateTime.Now;
 
             // Keep interacting until we hit the timeout or the process exits normally.
             while (!_timeout)
@@ -539,6 +540,8 @@ namespace InstallerAnalyzer1_Guest
                 proc.Result = InteractionResult.TimeOut;
             }
             
+            j.EndTime = DateTime.Now;
+
             // Return the result to the parent.
             return proc;
         }
@@ -790,8 +793,22 @@ namespace InstallerAnalyzer1_Guest
             // Add information on this specific run
             var experiment = log.OwnerDocument.CreateElement("Experiment");
             var installerName = log.OwnerDocument.CreateElement("InstallerName");
-            installerName.InnerText = p.Process.StartInfo.FileName;
+            installerName.InnerText = p.Job.LocalFullPath;
             experiment.AppendChild(installerName);
+            var jobId = log.OwnerDocument.CreateElement("JobId");
+            jobId.InnerText = p.Job.Id.ToString();
+            experiment.AppendChild(jobId);
+            // Time info: start, stop, elapsed
+            var startTime = log.OwnerDocument.CreateElement("StartedOn");
+            startTime.InnerText = p.Job.StartTime.ToLongTimeString();
+            experiment.AppendChild(startTime);
+            var endTime = log.OwnerDocument.CreateElement("EndedOn");
+            endTime.InnerText = p.Job.EndTime.ToLongTimeString();
+            experiment.AppendChild(endTime);
+            var duration = log.OwnerDocument.CreateElement("Duration");
+            duration.InnerText = (p.Job.EndTime - p.Job.StartTime).ToString();
+            experiment.AppendChild(duration);
+
             log.PrependChild(experiment);
 
             var result = log.OwnerDocument.CreateElement("Result"); // Main element containing all the result info
@@ -1013,6 +1030,26 @@ namespace InstallerAnalyzer1_Guest
             fileAccess.AppendChild(otherFiles);
 
             result.AppendChild(fileAccess);
+
+            // Strings
+            Process strings = new Process();
+            strings.StartInfo.FileName = "strings/strings.exe";
+            strings.StartInfo.UseShellExecute = false;
+            strings.StartInfo.Arguments = String.Format("-accepteula -n {0} {1}", Settings.Default.STRINGS_MIN_LEN, p.Job.LocalFullPath);
+            strings.StartInfo.RedirectStandardOutput = true;
+            strings.Start();
+            strings.WaitForExit();
+            var stringAnalysis = log.OwnerDocument.CreateElement("Strings");
+            stringAnalysis.SetAttribute("MinLength", Settings.Default.STRINGS_MIN_LEN.ToString());
+            using (var r = strings.StandardOutput) {
+                while (!r.EndOfStream) {
+                    string str = r.ReadLine();
+                    var estr = log.OwnerDocument.CreateElement("String");
+                    estr.InnerText = str;
+                    stringAnalysis.AppendChild(estr);
+                }
+            }
+            log.AppendChild(stringAnalysis);
 
             // New application detected
             var deltaApps = log.OwnerDocument.CreateElement("NewApplications");
@@ -1379,7 +1416,7 @@ namespace InstallerAnalyzer1_Guest
                 proc.StartInfo.RedirectStandardError = true;
                 proc.StartInfo.RedirectStandardOutput = true;
                 proc.StartInfo.UseShellExecute = false;
-                res = new ProcessContainer(proc);
+                res = new ProcessContainer(proc,j);
                 res.Start();
                 
             } catch(Exception ex){
@@ -1446,9 +1483,6 @@ namespace InstallerAnalyzer1_Guest
         internal IntPtr UniqueProcessId;
         internal IntPtr InheritedFromUniqueProcessId;
 
-        [DllImport("ntdll.dll")]
-        private static extern int NtQueryInformationProcess(IntPtr processHandle, int processInformationClass, ref ParentProcessUtilities processInformation, int processInformationLength, out int returnLength);
-
         /// <summary>
         /// Gets the parent process of the current process.
         /// </summary>
@@ -1478,7 +1512,7 @@ namespace InstallerAnalyzer1_Guest
         {
             ParentProcessUtilities pbi = new ParentProcessUtilities();
             int returnLength;
-            int status = NtQueryInformationProcess(handle, 0, ref pbi, Marshal.SizeOf(pbi), out returnLength);
+            int status = NativeMethods.NtQueryInformationProcess(handle, 0, ref pbi, Marshal.SizeOf(pbi), out returnLength);
             if (status != 0)
                 throw new Win32Exception(status);
 

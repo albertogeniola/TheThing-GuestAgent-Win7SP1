@@ -24,12 +24,14 @@ namespace InstallerAnalyzer1_Guest
         private IntPtr handle;
         private bool disposed;
         private Process _proc;
+        private Job _job;
 
         public InteractionResult Result { get; set; }
-
-        public ProcessContainer(Process p)
+        public Job Job { get { return _job; } }
+        public ProcessContainer(Process p, Job j)
         {
             _proc = p;
+            _job = j;
             handle = CreateJobObject(IntPtr.Zero, null);
 
             var info = new JOBOBJECT_BASIC_LIMIT_INFORMATION

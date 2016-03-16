@@ -156,6 +156,9 @@ namespace InstallerAnalyzer1_Guest
         public const UInt32 SE_PRIVILEGE_ENABLED = 0x00000002;
         public const string SE_SHUTDOWN_NAME = "SeShutdownPrivilege";
 
+        [DllImport("ntdll.dll")]
+        public static extern int NtQueryInformationProcess(IntPtr processHandle, int processInformationClass, ref ParentProcessUtilities processInformation, int processInformationLength, out int returnLength);
+
         [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool ExitWindowsEx(ExitWindows uFlags,

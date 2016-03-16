@@ -76,5 +76,14 @@ namespace InstallerAnalyzer1_Guest.Properties {
                 return ((int)(this["EXECUTE_JOB_TIMEOUT"]));
             }
         }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("6")]
+        public int STRINGS_MIN_LEN {
+            get {
+                return ((int)(this["STRINGS_MIN_LEN"]));
+            }
+        }
     }
 }

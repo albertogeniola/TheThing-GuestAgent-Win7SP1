@@ -14,6 +14,9 @@ namespace InstallerAnalyzer1_Guest
         private readonly string _localPath;
         public string LocalFullPath { get { return _localPath; } }
 
+        public DateTime StartTime { get; set; }
+        public DateTime EndTime { get; set; }
+
         public Job(long id, string localPath) {
             this._id = id;
 

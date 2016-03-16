@@ -1361,9 +1361,10 @@ NTSTATUS WINAPI MyNtSetInformationFile(HANDLE FileHandle, PIO_STATUS_BLOCK IoSta
 		}
 		
 		// Put now the relative path.
-		WCHAR * tmp = new WCHAR[info->FileNameLength + 1];
+		int bufflen = info->FileNameLength / sizeof(WCHAR) + 1;
+		WCHAR * tmp = new WCHAR[ bufflen ];
 		memcpy(tmp, info->FileName, info->FileNameLength);
-		tmp[info->FileNameLength] = '\0';
+		tmp[bufflen -1] = '\0';
 			
 		// This will copy the memory so we can get rid of tmp buffer
 		newPath.append(string(tmp));

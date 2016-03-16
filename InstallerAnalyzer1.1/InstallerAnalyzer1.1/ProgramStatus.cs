@@ -87,21 +87,21 @@ namespace InstallerAnalyzer1_Guest
                     return;
 
                 // TODO: wildcard? Can they appear here?
-                bool knownFile = _fileMap.ContainsKey(oPath);
+                bool knownFile = _fileMap.ContainsKey(oldPath);
                 FileAccessInfo t = null;
 
                 // Get the file log associated to that path or create a new one.
                 if (knownFile)
-                    t = _fileMap[oPath];
+                    t = _fileMap[oldPath];
                 else
                 {
                     t = new FileAccessInfo();
                     t.Path = oPath;
-                    _fileMap.Add(oPath, t);
+                    _fileMap.Add(oldPath, t);
                 }
 
                 // Let the object register the file access
-                t.NotifyRenamedTo(nPath);
+                t.NotifyRenamedTo(newPath);
             }
         }
 
