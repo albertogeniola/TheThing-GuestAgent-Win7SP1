@@ -70,7 +70,7 @@ namespace InstallerAnalyzer1_Guest.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("600000")]
+        [global::System.Configuration.DefaultSettingValueAttribute("900000")]
         public int EXECUTE_JOB_TIMEOUT {
             get {
                 return ((int)(this["EXECUTE_JOB_TIMEOUT"]));
@@ -83,6 +83,18 @@ namespace InstallerAnalyzer1_Guest.Properties {
         public int STRINGS_MIN_LEN {
             get {
                 return ((int)(this["STRINGS_MIN_LEN"]));
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("600000")]
+        public int IDLE_TIMEOUT {
+            get {
+                return ((int)(this["IDLE_TIMEOUT"]));
+            }
+            set {
+                this["IDLE_TIMEOUT"] = value;
             }
         }
     }

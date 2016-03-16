@@ -32,7 +32,7 @@ namespace InstallerAnalyzer1_Guest
         const int STUCK_THRESHOLD = 10; //TODO: Fixme. This might be increased or decreased. 
         const int STUCK_NO_CONTROLS_THRESHOLD = 50;
         const int REACTION_TIMEOUT = 500;
-        const int IDLE_TIMEOUT = 600000; // Wait up to 10 minutes for heavy I/O timeout
+        int IDLE_TIMEOUT = Settings.Default.IDLE_TIMEOUT; // Wait up to 10 minutes for heavy I/O timeout
         const int ACQUIRE_WORK_SLEEP_SECS = 10;
         const int CIRCULAR_LOOP_THRESHOLD = 5;
         readonly string DEFAULT_REPORT_PATH = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "report.xml");
@@ -1038,7 +1038,7 @@ namespace InstallerAnalyzer1_Guest
             strings.StartInfo.Arguments = String.Format("-n {0} {1} /accepteula", Settings.Default.STRINGS_MIN_LEN, p.Job.LocalFullPath);
             strings.StartInfo.RedirectStandardOutput = true;
             strings.Start();
-            strings.WaitForExit();
+            
             var stringAnalysis = log.OwnerDocument.CreateElement("Strings");
             stringAnalysis.SetAttribute("MinLength", Settings.Default.STRINGS_MIN_LEN.ToString());
             using (var r = strings.StandardOutput) {
@@ -1050,6 +1050,7 @@ namespace InstallerAnalyzer1_Guest
                 }
             }
             log.AppendChild(stringAnalysis);
+            strings.WaitForExit();
 
             // New application detected
             var deltaApps = log.OwnerDocument.CreateElement("NewApplications");
