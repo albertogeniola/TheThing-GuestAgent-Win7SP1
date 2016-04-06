@@ -92,7 +92,17 @@ namespace InstallerAnalyzer1_Guest
 
                 // Get the file log associated to that path or create a new one.
                 if (knownFile)
+                {
                     t = _fileMap[oldPath];
+                    
+                    // At this point it is necessary to update the mapping dictionary
+                    _fileMap.Remove(oldPath);
+                    if (_fileMap.ContainsKey(newPath))
+                        // Swap it.
+                        _fileMap[newPath] = t;
+                    else
+                        _fileMap.Add(newPath, t);
+                }
                 else
                 {
                     t = new FileAccessInfo();

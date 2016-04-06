@@ -302,6 +302,7 @@ namespace InstallerAnalyzer1_Guest
             // Start the process to analyze
             Console.WriteLine("UI Bot: START");
             var proc = StartProcessWithInjector(j);
+            Console.WriteLine("UI Bot: Process tarted, pid "+proc.Process.Id);
             j.StartTime = DateTime.Now;
 
             // Keep interacting until we hit the timeout or the process exits normally.
@@ -759,8 +760,11 @@ namespace InstallerAnalyzer1_Guest
                 // reasons it would be nice to start again from a known snapshot
                 // simply reverting the VM instead of full reboot. 
                 // TODO: add a flag to the job-message so the worker knows if it is supposed to reboot automatically or not.
+                
                 // The following statement is necessary in case of bare-metal implementations
                 //NativeMethods.Reboot();
+                // This one is necessary with VM-only.
+                MessageBox.Show("WORK DONE. WAITING FOR REBOOT OPERATION BY THE HOST CONTROLLER...");
 
 
                 keepRunning = false;
@@ -965,7 +969,8 @@ namespace InstallerAnalyzer1_Guest
             var otherFiles = fileAccess.OwnerDocument.CreateElement("OtherAccessFiles");
             var files = ProgramStatus.Instance.FileAccessLog;
             fileAccess.SetAttribute("count", files.Count().ToString());
-            foreach (var file in files)
+
+            Parallel.ForEach(files, (file) =>
             {
                 // Note: we need to invoke this method before all the others.
                 // This triggers some last checks on the file and freezes its history.
@@ -985,7 +990,8 @@ namespace InstallerAnalyzer1_Guest
                 var history = log.OwnerDocument.CreateElement("AccessHistory");
                 // Build the story of the file
                 int count = 0;
-                foreach (var record in records) {
+                foreach (var record in records)
+                {
                     var erec = log.OwnerDocument.CreateElement("FileStatus");
                     erec.SetAttribute("Sequence", count.ToString());
 
@@ -1013,44 +1019,57 @@ namespace InstallerAnalyzer1_Guest
                     count++;
                 }
                 fl.AppendChild(history);
-                
 
-                if (newfile)
+                //TODO: intercept intermidiate file strings...
+                if (file.LeftOver())
+                {
+                    // Calculate the strings for that file
+                    Process strings = new Process();
+                    strings.StartInfo.FileName = "strings/strings.exe";
+                    strings.StartInfo.UseShellExecute = false;
+                    strings.StartInfo.Arguments = String.Format("-n {0} {1} /accepteula", Settings.Default.STRINGS_MIN_LEN, file.Path);
+                    strings.StartInfo.RedirectStandardOutput = true;
+                    strings.Start();
+
+                    var stringAnalysis = log.OwnerDocument.CreateElement("Strings");
+                    stringAnalysis.SetAttribute("MinLength", Settings.Default.STRINGS_MIN_LEN.ToString());
+                    using (var r = strings.StandardOutput)
+                    {
+                        while (!r.EndOfStream)
+                        {
+                            // Truncate to 400 chars each string.
+                            string str = null;
+                            str = r.ReadLine();
+                            if (str.Length > 400)
+                                str = str.Substring(0, 400);
+                            var estr = log.OwnerDocument.CreateElement("String");
+                            estr.InnerText = str;
+                            stringAnalysis.AppendChild(estr);
+                        }
+                    }
+                    fl.AppendChild(stringAnalysis);
+                    strings.WaitForExit();
+                    // In case the string command failed, remove the nodes.
+                    if (strings.ExitCode != 0)
+                        stringAnalysis.RemoveAll();
                     newFiles.AppendChild(fl);
+                }
                 else if (deletedfile)
                     deletedFiles.AppendChild(fl);
                 else if (modifiedfile)
+                {
                     modifiedFiles.AppendChild(fl);
+                }
                 else
                     otherFiles.AppendChild(fl);
-            }
+            });
+
             fileAccess.AppendChild(newFiles);
             fileAccess.AppendChild(modifiedFiles);
             fileAccess.AppendChild(deletedFiles);
             fileAccess.AppendChild(otherFiles);
 
             result.AppendChild(fileAccess);
-
-            // Strings
-            Process strings = new Process();
-            strings.StartInfo.FileName = "strings/strings.exe";
-            strings.StartInfo.UseShellExecute = false;
-            strings.StartInfo.Arguments = String.Format("-n {0} {1} /accepteula", Settings.Default.STRINGS_MIN_LEN, p.Job.LocalFullPath);
-            strings.StartInfo.RedirectStandardOutput = true;
-            strings.Start();
-            
-            var stringAnalysis = log.OwnerDocument.CreateElement("Strings");
-            stringAnalysis.SetAttribute("MinLength", Settings.Default.STRINGS_MIN_LEN.ToString());
-            using (var r = strings.StandardOutput) {
-                while (!r.EndOfStream) {
-                    string str = r.ReadLine();
-                    var estr = log.OwnerDocument.CreateElement("String");
-                    estr.InnerText = str;
-                    stringAnalysis.AppendChild(estr);
-                }
-            }
-            log.AppendChild(stringAnalysis);
-            strings.WaitForExit();
 
             // New application detected
             var deltaApps = log.OwnerDocument.CreateElement("NewApplications");
@@ -1418,9 +1437,12 @@ namespace InstallerAnalyzer1_Guest
                 proc.StartInfo.RedirectStandardOutput = true;
                 proc.StartInfo.UseShellExecute = false;
                 res = new ProcessContainer(proc,j);
+                Console.WriteLine("UI Bot: \nstarting "+proc.StartInfo.FileName+"\nArgs: "+proc.StartInfo.Arguments);
                 res.Start();
+                Console.WriteLine("UI Bot: Started");
                 
             } catch(Exception ex){
+                Console.WriteLine("Exception: "+ex.Message);
                 // Partially handle here. Kill the process if created and dispose the process object. Then raise the exception again.
                 if (res != null)
                 {

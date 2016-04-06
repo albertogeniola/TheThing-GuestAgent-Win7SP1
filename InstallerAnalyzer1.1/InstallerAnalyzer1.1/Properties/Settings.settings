@@ -21,7 +21,7 @@
       <Value Profile="(Default)">900000</Value>
     </Setting>
     <Setting Name="STRINGS_MIN_LEN" Type="System.Int32" Scope="Application">
-      <Value Profile="(Default)">6</Value>
+      <Value Profile="(Default)">10</Value>
     </Setting>
     <Setting Name="IDLE_TIMEOUT" Type="System.Int32" Scope="User">
       <Value Profile="(Default)">600000</Value>

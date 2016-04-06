@@ -79,7 +79,7 @@ namespace InstallerAnalyzer1_Guest.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("6")]
+        [global::System.Configuration.DefaultSettingValueAttribute("10")]
         public int STRINGS_MIN_LEN {
             get {
                 return ((int)(this["STRINGS_MIN_LEN"]));
