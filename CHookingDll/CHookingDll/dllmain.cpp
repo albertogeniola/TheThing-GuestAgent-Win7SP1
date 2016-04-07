@@ -42,13 +42,16 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		break;
 	case DLL_PROCESS_ATTACH:
 		
-		
 		tmplog.append(_T("Attached to process"));
 		tmplog.append(to_string(GetCurrentProcessId()));
 
 		//wsprintf(msgbuf, _T("Attached to process %d."), GetCurrentProcessId());
 		OutputDebugString(tmplog.c_str());
 		
+		// Set the error mode to NONE so we do not get annoying UI
+		SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
+		_set_abort_behavior(0, _WRITE_ABORT_MSG);
+
 
 		// Assign the address location of the function to the static pointer
 		realNtCreateFile = (pNtCreateFile)(GetProcAddress(ntdllmod, "NtCreateFile"));
