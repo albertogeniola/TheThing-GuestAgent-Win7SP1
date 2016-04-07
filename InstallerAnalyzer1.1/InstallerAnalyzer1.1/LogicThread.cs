@@ -305,6 +305,15 @@ namespace InstallerAnalyzer1_Guest
             Console.WriteLine("UI Bot: Process tarted, pid "+proc.Process.Id);
             j.StartTime = DateTime.Now;
 
+            // Wait 2 seconds and check if the injector failed. If so, 
+            proc.Process.WaitForExit(2000);
+            if (proc.Process.HasExited && proc.Process.ExitCode!=0)
+            {
+                Console.WriteLine("UI Bot: Process has died just after it was spawned. This is usually happens with non-executable files or unsupported files.");
+                proc.Result = InteractionResult.UnknownError;
+                return proc;
+            }
+
             // Keep interacting until we hit the timeout or the process exits normally.
             while (!_timeout)
             {
@@ -718,6 +727,8 @@ namespace InstallerAnalyzer1_Guest
                     Console.WriteLine("Killing injector process with pid "+proc.Process.Id);
                     proc.Process.Kill();
                 }
+
+                ProgramStatus.Instance.NotifyInjectorExited();
 
                 // Kill any other process spawned by us
                 var pids = ProgramStatus.Instance.Pids;

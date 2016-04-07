@@ -253,7 +253,16 @@ namespace InstallerAnalyzer1_Guest
         private long _logRate, _logRateVal;
         private bool _firstDone;
         private Thread _timer = null;
-        
+
+        public void NotifyInjectorExited() {
+            lock (_pidsLock)
+            {
+                // If the injector failed, we should release any lock waiting for FIRST PID.
+                _firstDone = true;
+                Monitor.PulseAll(_pidsLock);
+            }
+        }
+
         public void AddPid(uint pid) {
             uint[] notify = null;
             lock (_pidsLock)
