@@ -84,61 +84,73 @@ namespace InstallerAnalyzer1_Guest
 
         protected override void WndProc(ref Message m)
         {
-            
+            Exception toLog = null;
+
             // Intercept CopyData messages
             if (m.Msg == 0x004A)
             {
-                CopyDataStruct d = (CopyDataStruct)Marshal.PtrToStructure(m.LParam, typeof(CopyDataStruct));
-                // Log data
-                byte[] bb = new byte[d.cbData];
-                for (int i = 0; i < bb.Length; i++)
-                    bb[i] = Marshal.ReadByte(d.lpData, i);
+                try
+                {
+                    CopyDataStruct d = (CopyDataStruct)Marshal.PtrToStructure(m.LParam, typeof(CopyDataStruct));
+                    // Log data
+                    byte[] bb = new byte[d.cbData];
+                    for (int i = 0; i < bb.Length; i++)
+                        bb[i] = Marshal.ReadByte(d.lpData, i);
 
-                if (d.dwData == MESSAGE_LOG)
-                {
-                    // Let the program status we are receiving logs from the process.
-                    // This can give us a hint about how hard are the background processes
-                    // working on the system.
-                    ProgramStatus.Instance.IncLogRate();
-                    string s = Encoding.Unicode.GetString(bb);
-                    LogSyscall(s);
-                }
-                else if (d.dwData == MESSAGE_NEW_PROC)
-                {
-                    // New process spawned
-                    var pid = BitConverter.ToUInt32(bb, 0);
-                    ProgramStatus.Instance.AddPid(pid);
-                }
-                else if (d.dwData == MESSAGE_PROC_DIED)
-                {
-                    // Process died
-                    var pid = BitConverter.ToUInt32(bb, 0);
-                    ProgramStatus.Instance.RemovePid(pid);
-                }
-                else if (d.dwData == MESSAGE_FILE_CREATED || d.dwData == MESSAGE_FILE_OPENED || d.dwData == MESSAGE_FILE_DELETED)
-                {
-                    string s = Encoding.Unicode.GetString(bb);
-                    ProgramStatus.Instance.NotifyFileAccess(s);
-                }
-                else if (d.dwData == MESSAGE_FILE_RENAMED)
-                {
-                    // Convert raw bytes received by the message pump into a conveniente struct and parse the strings
-                    RenameFileStruct data = (RenameFileStruct)Marshal.PtrToStructure(d.lpData, typeof(RenameFileStruct));
-                    // Now notify the file rename
-                    ProgramStatus.Instance.NotifyFileRename(data.oldPath, data.newPath);
-                }
-                else if (d.dwData == MESSAGE_REG_KEY_OPEN || d.dwData == MESSAGE_REG_KEY_CREATED) {
-                    try
+                    if (d.dwData == MESSAGE_LOG)
+                    {
+                        // Let the program status we are receiving logs from the process.
+                        // This can give us a hint about how hard are the background processes
+                        // working on the system.
+                        ProgramStatus.Instance.IncLogRate();
+                        string s = Encoding.Unicode.GetString(bb);
+                        LogSyscall(s);
+
+                    }
+                    else if (d.dwData == MESSAGE_NEW_PROC)
+                    {
+                        // New process spawned
+                        var pid = BitConverter.ToUInt32(bb, 0);
+                        ProgramStatus.Instance.AddPid(pid);
+
+                    }
+                    else if (d.dwData == MESSAGE_PROC_DIED)
+                    {
+                        // Process died
+                        var pid = BitConverter.ToUInt32(bb, 0);
+                        ProgramStatus.Instance.RemovePid(pid);
+
+                    }
+                    else if (d.dwData == MESSAGE_FILE_CREATED || d.dwData == MESSAGE_FILE_OPENED || d.dwData == MESSAGE_FILE_DELETED)
+                    {
+                        string s = Encoding.Unicode.GetString(bb);
+                        ProgramStatus.Instance.NotifyFileAccess(s);
+
+                    }
+                    else if (d.dwData == MESSAGE_FILE_RENAMED)
+                    {
+                        // Convert raw bytes received by the message pump into a conveniente struct and parse the strings
+                        RenameFileStruct data = (RenameFileStruct)Marshal.PtrToStructure(d.lpData, typeof(RenameFileStruct));
+                        // Now notify the file rename
+                        ProgramStatus.Instance.NotifyFileRename(data.oldPath, data.newPath);
+
+                    }
+                    else if (d.dwData == MESSAGE_REG_KEY_OPEN || d.dwData == MESSAGE_REG_KEY_CREATED)
                     {
                         string s = Encoding.Unicode.GetString(bb);
                         ProgramStatus.Instance.NotifyRegistryAccess(s);
                     }
-                    catch (Exception e) {
-                        var c = e.StackTrace;
-                    }
+                }
+                catch (Exception e)
+                {
+                    toLog = e;
                 }
             }
+            
             base.WndProc(ref m);
+
+            if (toLog != null)
+                ProgramLogger.Instance.WriteLine("Exception: " + toLog.Message + ". Stack: " + toLog.StackTrace);
             
         }
 

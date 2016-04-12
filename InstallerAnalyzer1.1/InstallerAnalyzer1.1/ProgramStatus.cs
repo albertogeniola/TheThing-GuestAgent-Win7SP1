@@ -76,42 +76,54 @@ namespace InstallerAnalyzer1_Guest
 
             lock (_filesLock)
             {
-                // Purge the file names
-                if (oPath.StartsWith(@"\??\"))
-                    oldPath = oPath.Substring(4);
-                if (nPath.StartsWith(@"\??\"))
-                    newPath = nPath.Substring(4);
                 if (String.IsNullOrEmpty(oPath))
                     return;
                 if (String.IsNullOrEmpty(nPath))
                     return;
 
+                // Purge the file names
+                if (oPath.StartsWith(@"\??\"))
+                    oldPath = oPath.Substring(4);
+                else
+                    oldPath = oPath;
+
+                if (nPath.StartsWith(@"\??\"))
+                    newPath = nPath.Substring(4);
+                else
+                    newPath = nPath;
+
                 // TODO: wildcard? Can they appear here?
                 bool knownFile = _fileMap.ContainsKey(oldPath);
                 FileAccessInfo t = null;
 
-                // Get the file log associated to that path or create a new one.
-                if (knownFile)
+                try
                 {
-                    t = _fileMap[oldPath];
-                    
-                    // At this point it is necessary to update the mapping dictionary
-                    _fileMap.Remove(oldPath);
-                    if (_fileMap.ContainsKey(newPath))
-                        // Swap it.
-                        _fileMap[newPath] = t;
-                    else
-                        _fileMap.Add(newPath, t);
-                }
-                else
-                {
-                    t = new FileAccessInfo();
-                    t.Path = oPath;
-                    _fileMap.Add(oldPath, t);
-                }
+                    // Get the file log associated to that path or create a new one.
+                    if (knownFile)
+                    {
+                        t = _fileMap[oldPath];
 
-                // Let the object register the file access
-                t.NotifyRenamedTo(newPath);
+                        // At this point it is necessary to update the mapping dictionary
+                        _fileMap.Remove(oldPath);
+                        if (_fileMap.ContainsKey(newPath))
+                            // Swap it.
+                            _fileMap[newPath] = t;
+                        else
+                            _fileMap.Add(newPath, t);
+                    }
+                    else
+                    {
+                        t = new FileAccessInfo();
+                        t.Path = oPath;
+                        _fileMap.Add(oldPath, t);
+                    }
+
+                    // Let the object register the file access
+                    t.NotifyRenamedTo(newPath);
+                }
+                catch (Exception e) {
+                    throw e;
+                }
             }
         }
 
