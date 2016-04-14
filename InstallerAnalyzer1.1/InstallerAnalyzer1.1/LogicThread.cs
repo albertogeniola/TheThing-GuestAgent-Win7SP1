@@ -1443,7 +1443,7 @@ namespace InstallerAnalyzer1_Guest
             {
                 var proc = new Process();
                 proc.StartInfo.FileName = Properties.Settings.Default.INJECTOR_PATH;
-                proc.StartInfo.Arguments = "\"" + j.LocalFullPath + "\" " + "\"" + Properties.Settings.Default.DLL_PATH + "\"";
+                proc.StartInfo.Arguments = "\"" + j.LocalFullPath + "\"";
                 proc.StartInfo.RedirectStandardError = true;
                 proc.StartInfo.RedirectStandardOutput = true;
                 proc.StartInfo.UseShellExecute = false;

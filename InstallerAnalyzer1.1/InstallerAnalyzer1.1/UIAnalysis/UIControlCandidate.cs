@@ -40,9 +40,23 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
 
             // If the element we have is from UIAutomation, simply interact with it.
             object objPattern;
-            if (AutoElementRef != null && AutoElementRef.TryGetCurrentPattern(InvokePattern.Pattern, out objPattern)) {
+            
+            if (AutoElementRef != null && AutoElementRef.Current.ControlType == System.Windows.Automation.ControlType.Button && AutoElementRef.TryGetCurrentPattern(InvokePattern.Pattern, out objPattern)){
+                // For buttons
                 InvokePattern invPattern = objPattern as InvokePattern;
                 invPattern.Invoke();
+            }
+            else if (AutoElementRef != null && AutoElementRef.Current.ControlType == System.Windows.Automation.ControlType.RadioButton && AutoElementRef.TryGetCurrentPattern(SelectionItemPattern.Pattern, out objPattern))
+            {
+                // Radios
+                SelectionItemPattern invPattern = objPattern as SelectionItemPattern;
+                invPattern.Select();
+            }
+            else if (AutoElementRef != null && AutoElementRef.Current.ControlType == System.Windows.Automation.ControlType.CheckBox && AutoElementRef.TryGetCurrentPattern(SelectionItemPattern.Pattern, out objPattern))
+            {
+                // Checkboxes
+                SelectionItemPattern invPattern = objPattern as SelectionItemPattern;
+                invPattern.AddToSelection();
             }
             else
             {

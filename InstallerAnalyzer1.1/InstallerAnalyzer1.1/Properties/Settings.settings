@@ -3,19 +3,16 @@
   <Profiles />
   <Settings>
     <Setting Name="INJECTOR_PATH" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">Injector.exe</Value>
-    </Setting>
-    <Setting Name="DLL_PATH" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">CHookingDll.dll</Value>
+      <Value Profile="(Default)">C:\GuestController\Injector.exe</Value>
     </Setting>
     <Setting Name="ApplicationLogFile" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">c:\users\bot\Desktop\AppOutput.log</Value>
+      <Value Profile="(Default)">C:\GuestController\AppOutput.log</Value>
     </Setting>
     <Setting Name="STABLE_SCREEN_PATH" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">c:\users\bot\Desktop\stable</Value>
+      <Value Profile="(Default)">C:\GuestController\stable</Value>
     </Setting>
     <Setting Name="INTERACTIONS_SCREEN_PATH" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">c:\users\bot\Desktop\interaction</Value>
+      <Value Profile="(Default)">C:\GuestController\interaction</Value>
     </Setting>
     <Setting Name="EXECUTE_JOB_TIMEOUT" Type="System.Int32" Scope="Application">
       <Value Profile="(Default)">900000</Value>
@@ -25,6 +22,12 @@
     </Setting>
     <Setting Name="IDLE_TIMEOUT" Type="System.Int32" Scope="User">
       <Value Profile="(Default)">600000</Value>
+    </Setting>
+    <Setting Name="HOST_CONTROLLER_IP" Type="System.String" Scope="User">
+      <Value Profile="(Default)">192.168.56.1</Value>
+    </Setting>
+    <Setting Name="HOST_CONTROLLER_PORT" Type="System.String" Scope="User">
+      <Value Profile="(Default)">9000</Value>
     </Setting>
   </Settings>
 </SettingsFile>

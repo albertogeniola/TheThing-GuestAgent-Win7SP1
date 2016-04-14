@@ -52,7 +52,6 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
 		_set_abort_behavior(0, _WRITE_ABORT_MSG);
 
-
 		// Assign the address location of the function to the static pointer
 		realNtCreateFile = (pNtCreateFile)(GetProcAddress(ntdllmod, "NtCreateFile"));
 
@@ -75,8 +74,15 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		realNtSetValueKey = (pNtSetValueKey)(GetProcAddress(ntdllmod, "NtSetValueKey"));
 		realNtTerminateProcess = (pNtTerminateProcess)(GetProcAddress(ntdllmod, "NtTerminateProcess"));
 		realNtClose = (pNtClose)(GetProcAddress(ntdllmod, "NtClose"));
+		
+		/*
+		// TODO: needed if hooking internal??
 		realCreateProcessA = (pCreateProcessA)(GetProcAddress(kern32dllmod, "CreateProcessA"));
 		realCreateProcessW = (pCreateProcessA)(GetProcAddress(kern32dllmod, "CreateProcessW"));
+		*/
+		realCreateProcessInternalW = (pCreateProcessInternalW)(GetProcAddress(kern32dllmod, "CreateProcessInternalW"));
+		//realCreateProcessInternalA = (pCreateProcessInternalA)(GetProcAddress(kern32dllmod, "CreateProcessInternalA"));
+
 		realNtQueryInformationProcess = (pNtQueryInformationProcess)(GetProcAddress(ntdllmod, "NtQueryInformationProcess"));
 		realExitProcess = (pExitProcess)ExitProcess;
 		/*
@@ -273,6 +279,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		else
 			OutputDebugString(_T("NtClose successfully"));
 
+		/*
 		// CreateProcessA
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
@@ -290,6 +297,27 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 			OutputDebugString(_T("CreateProcessW not derouted correctly"));
 		else
 			OutputDebugString(_T("CreateProcessW successful"));
+		*/
+
+		/*
+		// CreateProcessInternalA
+		DetourTransactionBegin();
+		DetourUpdateThread(GetCurrentThread());
+		DetourAttach(&(PVOID&)realCreateProcessInternalA, MyCreateProcessInternalA);
+		if (DetourTransactionCommit() != NO_ERROR)
+			OutputDebugString(_T("CreateProcessInternalA not derouted correctly"));
+		else
+			OutputDebugString(_T("CreateProcessInternalA successful"));
+		*/
+
+		// CreateProcessInternalW
+		DetourTransactionBegin();
+		DetourUpdateThread(GetCurrentThread());
+		DetourAttach(&(PVOID&)realCreateProcessInternalW, MyCreateProcessInternalW);
+		if (DetourTransactionCommit() != NO_ERROR)
+			OutputDebugString(_T("CreateProcessInternalW not derouted correctly"));
+		else
+			OutputDebugString(_T("CreateProcessInternalW successful"));
 
 		// ExitProcess
 		DetourTransactionBegin();
@@ -556,6 +584,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		else
 			OutputDebugString(_T("NtTerminateProcess detached successfully"));
 
+		/*
 		// CreateProcessA
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
@@ -573,7 +602,26 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 			OutputDebugString(_T("CreateProcessW not detached correctly"));
 		else
 			OutputDebugString(_T("CreateProcessW detached successfully"));
+		*/
+		/*
+		// CreateProcessInternalA
+		DetourTransactionBegin();
+		DetourUpdateThread(GetCurrentThread());
+		DetourDetach(&(PVOID&)realCreateProcessInternalA, MyCreateProcessInternalA);
+		if (DetourTransactionCommit() != NO_ERROR)
+			OutputDebugString(_T("CreateProcessInternalA not detached correctly"));
+		else
+			OutputDebugString(_T("CreateProcessInternalA detached successfully"));
+		*/
 
+		// CreateProcessInternalW
+		DetourTransactionBegin();
+		DetourUpdateThread(GetCurrentThread());
+		DetourDetach(&(PVOID&)realCreateProcessInternalW, MyCreateProcessInternalW);
+		if (DetourTransactionCommit() != NO_ERROR)
+			OutputDebugString(_T("CreateProcessInternalW not detached correctly"));
+		else
+			OutputDebugString(_T("CreateProcessInternalW detached successfully"));
 
 		/*
 		// Sock connect
@@ -1527,10 +1575,39 @@ NTSTATUS WINAPI MyNtClose(HANDLE Handle)
 
 
 // TODO: NtCreateProcess?
+/*
+NTSTATUS WINAPI MyNtCreateUserProcess(
+_Out_ PHANDLE ProcessHandle,
+_Out_ PHANDLE ThreadHandle,
+_In_ ACCESS_MASK ProcessDesiredAccess,
+_In_ ACCESS_MASK ThreadDesiredAccess,
+_In_opt_ POBJECT_ATTRIBUTES ProcessObjectAttributes,
+_In_opt_ POBJECT_ATTRIBUTES ThreadObjectAttributes,
+_In_ ULONG ProcessFlags, // PROCESS_CREATE_FLAGS_*
+_In_ ULONG ThreadFlags, // THREAD_CREATE_FLAGS_*
+_In_opt_ PVOID ProcessParameters, // PRTL_USER_PROCESS_PARAMETERS
+_Inout_ PPS_CREATE_INFO CreateInfo,
+_In_opt_ PPS_ATTRIBUTE_LIST AttributeList)
+{
 
+BOOL res = DetourCreateProcessWithDll(lpApplicationName, lpCommandLine, lpProcessAttributes, lpThreadAttributes, bInheritHandles, dwCreationFlags, lpEnvironment, lpCurrentDirectory, lpStartupInfo, lpProcessInformation, DllPath, realCreateProcessA);
+if (!res)
+OutputDebugString(_T("There was a problem when injecting the DLL to the new process via MyCreateProcessA()."));
+else{
+notifyNewPid(cwHandle, lpProcessInformation->dwProcessId);
+OutputDebugString(_T("New process created and dll injected via MyCreateProcessA()."));
+}
+
+// TODO
+}
+*/
+//TODO...
+
+/*
 BOOL WINAPI MyCreateProcessA(LPCTSTR lpApplicationName, LPTSTR lpCommandLine, LPSECURITY_ATTRIBUTES lpProcessAttributes, LPSECURITY_ATTRIBUTES lpThreadAttributes, BOOL bInheritHandles, DWORD dwCreationFlags, LPVOID lpEnvironment, LPCTSTR lpCurrentDirectory, LPSTARTUPINFO lpStartupInfo, LPPROCESS_INFORMATION lpProcessInformation)
 {
 	CHAR   DllPath[MAX_PATH] = { 0 };
+	OutputDebugString(_T("MyCreateProcessA"));
 	GetModuleFileNameA((HINSTANCE)&__ImageBase, DllPath, _countof(DllPath));
 
 	// Use directly the Detours API
@@ -1554,9 +1631,12 @@ BOOL WINAPI MyCreateProcessA(LPCTSTR lpApplicationName, LPTSTR lpCommandLine, LP
 
 	return res;
 }
+
+
 BOOL WINAPI MyCreateProcessW(LPCWSTR lpApplicationName, LPWSTR lpCommandLine, LPSECURITY_ATTRIBUTES lpProcessAttributes, LPSECURITY_ATTRIBUTES lpThreadAttributes, BOOL bInheritHandles, DWORD dwCreationFlags, LPVOID lpEnvironment, LPCWSTR lpCurrentDirectory, LPSTARTUPINFO lpStartupInfo, LPPROCESS_INFORMATION lpProcessInformation)
 {
 	CHAR   DllPath[MAX_PATH] = { 0 };
+	OutputDebugString(_T("MyCreateProcessW"));
 	GetModuleFileNameA((HINSTANCE)&__ImageBase, DllPath, _countof(DllPath));
 
 	// Use directly the Detours API
@@ -1581,6 +1661,107 @@ BOOL WINAPI MyCreateProcessW(LPCWSTR lpApplicationName, LPWSTR lpCommandLine, LP
 
 	return res;
 }
+*/
+
+
+BOOL WINAPI MyCreateProcessInternalW(HANDLE hToken,
+	LPCWSTR lpApplicationName,
+	LPWSTR lpCommandLine,
+	LPSECURITY_ATTRIBUTES lpProcessAttributes,
+	LPSECURITY_ATTRIBUTES lpThreadAttributes,
+	BOOL bInheritHandles,
+	DWORD dwCreationFlags,
+	LPVOID lpEnvironment,
+	LPCWSTR lpCurrentDirectory,
+	LPSTARTUPINFOW lpStartupInfo,
+	LPPROCESS_INFORMATION lpProcessInformation,
+	PHANDLE hNewToken)
+{
+	//return realCreateProcessInternalW(hToken, lpApplicationName, lpCommandLine, lpProcessAttributes, lpThreadAttributes, bInheritHandles, dwCreationFlags, lpEnvironment, lpCurrentDirectory, lpStartupInfo, lpProcessInformation, hNewToken);
+
+	// This is the API that gets eventually called by all the others. Ansi params get converted into wide characters, so the A version is useless.
+	
+	CHAR   DllPath[MAX_PATH] = { 0 };
+	OutputDebugString(_T("MyCreateProcessInternalW"));
+	GetModuleFileNameA((HINSTANCE)&__ImageBase, DllPath, _countof(DllPath));
+	BOOL processCreated;
+
+	// Save the previous value of the creation flags and make sure we add the create suspended BIT
+	DWORD originalFlags = dwCreationFlags;
+	dwCreationFlags = dwCreationFlags | CREATE_SUSPENDED;
+	processCreated = realCreateProcessInternalW(hToken, lpApplicationName, lpCommandLine, lpProcessAttributes, lpThreadAttributes, bInheritHandles, dwCreationFlags, lpEnvironment, lpCurrentDirectory, lpStartupInfo, lpProcessInformation, hNewToken);
+	if (processCreated) {
+		// Allocate enough memory on the new process
+		LPVOID baseAddress = (LPVOID)VirtualAllocEx(lpProcessInformation->hProcess, NULL, strlen(DllPath)+1, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+
+		// Copy the code to be injected
+		WriteProcessMemory(lpProcessInformation->hProcess, baseAddress, DllPath, strlen(DllPath), NULL);
+
+		OutputDebugStringA("-----> INJECTOR: DLL copied into host process memory space");
+
+		// Notify the HostController that a new process has been created
+		notifyNewPid(cwHandle, lpProcessInformation->dwProcessId);
+		kern32dllmod = GetModuleHandle(TEXT("kernel32.dll"));
+		HANDLE loadLibraryAddress = GetProcAddress(kern32dllmod, "LoadLibraryA");
+		if (loadLibraryAddress == NULL)
+		{
+			OutputDebugStringW(_T("!!!!!LOADLIB IS NULL"));
+			//error
+			return 0;
+		}
+		else {
+			OutputDebugStringW(_T("LOAD LIB OK"));
+		}
+
+		// Create a remote thread the remote thread
+		HANDLE  threadHandle = CreateRemoteThread(lpProcessInformation->hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)loadLibraryAddress, baseAddress, NULL, 0);
+		if (threadHandle == NULL) {
+			OutputDebugStringW(_T("!!!!REMTOE THREAD NOT OK"));
+		}
+		else {
+			OutputDebugStringW(_T("!!!!REMTOE OK"));
+		}
+		OutputDebugStringA("-----> INJECTOR: Remote thread created");
+
+		
+		// Check if the process was meant to be stopped. If not, resume it now
+		if ((originalFlags & CREATE_SUSPENDED) != CREATE_SUSPENDED) {
+			// need to start it right away
+			ResumeThread(lpProcessInformation->hThread);
+			OutputDebugStringA("-----> INJECTOR: Thread resumed");
+		}
+	}
+	
+	
+	/*
+	// Use directly the Detours API
+	BOOL res = DetourCreateProcessWithDll(lpApplicationName, lpCommandLine, lpProcessAttributes, lpThreadAttributes, bInheritHandles, dwCreationFlags, lpEnvironment, lpCurrentDirectory, lpStartupInfo, lpProcessInformation, DllPath, realCreateProcessW);
+	if (!res)
+		OutputDebugString(_T("There was a problem when injecting the DLL to the new process via MyCreateProcessInternalW()."));
+	else {
+		notifyNewPid(cwHandle, lpProcessInformation->dwProcessId);
+		OutputDebugString(_T("New process created and dll injected via MyCreateProcessInternalW()."));
+	}
+	*/
+
+
+	
+	// Use a node object to create the XML string: this will contain all information about the SysCall
+	pugi::xml_document doc; pugi::xml_node element = doc.append_child(_T("CreateProcessInternalW"));
+
+	
+	// >>>>>>>>>>>>>>> Result <<<<<< <<<<<<<<<
+	string w = string();
+	NtStatusToString(processCreated, &w);
+	element.addAttribute(_T("Result"), w.c_str());
+
+
+	log(&element);
+
+	return processCreated;
+	
+}
+
 
 VOID WINAPI MyExitProcess(UINT uExitCode)
 {

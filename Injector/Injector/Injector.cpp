@@ -1,12 +1,7 @@
-// Injector.cpp : definisce il punto di ingresso dell'applicazione console.
 #include "stdafx.h"
 #include "injector.h"
 #include "../../InstallerAnalyzer1.1/Common/common.h"
 
-/* Global variables */
-HWND cwHandle;
-static LPVOID lpvMem = NULL;      // pointer to shared memory
-static HANDLE hMapObject = NULL;  // handle to file mapping
 
 void Log(const char* str) {
 	OutputDebugStringA(str);
@@ -18,11 +13,8 @@ void LogError(const char* str) {
 	fprintf(stderr, "%s\n", str);
 }
 
-/*
-This file is the injector. It will take care of configuring network hooking and start the program to analyze. 
-You can invoke it by specifing exepath, dllpath and windowname. The windowname is the name of the window to which 
-send messages about network traffic. 
-*/
+HWND cwHandle;
+
 int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,LPSTR lpCmdLine,int nCmdShow)
 {
 	// Variables
@@ -37,16 +29,21 @@ int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,LPSTR lpCmdLine,
 	DWORD res;
 	int argc = 0;
 	PCHAR* argv;
+	LPWSTR * arglw;
+	char strbuff[4096];
+
+	arglw = CommandLineToArgvW(GetCommandLineW(), &argc);
 
 	try{
 		Log("-----> INJECTOR: Starting.");
 		argv = CommandLineToArgvA(GetCommandLine(), &argc);
 
+
 		// Checking arguments
 		// 1. ProcessPath
 		// 2. dll to inject Path
 		// 3. Name of the window to PostMessages to
-		if (argc != 3)
+		if (argc != 2)
 		{
 			LogError("XXXXXXXXXXX INJECTOR ERROR XXXXXXXXXXXXXX: Invalid injector usage.");
 			exit(-1);
@@ -64,7 +61,7 @@ int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,LPSTR lpCmdLine,
 		}
 
 		// 2. Dll to inject
-		if (fopen_s(&f, argv[2], "r") != 0)
+		if (fopen_s(&f, DLLPATH, "r") != 0)
 		{
 			LogError("XXXXXXXXXXX INJECTOR ERROR XXXXXXXXXXXXXX: DLL Path invalid.");
 			return -1;
@@ -72,6 +69,8 @@ int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,LPSTR lpCmdLine,
 		else
 		{
 			// File exists, close it now
+			sprintf_s(strbuff, sizeof(strbuff), "Dll to inject: %s", DLLPATH);
+			Log(strbuff);
 			fclose(f);
 		}
 
@@ -86,96 +85,19 @@ int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,LPSTR lpCmdLine,
 
 		Log("-----> INJECTOR: Args are ok.");
 
+		// Some processes will use DCOMLAUNCHER in order to spawn processes. If we really want to catch them, we should hook that process too. 
+		if (!HookAndInjectDCOMLauncher(DCOM_DLL_PATH)) {
+			LogError("XXXXXXXXXX INJECTOR ERROR XXXXXXXXXXXX: Cannot hook DCOMLauncher");
+			// We do not exit btw.
+		}
+		else {
+			Log("DCOM Injection performed! :)");
+		}
+
 		// Prepare arguments for create process
 		ZeroMemory(&si, sizeof(STARTUPINFO));
 		ZeroMemory(&pi, sizeof(PROCESS_INFORMATION));
 		si.cb = sizeof(STARTUPINFO);
-
-		/*
-		//START EDIT
-		// Configure the network listener
-		// Network configuration
-		// Look at the interfaces
-		if (pcap_findalldevs_ex(PCAP_SRC_IF_STRING, NULL, &alldevs, errbuf) == -1)
-		{
-		OutputDebugStringA("XXXXXXXXXXX INJECTOR ERROR XXXXXXXXXXXXXX: Cannot register PCAP.");
-		fprintf_s(stderr, "Error in pcap_findalldevs: %s\n", errbuf);
-		return -2;
-		}
-
-		OutputDebugStringA("-----> INJECTOR: Pcap NICs looped.");
-
-		// I will listen to all the available devices
-		d = alldevs;
-		while (d!=NULL)
-		{
-		if ((adhandle = pcap_open(d->name,  // name of the device
-		65536,     // portion of the packet to capture.
-		// 65536 grants that the whole packet will be captured on all the MACs.
-		0,         // promiscuous mode
-		1000,      // read timeout
-		NULL,      // remote authentication
-		errbuf     // error buffer
-		)) == NULL)
-		{
-		OutputDebugStringA("XXXXXXXXXXX INJECTOR ERROR XXXXXXXXXXXXXX: Unable to open PCAP driver.");
-		fprintf(stderr, "\nUnable to open the adapter. %s is not supported by WinPcap\n");
-		// Free the device list
-		pcap_freealldevs(alldevs);
-		exit(-2);
-		}
-		CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)&startThread, adhandle, 0, NULL);
-		d = d->next;
-		}
-		pcap_freealldevs(alldevs);
-
-		OutputDebugStringA("-----> INJECTOR: Pcap conf done.");
-
-		processCreated = CreateProcess(
-		NULL,
-		argv[1],
-		NULL,
-		NULL,
-		FALSE,
-		CREATE_SUSPENDED,
-		NULL,
-		NULL,
-		&si,
-		&pi
-		);
-
-		if (!processCreated) {
-		OutputDebugStringA("XXXXXXXXXXX INJECTOR ERROR XXXXXXXXXXXXXX: Unable to create process");
-		return -3;
-		}
-
-		OutputDebugStringA("-----> INJECTOR: Process created suspended");
-
-		// Load the loadLibraryA Address
-		//LPVOID LoadLibraryAddr = (LPVOID)GetProcAddress(GetModuleHandle("kernel32.dll"),"LoadLibraryA");
-
-		// Allocate enough memory on the new process
-		LPVOID LLParam = (LPVOID)VirtualAllocEx(pi.hProcess, NULL, strlen(argv[2]),
-		MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-
-		OutputDebugStringA("-----> INJECTOR: Memory allocated for DLL into host process");
-
-		// Copy the code to be injected
-		WriteProcessMemory(pi.hProcess, LLParam, argv[2], strlen(argv[2]), NULL);
-
-		OutputDebugStringA("-----> INJECTOR: DLL copied into host process memory space");
-
-		// Start the remote thread
-		CreateRemoteThread(pi.hProcess, NULL, NULL, (LPTHREAD_START_ROUTINE)LoadLibraryA, LLParam, NULL, NULL);
-
-		OutputDebugStringA("-----> INJECTOR: Remote thread created");
-
-		//CloseHandle(hProcess);
-
-		ResumeThread(pi.hThread);
-		OutputDebugStringA("-----> INJECTOR: Thread resumed");
-		//STOP EDIT
-		*/
 
 		if (!MyDetourCreateProcessWithDll(NULL, argv[1], NULL, NULL, TRUE, CREATE_DEFAULT_ERROR_MODE, NULL, NULL, &si, &pi, argv[2], NULL))
 		{
@@ -201,129 +123,199 @@ int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,LPSTR lpCmdLine,
 	
 }
 
-/*
-bool setupMemoryMapping(char* windowName)
+int injectIntoPID(int process, const char* dll)
 {
-	hMapObject = CreateFileMapping(
-		INVALID_HANDLE_VALUE,   // use paging file
-		NULL,                   // default security attributes
-		PAGE_READWRITE,         // read/write access
-		0,                      // size: high 32-bits
-		SHMEMSIZE,              // size: low 32-bits
-		TEXT(SHARED_MEM_NAME)); // name of map object
-	if (hMapObject == NULL)
-		return false;
-	
-	lpvMem = MapViewOfFile(
-		hMapObject,     // object to map view of
-		FILE_MAP_WRITE, // read/write access
-		0,              // high offset:  map from
-		0,              // low offset:   beginning
-		0);             // default: map entire file
-	if (lpvMem == NULL)
-		return false;
-	
-	// Write zeroes
-	memset(lpvMem, '\0', SHMEMSIZE);
-	
-	return true;
-}*/
+	HANDLE hThread;
+	DWORD pid = (DWORD)process;
+	char strbuff[512];
 
-/*
-void packet_handler(u_char *dumpfile, const struct pcap_pkthdr *header, const u_char *pkt_data)
-{
-	ip_header *ih;
-	char protocol[10];
-	ih = (ip_header *)(pkt_data + 14); //length of ethernet header
-	int sourcePort = -1;
-	int destinationPort = -1;
-	int ip_len = (ih->ver_ihl & 0xf) * 4;
-	tcp_header* th;
-	udp_header* uh;
-	std::wstring sourceAddr = std::wstring();
-	std::wstring destinationAddr = std::wstring();
-
-	pugi::xml_document doc; pugi::xml_node n = doc.append_child(L"Network");
-	
-	sourceAddr = std::to_wstring(ih->saddr.byte1);
-	sourceAddr.append(L".");
-	sourceAddr.append(std::to_wstring(ih->saddr.byte2));
-	sourceAddr.append(L".");
-	sourceAddr.append(std::to_wstring(ih->saddr.byte3));
-	sourceAddr.append(L".");
-	sourceAddr.append(std::to_wstring(ih->saddr.byte4));
-
-	destinationAddr = std::to_wstring(ih->daddr.byte1);
-	destinationAddr.append(L".");
-	destinationAddr.append(std::to_wstring(ih->daddr.byte2));
-	destinationAddr.append(L".");
-	destinationAddr.append(std::to_wstring(ih->daddr.byte3));
-	destinationAddr.append(L".");
-	destinationAddr.append(std::to_wstring(ih->daddr.byte4));
-
-	
-	n.append_attribute(L"SourceAddr") = sourceAddr.c_str();
-	n.append_attribute(L"DestinationAddr") = destinationAddr.c_str();
-
-	switch (ih->proto)
+	//Gets the process handle for the target process
+	HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+	if (OpenProcess == NULL)
 	{
-	case 6: // TCP
-		sprintf_s(protocol, "TCP");
-		th = (tcp_header *)((u_char*)ih + ip_len);
-		sourcePort = ntohs(th->sport);
-		destinationPort = ntohs(th->dport);
-		n.append_attribute(L"Protocol") = L"TCP";
-		n.append_attribute(L"DestinationPort") = std::to_wstring(destinationPort).c_str();
-		n.append_attribute(L"SourcePort") = std::to_wstring(sourcePort).c_str();
-		break;
-	case 17:
-		sprintf_s(protocol, "UDP");
-		uh = (udp_header *)((u_char*)ih + ip_len);
-		sourcePort = ntohs(uh->sport);
-		destinationPort = ntohs(uh->dport);
-		n.append_attribute(L"Protocol") = L"UDP";
-		n.append_attribute(L"DestinationPort") = std::to_wstring(destinationPort).c_str();
-		n.append_attribute(L"SourcePort") = std::to_wstring(sourcePort).c_str();
-		break;
-	default:
-		sprintf_s(protocol, "Unkown");
-		n.append_attribute(L"Protocol") = L"Other";
-		n.append_attribute(L"ProtocolNumber") = std::to_wstring(ih->proto).c_str();
+		DWORD err = GetLastError();
+		sprintf_s(strbuff, sizeof(strbuff), "XXXXXX Injector Error: cannot find PID %d.", process);
+		LogError(strbuff);
+		return FALSE;
 	}
 
-	log(&n);
-	//printf("\nIP Packet from %d.%d.%d.%d:%d to %d.%d.%d.%d:%d (%s) ", ih->saddr.byte1, ih->saddr.byte2, ih->saddr.byte3, ih->saddr.byte4, sourcePort, ih->daddr.byte1, ih->daddr.byte2, ih->daddr.byte3, ih->daddr.byte4, destinationPort, protocol);
-}*/
+	//Retrieves kernel32.dll module handle for getting loadlibrary base address
+	HMODULE hModule = GetModuleHandle("kernel32.dll");
+	if (hModule == NULL){
+		DWORD err = GetLastError();
+		sprintf_s(strbuff, sizeof(strbuff), "XXXXXX Injector Error: cannot get module Kernel32.dll.");
+		LogError(strbuff);
+		return FALSE;
+	}
 
-/*
-DWORD startThread(LPVOID lpdwThreadParam)
-{
-	//printf("Starting Thread for monitoring...");
-	pcap_loop((pcap_t*)lpdwThreadParam, 0, packet_handler, NULL);
-	return 0;
+	//Gets address for LoadLibraryA in kernel32.dll
+	LPVOID lpBaseAddress = (LPVOID)GetProcAddress(hModule, "LoadLibraryA");
+	if (lpBaseAddress == NULL)
+	{
+		DWORD err = GetLastError();
+		sprintf_s(strbuff, sizeof(strbuff), "Unable to locate LoadLibraryA.");
+		LogError(strbuff);
+		return FALSE;
+	}
+
+	//Allocates space inside for inject.dll to our target process
+	LPVOID lpSpace = (LPVOID)VirtualAllocEx(hProcess, NULL, strlen(dll), MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+	if (lpSpace == NULL)
+	{
+		DWORD err = GetLastError();
+		sprintf_s(strbuff, sizeof(strbuff), "Could not allocate memory in process %u", (int)process);
+		LogError(strbuff);
+		return FALSE;
+	}
+
+	//Write inject.dll to memory of process
+	int n = WriteProcessMemory(hProcess, lpSpace, dll, strlen(dll), NULL);
+	if (n == 0)
+	{
+		DWORD err = GetLastError();
+		sprintf_s(strbuff, sizeof(strbuff), "Could not write to process's address space");
+		LogError(strbuff);
+		return FALSE;
+	}
+
+
+	hThread = RtlCreateUserThread(hProcess, lpBaseAddress, lpSpace);
+	if (hThread == NULL)
+	{
+		DWORD err = GetLastError();
+		sprintf_s(strbuff, sizeof(strbuff), "Invocation of RtlCreateUserThread to start the injected lib failed with err: %u",err);
+		LogError(strbuff);
+		return FALSE;
+	}
+	else
+	{
+		DWORD threadId = GetThreadId(hThread);
+		DWORD processId = GetProcessIdOfThread(hThread);
+		sprintf_s(strbuff, sizeof(strbuff), "Injected thread id: %u for pid: %u", threadId, processId);
+		Log(strbuff);
+		CloseHandle(hProcess);
+		return TRUE;
+	}
 }
-*/
-/*
-void log(pugi::xml_node * element)
-{
-	DWORD res = 0;
-	COPYDATASTRUCT ds;
+
+BOOL HookAndInjectDCOMLauncher(const char* dllPath){
+
+	HANDLE hProcess = NULL;
+	PWSTR allocatedAddr = NULL;
+	HANDLE hThread = NULL;
+	DWORD dwProcessId; /*TODOOOOO*/
+	SC_HANDLE schSCManager;
+	SC_HANDLE dcomLauncherService;
+	SERVICE_STATUS_PROCESS srvStatus;
+	DWORD dwBytesNeeded;
+	char strbuff[512];
 	
-	std::wstringstream ss;
+	// Look for the DcomLaunch process. We need its process handler in order to inject the DLL into it. 
+	// We need a service manager in order to query the services.
+	schSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+	if (schSCManager == NULL) {
+		DWORD err = GetLastError();
+		sprintf_s(strbuff, sizeof(strbuff), "XXXXXX Injector Error: Cannot open service manager error: %d", err);
+		LogError(strbuff);
+		return FALSE;
+	}
 
-	element->print(ss, L"", pugi::format_no_declaration | pugi::format_raw);
+	dcomLauncherService = OpenService(
+		schSCManager,						// SCM database 
+		DCOM_LAUNCH_SERVICE_NAME,           // name of service 
+		SERVICE_QUERY_STATUS);				// full access 
 
-	// Create a std::string and copy your document data in to the string    
-	std::wstring str = ss.str();
+	if (dcomLauncherService == NULL) {
+		DWORD err = GetLastError();
+		sprintf_s(strbuff, sizeof(strbuff), "XXXXXX Injector Error: Cannot open service, error: %d", err);
+		LogError(strbuff);
+		CloseServiceHandle(schSCManager);
+		return FALSE;
+	}
+	
+	ZeroMemory(&srvStatus, sizeof(srvStatus));
 
-	ds.dwData = 0;
-	ds.cbData = str.size()*sizeof(wchar_t);
-	ds.lpData = (wchar_t*)str.c_str();
+	// At this point we want to know which is the PID of the process running this service.
+	if (!QueryServiceStatusEx(dcomLauncherService, SC_STATUS_PROCESS_INFO, (LPBYTE)&srvStatus, sizeof(SERVICE_STATUS_PROCESS), &dwBytesNeeded)){
+		DWORD err = GetLastError();
+		sprintf_s(strbuff, sizeof(strbuff), "XXXXXX Injector Error: Cannot retrieve status info about dcomService, error: %d", err);
+		LogError(strbuff);
+		CloseServiceHandle(schSCManager);
+		return FALSE;
+	}
 
-	// Send message...
-	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);
+	// We finally have the pid now. Copy into a local variable.
+	dwProcessId = srvStatus.dwProcessId;
+
+	// We don't need this anymore.
+	CloseServiceHandle(schSCManager);
+
+	// We need to acquire debug permissions before starting remote thread
+	if (!setDebugPrivileges()) {
+		DWORD err = GetLastError();
+		sprintf_s(strbuff, sizeof(strbuff), "XXXXXX Injector Error: Cannot acquire debug privileges: %d", err);
+		LogError(strbuff);
+		return FALSE;
+	}
+
+	sprintf_s(strbuff, sizeof(strbuff), "Process ID of dcomLauncher is %d", dwProcessId);
+	Log(strbuff);
+
+	// Get the handle of the running dcomlauncher process
+	return injectIntoPID(dwProcessId, dllPath);
 }
-*/
+
+BOOL setDebugPrivileges()
+{
+	HANDLE hToken;
+	TOKEN_PRIVILEGES tp;
+	LUID luid;
+
+	if (!OpenProcessToken(
+		GetCurrentProcess(),
+		TOKEN_QUERY | TOKEN_ADJUST_PRIVILEGES,
+		&hToken))
+	{
+		LogError("OpenProcessToken error.");
+		return FALSE;
+	}
+
+	if (!LookupPrivilegeValue(
+		NULL,            // lookup privilege on local system
+		SE_DEBUG_NAME,   // privilege to lookup
+		&luid))        // receives LUID of privilege
+	{
+		LogError("LookupPrivilegeValue error.");
+		return FALSE;
+	}
+
+	tp.PrivilegeCount = 1;
+	tp.Privileges[0].Luid = luid;
+	tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+
+	// Enable the privilege
+
+	if (!AdjustTokenPrivileges(
+		hToken,
+		FALSE,
+		&tp,
+		sizeof(TOKEN_PRIVILEGES),
+		(PTOKEN_PRIVILEGES)NULL,
+		(PDWORD)NULL))
+	{
+		LogError("AdjustTokenPrivileges error.");
+		return FALSE;
+	}
+
+	if (GetLastError() == ERROR_NOT_ALL_ASSIGNED)
+
+	{
+		LogError("The token does not have the specified privilege.");
+		return FALSE;
+	}
+
+	return TRUE;
+}
 
 
 PCHAR*
@@ -413,25 +405,6 @@ int* _argc
 }
 
 
-bool configureWindowName()
-{
-	char buf[SHMEMSIZE];
-	buf[0] = '\0';
-
-	cwHandle = FindWindow(NULL, GUESTCONTROLLER_WINDOW_NAME);
-
-	if (cwHandle == NULL)
-	{
-		return false;
-	}
-
-	//sprintf_s(buf, "Sending events to window name: %s", GUESTCONTROLLER_WINDOW_NAME);
-
-	Log(buf);
-
-	return true;
-}
-
 BOOL WINAPI MyDetourCreateProcessWithDll(LPCSTR lpApplicationName,
 	__in_z LPSTR lpCommandLine,
 	LPSECURITY_ATTRIBUTES lpProcessAttributes,
@@ -501,4 +474,47 @@ void notifyNewPid(DWORD pid)
 	// Send message...
 	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);
 
+}
+
+
+HANDLE RtlCreateUserThread(
+	HANDLE hProcess,
+	LPVOID lpBaseAddress,
+	LPVOID lpSpace
+	)
+{
+	//The prototype of RtlCreateUserThread from undocumented.ntinternals.com	
+	typedef DWORD(WINAPI * functypeRtlCreateUserThread)(
+		HANDLE 					ProcessHandle,
+		PSECURITY_DESCRIPTOR 	SecurityDescriptor,
+		BOOL 					CreateSuspended,
+		ULONG					StackZeroBits,
+		PULONG					StackReserved,
+		PULONG					StackCommit,
+		LPVOID					StartAddress,
+		LPVOID					StartParameter,
+		HANDLE 					ThreadHandle,
+		LPVOID					ClientID
+
+		);
+
+	//Get handle for ntdll which contains RtlCreateUserThread
+	HANDLE hRemoteThread = NULL;
+	HMODULE hNtDllModule = GetModuleHandle("ntdll.dll");
+
+	if (hNtDllModule == NULL)
+	{
+		return NULL;
+	}
+
+	functypeRtlCreateUserThread funcRtlCreateUserThread = (functypeRtlCreateUserThread)GetProcAddress(hNtDllModule, "RtlCreateUserThread");
+
+	if (!funcRtlCreateUserThread)
+	{
+		return NULL;
+	}
+
+	funcRtlCreateUserThread(hProcess, NULL, 0, 0, 0, 0, lpBaseAddress, lpSpace, &hRemoteThread, NULL);
+	DWORD lastError = GetLastError();
+	return hRemoteThread;
 }

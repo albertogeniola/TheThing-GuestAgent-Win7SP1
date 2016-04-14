@@ -26,10 +26,14 @@
 // Guest Controller window's name
 #ifdef UNICODE
 #define GUESTCONTROLLER_WINDOW_NAME L"WKWatcher"
+
 #else
 #define GUESTCONTROLLER_WINDOW_NAME "WKWatcher"
 #endif
 
+#define DLLPATH "C:\\GuestController\\CHookingDll.dll"
+#define DCOM_DLL_PATH "C:\\GuestController\\inject_dcom.dll"
+#define DCOM_LAUNCH_SERVICE_NAME "DcomLaunch"
 
 typedef struct srename_file_info {
 	// Has to be null terminated!

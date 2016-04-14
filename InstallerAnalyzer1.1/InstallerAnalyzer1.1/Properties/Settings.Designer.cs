@@ -25,7 +25,7 @@ namespace InstallerAnalyzer1_Guest.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("Injector.exe")]
+        [global::System.Configuration.DefaultSettingValueAttribute("C:\\GuestController\\Injector.exe")]
         public string INJECTOR_PATH {
             get {
                 return ((string)(this["INJECTOR_PATH"]));
@@ -34,16 +34,7 @@ namespace InstallerAnalyzer1_Guest.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("CHookingDll.dll")]
-        public string DLL_PATH {
-            get {
-                return ((string)(this["DLL_PATH"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("c:\\users\\bot\\Desktop\\AppOutput.log")]
+        [global::System.Configuration.DefaultSettingValueAttribute("C:\\GuestController\\AppOutput.log")]
         public string ApplicationLogFile {
             get {
                 return ((string)(this["ApplicationLogFile"]));
@@ -52,7 +43,7 @@ namespace InstallerAnalyzer1_Guest.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("c:\\users\\bot\\Desktop\\stable")]
+        [global::System.Configuration.DefaultSettingValueAttribute("C:\\GuestController\\stable")]
         public string STABLE_SCREEN_PATH {
             get {
                 return ((string)(this["STABLE_SCREEN_PATH"]));
@@ -61,7 +52,7 @@ namespace InstallerAnalyzer1_Guest.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("c:\\users\\bot\\Desktop\\interaction")]
+        [global::System.Configuration.DefaultSettingValueAttribute("C:\\GuestController\\interaction")]
         public string INTERACTIONS_SCREEN_PATH {
             get {
                 return ((string)(this["INTERACTIONS_SCREEN_PATH"]));
@@ -95,6 +86,30 @@ namespace InstallerAnalyzer1_Guest.Properties {
             }
             set {
                 this["IDLE_TIMEOUT"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("192.168.56.1")]
+        public string HOST_CONTROLLER_IP {
+            get {
+                return ((string)(this["HOST_CONTROLLER_IP"]));
+            }
+            set {
+                this["HOST_CONTROLLER_IP"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("9000")]
+        public string HOST_CONTROLLER_PORT {
+            get {
+                return ((string)(this["HOST_CONTROLLER_PORT"]));
+            }
+            set {
+                this["HOST_CONTROLLER_PORT"] = value;
             }
         }
     }

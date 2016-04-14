@@ -100,7 +100,6 @@
     <OutDir>C:\VMs\GuestController</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RemoteDebug|Win32'">
-    <LinkIncremental>false</LinkIncremental>
     <CustomBuildAfterTargets />
     <TargetName>$(ProjectName)</TargetName>
     <OutDir>C:\VMs\GuestController\</OutDir>
@@ -277,6 +276,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Only Injector|Win32'">Create</PrecompiledHeader>
     </ClCompile>
   </ItemGroup>
+  <!--
   <ItemGroup>
     <ProjectReference Include="..\..\InstallerAnalyzer1.1\Common\Common.vcxproj">
       <Project>{17cbac80-1694-40a9-be8a-2132b2badfb8}</Project>
@@ -287,6 +287,7 @@
       <UseLibraryDependencyInputs>false</UseLibraryDependencyInputs>
     </ProjectReference>
   </ItemGroup>
+  -->
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
