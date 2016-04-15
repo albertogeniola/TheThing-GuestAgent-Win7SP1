@@ -31,9 +31,13 @@
 #define GUESTCONTROLLER_WINDOW_NAME "WKWatcher"
 #endif
 
+#define DCOM_HOOK_PIPE "\\\\.\\pipe\\dcom_hook_pipe"
 #define DLLPATH "C:\\GuestController\\CHookingDll.dll"
 #define DCOM_DLL_PATH "C:\\GuestController\\inject_dcom.dll"
 #define DCOM_LAUNCH_SERVICE_NAME "DcomLaunch"
+
+#define DCOM_PROCESS_SPAWN_ACK 1
+#define DCOM_PROCESS_SPAWN_NACK 0
 
 typedef struct srename_file_info {
 	// Has to be null terminated!

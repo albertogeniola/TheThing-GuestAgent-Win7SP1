@@ -302,7 +302,7 @@ namespace InstallerAnalyzer1_Guest
             // Start the process to analyze
             Console.WriteLine("UI Bot: START");
             var proc = StartProcessWithInjector(j);
-            Console.WriteLine("UI Bot: Process tarted, pid "+proc.Process.Id);
+            Console.WriteLine("UI Bot: Process started, pid "+proc.Process.Id);
             j.StartTime = DateTime.Now;
 
             // Wait 2 seconds and check if the injector failed. If so, 

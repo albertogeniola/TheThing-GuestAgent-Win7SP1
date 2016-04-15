@@ -100,7 +100,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		if (!configureWindowName())
 		{
 			OutputDebugString(_T("It was impossible to read get the window name to which send messages. I will terminate."));
-			exit(-1);
+			return FALSE;
 		}
 		
 		DisableThreadLibraryCalls(hDLL);

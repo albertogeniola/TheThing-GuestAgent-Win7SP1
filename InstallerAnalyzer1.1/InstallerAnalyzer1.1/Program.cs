@@ -26,7 +26,7 @@ namespace InstallerAnalyzer1_Guest
         {
             try
             {
-
+                Console.WriteLine("Bootstrap: Starting.");
                 IPAddress _remoteIp;
                 int _remotePort;
 
@@ -77,6 +77,7 @@ namespace InstallerAnalyzer1_Guest
 
                 #endregion
 
+                Console.WriteLine("Bootstrap: Args checks ok");
                 // Visual Conf
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
@@ -85,12 +86,17 @@ namespace InstallerAnalyzer1_Guest
                 mw = new AnalyzerMainWindow(_remoteIp, _remotePort);
                 mw.TopMost = true;
 
+                Console.WriteLine("Bootstrap: Building logger");
                 // Create and register the logger
                 ProgramLogger.Instance.setTextBox(mw.getConsoleBox());
                 Console.SetOut(ProgramLogger.Instance);
                 Console.SetError(ProgramLogger.Instance);
                 Console.ForegroundColor = ConsoleColor.Cyan;
 
+                Console.WriteLine("Bootstrap: Starting NamedPipe Listener Thread");
+                NamedPipeServer.Instance.Start();
+
+                Console.WriteLine("Bootstrap: Running UI");
                 // Run the application
                 Application.Run(mw);
             }
