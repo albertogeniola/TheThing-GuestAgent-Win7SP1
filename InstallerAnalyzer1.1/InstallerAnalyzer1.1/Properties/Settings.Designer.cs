@@ -61,7 +61,7 @@ namespace InstallerAnalyzer1_Guest.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("900000")]
+        [global::System.Configuration.DefaultSettingValueAttribute("1200000")]
         public int EXECUTE_JOB_TIMEOUT {
             get {
                 return ((int)(this["EXECUTE_JOB_TIMEOUT"]));

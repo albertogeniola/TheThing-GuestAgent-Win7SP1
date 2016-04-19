@@ -69,8 +69,6 @@ int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,LPSTR lpCmdLine,
 		else
 		{
 			// File exists, close it now
-			sprintf_s(strbuff, sizeof(strbuff), "Dll to inject: %s", DLLPATH);
-			Log(strbuff);
 			fclose(f);
 		}
 
@@ -83,7 +81,7 @@ int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,LPSTR lpCmdLine,
 			return -1;
 		}
 
-		Log("-----> INJECTOR: Args are ok.");
+		Log("[INJECTOR] Args are ok.");
 
 		// Some processes will use DCOMLAUNCHER in order to spawn processes. If we really want to catch them, we should hook that process too. 
 		if (!HookAndInjectDCOMLauncher(DCOM_DLL_PATH)) {
@@ -91,7 +89,7 @@ int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,LPSTR lpCmdLine,
 			// We do not exit btw.
 		}
 		else {
-			Log("DCOM Injection performed! :)");
+			Log("[INJECTOR] DCOM Injection performed! :)");
 		}
 
 		// Prepare arguments for create process
@@ -99,21 +97,23 @@ int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,LPSTR lpCmdLine,
 		ZeroMemory(&pi, sizeof(PROCESS_INFORMATION));
 		si.cb = sizeof(STARTUPINFO);
 
-		if (!MyDetourCreateProcessWithDll(NULL, argv[1], NULL, NULL, TRUE, CREATE_DEFAULT_ERROR_MODE, NULL, NULL, &si, &pi, argv[2], NULL))
+		if (!MyDetourCreateProcessWithDll(NULL, argv[1], NULL, NULL, TRUE, CREATE_DEFAULT_ERROR_MODE, NULL, NULL, &si, &pi, DLLPATH, NULL))
 		{
 			DWORD e = GetLastError();
 			LogError("XXXXXXXXXXX INJECTOR ERROR XXXXXXXXXXXXXX: DetoursCreateProcessWithDll failed");
 			exit(-1);
 		}
 
-		Log("-----> INJECTOR: remote process created and DLL injected.");
-		Log("-----> INJECTOR: Waiting for child process to exit");
+		_snprintf_s(strbuff, _countof(strbuff),"[INJECTOR] INJECTOR: child process created (%u) and DLL injected.", pi.dwProcessId);
+		Log(strbuff);
+		
 
 		// Wait until the process ends
+		Log("[INJECTOR] INJECTOR: Waiting for child process to exit");
 		res = WaitForSingleObject(pi.hProcess, INFINITE);
-		Log("-----> INJECTOR: Child process ended.");
+		Log("[INJECTOR] INJECTOR: Child process ended.");
 		CloseHandle(pi.hProcess);
-		Log("-----> INJECTOR: Child process handle closed.");
+		Log("[INJECTOR] INJECTOR: Child process handle closed.");
 		return 0;
 	}
 	catch (int e){

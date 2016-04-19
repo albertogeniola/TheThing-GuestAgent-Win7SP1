@@ -30,6 +30,7 @@
 #include <tchar.h>
 #include <iostream>     // std::cout
 #include <sstream>      // std::stringstream
+#include <stdio.h>
 #include "../../InstallerAnalyzer1.1/Common/common.h"
 #include "pugixml.hpp"
 
@@ -102,7 +103,7 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 	switch (ul_reason_for_call)
 	{
 	case DLL_PROCESS_ATTACH:
-		OutputDebugStringA("XXXXX DCOM INJECTOR: injection started. Time to hook! XXXXX");
+		OutputDebugStringA("[DCOM INJECTOR] injection started. Time to hook! - XXXXX");
 		realCreateProcessInternalW = (pCreateProcessInternalW)(GetProcAddress(kern32dllmod, "CreateProcessInternalW"));
 
 		DisableThreadLibraryCalls(hModule);
@@ -112,9 +113,9 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 		DetourUpdateThread(GetCurrentThread());
 		DetourAttach(&(PVOID&)realCreateProcessInternalW, MyCreateProcessInternalW);
 		if (DetourTransactionCommit() != NO_ERROR)
-			OutputDebugString(TEXT("CreateProcessInternalW not derouted correctly"));
+			OutputDebugString(TEXT("[DCOM INJECTOR] CreateProcessInternalW not derouted correctly"));
 		else
-			OutputDebugString(TEXT("CreateProcessInternalW successful"));
+			OutputDebugString(TEXT("[DCOM INJECTOR] CreateProcessInternalW successful"));
 
 
 		break;
@@ -129,9 +130,9 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 		DetourUpdateThread(GetCurrentThread());
 		DetourDetach(&(PVOID&)realCreateProcessInternalW, MyCreateProcessInternalW);
 		if (DetourTransactionCommit() != NO_ERROR)
-			OutputDebugString(TEXT("CreateProcessInternalW not detached correctly"));
+			OutputDebugString(TEXT("[DCOM INJECTOR] CreateProcessInternalW not detached correctly"));
 		else
-			OutputDebugString(TEXT("CreateProcessInternalW detached successfully"));
+			OutputDebugString(TEXT("[DCOM INJECTOR] CreateProcessInternalW detached successfully"));
 
 		break;
 	}
@@ -143,9 +144,27 @@ void notifyNewPid(DWORD pid){
 	bool connected = false;
 	int attempts = 0;
 	bool ok = false;
+	char buff[512];
 
 	while (!connected && attempts<5){
 		// Connect to the named pipe
+		DWORD ack;
+		DWORD read;
+		if (!CallNamedPipe(TEXT(DCOM_HOOK_PIPE), &pid, sizeof(DWORD), &ack, sizeof(ack), &read, 3000)){
+			DWORD error = GetLastError();
+			// An error has occurred
+			sprintf_s(buff, "[DCOM INJECTOR] notify error pid error: Cannot write on the pipe. Error %u XXXX", error);
+			OutputDebugStringA(buff);
+			return;
+		}
+		else {
+			if (read == sizeof(DWORD)) {
+				sprintf_s(buff, "[DCOM INJECTOR] Pipe, received: %u.", ack);
+				OutputDebugStringA(buff);
+				return;
+			}
+		}
+		/*
 		HANDLE hPipe = CreateFile(
 			TEXT(DCOM_HOOK_PIPE),   // pipe name 
 			GENERIC_READ |  // read and write access 
@@ -183,7 +202,6 @@ void notifyNewPid(DWORD pid){
 			connected = true;
 		}
 
-		
 
 		// Check if the connection went ok.
 		if (!connected) {
@@ -267,7 +285,7 @@ void notifyNewPid(DWORD pid){
 
 		CloseHandle(hPipe);
 		return;
-		
+		*/
 	}
 }
 
@@ -285,52 +303,90 @@ BOOL WINAPI MyCreateProcessInternalW(HANDLE hToken,
 	LPPROCESS_INFORMATION lpProcessInformation,
 	PHANDLE hNewToken) {
 	
-	OutputDebugString(TEXT("DCOM has spawned one process!"));
+	OutputDebugString(TEXT("[DCOM INJECTOR] Spawning one process!"));
 	BOOL processCreated = FALSE;
+	char buff[512];
+	char* dllpath = NULL;
 
 	// Save the previous value of the creation flags and make sure we add the create suspended BIT
 	DWORD originalFlags = dwCreationFlags;
 	dwCreationFlags = dwCreationFlags | CREATE_SUSPENDED;
 	processCreated = realCreateProcessInternalW(hToken, lpApplicationName, lpCommandLine, lpProcessAttributes, lpThreadAttributes, bInheritHandles, dwCreationFlags, lpEnvironment, lpCurrentDirectory, lpStartupInfo, lpProcessInformation, hNewToken);
 	if (processCreated) {
-		// Allocate enough memory on the new process
-		LPVOID baseAddress = (LPVOID)VirtualAllocEx(lpProcessInformation->hProcess, NULL, strlen(DLLPATH) + 1, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-
-		// Copy the code to be injected
-		WriteProcessMemory(lpProcessInformation->hProcess, baseAddress, DLLPATH, strlen(DLLPATH), NULL);
-
-		OutputDebugStringA("-----> INJECTOR: DLL copied into host process memory space");
-
-		// Notify the HostController that a new process has been created
-		notifyNewPid(lpProcessInformation->dwProcessId);
-		kern32dllmod = GetModuleHandle(TEXT("kernel32.dll"));
-		HANDLE loadLibraryAddress = GetProcAddress(kern32dllmod, "LoadLibraryA");
-		if (loadLibraryAddress == NULL)
-		{
-			OutputDebugStringW(TEXT("!!!!!LOADLIB IS NULL"));
-			//error
-			return 0;
+		
+		// Now we need to detect if the new process is running on session 0 (i.e. service) or greater (interactive).
+		// This is something that's gonna work only on win 7/Vista. Probably for windows 8 things will change.
+		DWORD sessionId = -1;
+		if (!ProcessIdToSessionId(lpProcessInformation->dwProcessId, &sessionId)){
+			DWORD err = GetLastError();
+			// Something went wrong. Do not inject anything
+			_snprintf_s(buff,sizeof(buff), "[DCOM INJECTOR] Cannot retrieve Session ID for pid %u. Error: %u. XXXX NOT INJECTING! XXXX", lpProcessInformation->dwProcessId,err);
+			OutputDebugStringA(buff);
+			// Do not inject anything
+			return processCreated;
 		}
 		else {
-			OutputDebugStringW(TEXT("LOAD LIB OK"));
+			_snprintf_s(buff, sizeof(buff), "[DCOM INJECTOR] PID %u has session ID %u.", lpProcessInformation->dwProcessId, sessionId);
+			OutputDebugStringA(buff);
 		}
+		
+		if (sessionId == 0) {
+			// Inject myself
+			//OutputDebugStringA("This process has session ID 0, I won't inject myself.");
+			//dllpath = NULL;
+			dllpath = DCOM_DLL_PATH;
+		} else {
+			dllpath = DLLPATH;
+		}
+		
+		if (dllpath != NULL){
+			_snprintf_s(buff, sizeof(buff), "[DCOM INJECTOR] Injecting DLL %s into PID %u", dllpath, lpProcessInformation->dwProcessId);
+			OutputDebugStringA(buff);
 
-		// Create a remote thread the remote thread
-		HANDLE  threadHandle = CreateRemoteThread(lpProcessInformation->hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)loadLibraryAddress, baseAddress, NULL, 0);
-		if (threadHandle == NULL) {
-			OutputDebugStringW(TEXT("!!!!REMTOE THREAD NOT OK"));
-		}
-		else {
-			OutputDebugStringW(TEXT("!!!!REMTOE OK"));
-		}
-		OutputDebugStringA("-----> INJECTOR: Remote thread created");
+			// Allocate enough memory on the new process
+			LPVOID baseAddress = (LPVOID)VirtualAllocEx(lpProcessInformation->hProcess, NULL, strlen(dllpath) + 1, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 
+			// Copy the code to be injected
+			WriteProcessMemory(lpProcessInformation->hProcess, baseAddress, dllpath, strlen(dllpath), NULL);
+
+			OutputDebugStringA("[DCOM INJECTOR] DLL copied into host process memory space");
+
+			// Notify the HostController that a new process has been created
+			notifyNewPid(lpProcessInformation->dwProcessId);
+			kern32dllmod = GetModuleHandle(TEXT("kernel32.dll"));
+			HANDLE loadLibraryAddress = GetProcAddress(kern32dllmod, "LoadLibraryA");
+			if (loadLibraryAddress == NULL)
+			{
+				OutputDebugStringW(TEXT("[DCOM INJECTOR] LOADLIB IS NULL - XXXX"));
+				//error
+				return 0;
+			}
+			else {
+				OutputDebugStringW(TEXT("[DCOM INJECTOR] LOAD LIB OK"));
+			}
+
+			// Create a remote thread the remote thread
+			HANDLE  threadHandle = CreateRemoteThread(lpProcessInformation->hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)loadLibraryAddress, baseAddress, NULL, 0);
+			if (threadHandle == NULL) {
+				OutputDebugStringW(TEXT("[DCOM INJECTOR] REMTOE THREAD NOT OK XXXXX"));
+			}
+			else {
+				OutputDebugStringW(TEXT("[DCOM INJECTOR] Remote thread created"));
+				WaitForSingleObject(threadHandle, INFINITE);
+			}
+			
+		}
 		// Check if the process was meant to be stopped. If not, resume it now
 		if ((originalFlags & CREATE_SUSPENDED) != CREATE_SUSPENDED) {
 			// need to start it right away
 			ResumeThread(lpProcessInformation->hThread);
-			OutputDebugStringA("-----> INJECTOR: Thread resumed");
+			OutputDebugStringA("[DCOM INJECTOR] Thread resumed");
 		}
+	}
+	else {
+		DWORD error = GetLastError();
+		_snprintf_s(buff, sizeof(buff), "[DCOM INJECTOR] Error creating process: %u. XXXX",error);
+		OutputDebugStringA(buff);
 	}
 	return processCreated;
 }

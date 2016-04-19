@@ -346,8 +346,10 @@ namespace InstallerAnalyzer1_Guest
                             continue;
                         }
                     }
-                    Console.WriteLine("UI Bot: Stable hWND " + waitingWindnow.Handle.ToString("X") + ", loc: " + waitingWindnow.WindowLocation.ToString());
 
+                    // Otherwise we have a window on the foreground. 
+                    Console.WriteLine("UI Bot: Stable hWND " + waitingWindnow.Handle.ToString("X") + ", loc: " + waitingWindnow.WindowLocation.ToString());
+                    
                     SaveStableScreen(waitingWindnow, c);
 
                     // Analyze the window and build the controls rank.
@@ -358,6 +360,18 @@ namespace InstallerAnalyzer1_Guest
                     bool uiHasChanged = false;
                     do
                     {
+                        // Waiting if there is any high consuming operation running
+                        ProgramStatus.Instance.WaitUntilNotBusy();
+
+                        // We shall wait until the process lograte is low enough. That means the window is "waiting for us"
+                        if (ProgramStatus.Instance.LogsPerSec > 3)
+                        {
+                            
+                            // Give some time before repeating the analysis!
+                            Thread.Sleep(3000);
+                            continue;
+                        }
+
                         // Interact with the best control according to the rank assinged by the Interaction Policy
                         var candidate = w.PopTopCandidate();
                         Console.WriteLine("UI Bot: Interacting with control " + candidate.ToString());
@@ -1317,14 +1331,20 @@ namespace InstallerAnalyzer1_Guest
         /// <returns>Guessed hWND of the UI Window, or IntPtr.Zero if no window can be found.</returns>
         private IntPtr GetProcUIWindowHandle()
         {
-            /**
-             * The main idea here is to look for all the windows of all the processes of the list.
-             * If the process has some interesting window (i.e. has focus, is big enough, ec..), take that as
-             * possible UI window. Otherwise get the first of the list.
-             */
+            // Check if we have a foreground window owned by anyone of our processes
             var mypids = ProgramStatus.Instance.Pids;
-            AutomationElement winner = null;
+            var foreground = NativeMethods.GetForegroundWindow();
+            uint processId = 0;
+            GetWindowThreadProcessId(foreground, out processId);
+            for (int i = 0; i < mypids.Length; i++) {
+                if (processId == mypids[i]) { 
+                    // This is our main window!
+                    return foreground;
+                }
+            }
 
+            // Proceed using AutomationElement, maybe we find something more.
+            AutomationElement winner = null;
             // List all the processes that currently have a non null WindowHandle
             List<Condition> pidsCond = new List<Condition>();
             for (int i = 0; i < mypids.Length; i++)
@@ -1335,7 +1355,8 @@ namespace InstallerAnalyzer1_Guest
                     proc = Process.GetProcessById((Int32)mypids.ElementAt(i));
                     if (proc.MainWindowHandle == IntPtr.Zero)
                         continue;
-                    else {
+                    else
+                    {
                         var pidcond = new PropertyCondition(AutomationElement.ProcessIdProperty, proc.Id);
                         pidsCond.Add(pidcond);
                     }
@@ -1347,19 +1368,20 @@ namespace InstallerAnalyzer1_Guest
                 }
             }
 
-            
+
             // If there is no pid to monitor, we will have no results. So, return now.
             if (pidsCond.Count == 0)
                 return IntPtr.Zero;
-            else if (pidsCond.Count == 1) { 
+            else if (pidsCond.Count == 1)
+            {
                 // The or condition will require 2 conditions to work. Add a False condition to shut its mouth
                 pidsCond.Add(Condition.FalseCondition);
             }
 
             // Use UIAtuomation to query the windows available matching all the resutls (belonging to our pids, visibility).
             var pidsInOr = new OrCondition(pidsCond.ToArray());
-            var windowVisible=new PropertyCondition(AutomationElement.IsOffscreenProperty, false);
-            var cond = new AndCondition(pidsInOr,windowVisible);
+            var windowVisible = new PropertyCondition(AutomationElement.IsOffscreenProperty, false);
+            var cond = new AndCondition(pidsInOr, windowVisible);
 
             var allae = AutomationElement.RootElement.FindAll(TreeScope.Children, cond);
 
@@ -1384,27 +1406,31 @@ namespace InstallerAnalyzer1_Guest
                     winner = allae[0];
                 }
             }
-            else { 
+            else
+            {
                 // Sometime, it may happen that the UI is just minimized. Why don't we meximize it again?
-                foreach (var pid in mypids) {
+                foreach (var pid in mypids)
+                {
                     try
                     {
                         var aprocess = Process.GetProcessById((int)pid);
                         NativeMethods.ShowWindow(aprocess.MainWindowHandle, NativeMethods.ShowWindowCommands.Normal);
                     }
-                    catch (Exception e) { 
+                    catch (Exception e)
+                    {
                         // Tons of things may go wrong here. Just ignore them.
                     }
                 }
             }
 
-            
-            
+
+
             // Return the winner if any, otherwise Zero
             if (winner != null)
                 return new IntPtr(winner.Current.NativeWindowHandle);
             else
                 return IntPtr.Zero;
+
             
             /*
             // Get the FocusedWindow and be sure it's owned by one of the current Processes

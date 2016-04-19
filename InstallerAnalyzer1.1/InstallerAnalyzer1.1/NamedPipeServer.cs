@@ -109,6 +109,7 @@ namespace InstallerAnalyzer1_Guest
                 _running = true;
                 try
                 {
+                    
                     // Wait for a client to connect
                     _pipeServer.WaitForConnection();
 
@@ -137,20 +138,13 @@ namespace InstallerAnalyzer1_Guest
 
                     // Send the ACK ( ACK = 1 )
                     _pipeServer.Write(ENCODED_ACK, 0, ENCODED_ACK.Length);
-
+                    _pipeServer.Flush();
+                    _pipeServer.WaitForPipeDrain();
+                    _pipeServer.Disconnect();
                 } catch (Exception e) {
-                    if (_pipeServer.IsConnected) {
-                        try
-                        {
-                            // Send a NACK and retry
-                            _pipeServer.Write(ENCODED_NACK, 0, ENCODED_NACK.Length);
-                            continue;
-                        }
-                        catch (Exception ex)
-                        { 
-                            //Give up!
-                        }
-                    }
+                    // Close the pipe as is.
+                    _pipeServer.WaitForPipeDrain();
+                    if (_pipeServer.IsConnected) { _pipeServer.Disconnect(); }
                 }
             }
 

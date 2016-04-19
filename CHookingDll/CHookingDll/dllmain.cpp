@@ -99,7 +99,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		// Read from shared memory the name of the window to send message to
 		if (!configureWindowName())
 		{
-			OutputDebugString(_T("It was impossible to read get the window name to which send messages. I will terminate."));
+			OutputDebugString(_T("It was impossible to read get the window name to which send messages."));
 			return FALSE;
 		}
 		

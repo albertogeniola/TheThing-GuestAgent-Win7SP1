@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Drawing;
+using System.Drawing.Imaging;
 
 namespace InstallerAnalyzer1_Guest.UIAnalysis
 {
@@ -12,7 +13,7 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
         private IntPtr _handle;
         private string _className;
         private string _title;
-        private Rectangle _pos;
+        private InstallerAnalyzer1_Guest.NativeMethods.RECT _pos;
         #endregion
 
         /// <summary>
@@ -25,9 +26,10 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
             _handle = hWnd;
             _className = GetClassName(_handle);
             _title = GetWindowName(_handle);
-            InstallerAnalyzer1_Guest.NativeMethods.RECT pos = new InstallerAnalyzer1_Guest.NativeMethods.RECT();
-            NativeMethods.GetWindowRect(hWnd, ref pos);
-            _pos = new Rectangle(new Point(pos.Left, pos.Top), new Size(pos.Right - pos.Left, pos.Bottom - pos.Top));
+            _pos = new InstallerAnalyzer1_Guest.NativeMethods.RECT();
+            NativeMethods.GetWindowRect(hWnd, out _pos);
+            
+            //_pos = new Rectangle(new Point(pos.Left, pos.Top), new Size(pos.Right - pos.Left, pos.Bottom - pos.Top));
         }
 
         public Rectangle WindowLocation
@@ -79,18 +81,6 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
             return b.ToString();
         }
 
-        public System.Windows.Rect GetBounds()
-        {
-            InstallerAnalyzer1_Guest.NativeMethods.RECT r = new InstallerAnalyzer1_Guest.NativeMethods.RECT();
-            if (NativeMethods.GetWindowRect(_handle, ref r))
-            {
-                return new System.Windows.Rect(r.Left, r.Top, Math.Abs(r.Right - r.Left), Math.Abs(r.Top - r.Bottom));
-            }
-            else
-                throw new ArgumentException("Error during bound calculation.");
-            
-        }
-
         public void Close()
         {
             NativeMethods.PostMessage(_handle, 0x0010, 0, 0);
@@ -98,9 +88,32 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
 
         public Bitmap GetWindowsScreenshot()
         {
+            try
+            {
+                InstallerAnalyzer1_Guest.NativeMethods.RECT rc;
+                if (NativeMethods.GetClientRect(_handle, out rc))
+                {
+
+                    Bitmap bmp = new Bitmap(rc.Width, rc.Height, PixelFormat.Format32bppArgb);
+                    Graphics gfxBmp = Graphics.FromImage(bmp);
+                    IntPtr hdcBitmap = gfxBmp.GetHdc();
+
+                    NativeMethods.PrintWindow(_handle, hdcBitmap, 0);
+
+                    gfxBmp.ReleaseHdc(hdcBitmap);
+                    gfxBmp.Dispose();
+
+                    return bmp;
+                }
+                else {
+                    return new Bitmap(0, 0);
+                }
+            }
+            catch (Exception e) {
+                return new Bitmap(0,0);
+            }
+            /*
             // Note that if the destination window is hang, this method will stuck. Before running, check if the window is responding
-
-
             InstallerAnalyzer1_Guest.NativeMethods.RECT bounds = new InstallerAnalyzer1_Guest.NativeMethods.RECT();
             bool res = NativeMethods.GetWindowRect(_handle, ref bounds);
             int width = Math.Abs(bounds.Right - bounds.Left);
@@ -115,6 +128,7 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
             }
             // bmp now contains the screenshot
             return bmp;
+             * */
         }
     }
 

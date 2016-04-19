@@ -46,17 +46,17 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
                 InvokePattern invPattern = objPattern as InvokePattern;
                 invPattern.Invoke();
             }
-            else if (AutoElementRef != null && AutoElementRef.Current.ControlType == System.Windows.Automation.ControlType.RadioButton && AutoElementRef.TryGetCurrentPattern(SelectionItemPattern.Pattern, out objPattern))
+            else if (AutoElementRef != null && AutoElementRef.Current.ControlType == System.Windows.Automation.ControlType.RadioButton && AutoElementRef.TryGetCurrentPattern(SelectionItemPatternIdentifiers.Pattern, out objPattern))
             {
                 // Radios
                 SelectionItemPattern invPattern = objPattern as SelectionItemPattern;
                 invPattern.Select();
             }
-            else if (AutoElementRef != null && AutoElementRef.Current.ControlType == System.Windows.Automation.ControlType.CheckBox && AutoElementRef.TryGetCurrentPattern(SelectionItemPattern.Pattern, out objPattern))
+            else if (AutoElementRef != null && AutoElementRef.Current.ControlType == System.Windows.Automation.ControlType.CheckBox && AutoElementRef.TryGetCurrentPattern(TogglePatternIdentifiers.Pattern, out objPattern))
             {
                 // Checkboxes
-                SelectionItemPattern invPattern = objPattern as SelectionItemPattern;
-                invPattern.AddToSelection();
+                TogglePattern invPattern = objPattern as TogglePattern;
+                invPattern.Toggle();
             }
             else
             {

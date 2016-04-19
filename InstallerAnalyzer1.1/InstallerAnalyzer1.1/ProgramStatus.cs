@@ -38,6 +38,7 @@ namespace InstallerAnalyzer1_Guest
             _logRateVal = 0;
             _logRate = 0;
             _timer = new Thread(new ThreadStart(UpdateLogRate));
+            _timer.Start();
             
         }
         
@@ -320,13 +321,16 @@ namespace InstallerAnalyzer1_Guest
             }
         }
         
-        private void UpdateLogRate() { 
-            // Run every second and update the lograte
-            Thread.Sleep(1000);
-            lock (_pidsLock)
+        private void UpdateLogRate() {
+            while (true)
             {
-                _logRateVal = _logRate;
-                _logRate = 0;
+                // Run every second and update the lograte
+                Thread.Sleep(1000);
+                lock (_pidsLock)
+                {
+                    _logRateVal = _logRate;
+                    _logRate = 0;
+                }
             }
         }
         
@@ -337,8 +341,17 @@ namespace InstallerAnalyzer1_Guest
                 _logRate++;
             }
         }
-        
-        public long LogsPerSec { get { return _logRateVal; } }
+
+        public long LogsPerSec
+        {
+            get
+            {
+                lock (_pidsLock)
+                {
+                    return _logRateVal;
+                }
+            }
+        }
         
         /// <summary>
         /// This method holds until the Installer is supposed to be IDLE. If timeout is reached, false is returned. Otherwise if we detect the 
@@ -373,6 +386,23 @@ namespace InstallerAnalyzer1_Guest
         }
         
         #endregion
+
+        private static object _busyLock = new object();
+        private bool _busy = false;
+        public void SetBusy(bool busy) {
+            lock (_busyLock) {
+                _busy = busy;
+                Monitor.PulseAll(_busyLock);
+            }
+        }
+
+        public void WaitUntilNotBusy() {
+            lock (_busyLock) {
+                while (_busy) {
+                    Monitor.Wait(_busyLock);
+                }
+            }
+        }
     }
 
     #region Helper classes
@@ -397,39 +427,47 @@ namespace InstallerAnalyzer1_Guest
 
         public void NotifyAccess()
         {
-            if (_finalized)
-                // Skip
-                return;
-
-            // Collect info on a new struct
-            AccessInfo info = new AccessInfo();
-            info.path = Path;
-            info.exists = File.Exists(Path);
-
-            // If the file exists, collect more information about that
-            if (info.exists)
+            ProgramStatus.Instance.SetBusy(true);
+            try
             {
-                FileInfo finfo = new FileInfo(Path);
-                info.size = finfo.Length;
-                info.md5_hash = CalculateHash(Path);
-                info.fuzzyHash = CalculateFuzzyHash(Path);
-            }
+                if (_finalized)
+                    // Skip
+                    return;
 
-            // Since a new access has been performed, we might want to save this into the history.
-            // A new history line is relevant if something has changed into the file from last version.
-            // So compare the struct with the last one in memory and add it to the track if it is different.
-            if (_info.Count == 0)
-                // If this is the first time we see the file, it is necessary to add it!
-                _info.Add(info);
-            else {
-                var lastinfo = _info.Last();
-                if (lastinfo.exists != info.exists ||
-                    lastinfo.fuzzyHash != info.fuzzyHash ||
-                    lastinfo.md5_hash != info.md5_hash ||
-                    lastinfo.size != info.size || 
-                    lastinfo.path != info.path)
-                    // Something has changed, add this item to the history chain
+                // Collect info on a new struct
+                AccessInfo info = new AccessInfo();
+                info.path = Path;
+                info.exists = File.Exists(Path);
+
+                // If the file exists, collect more information about that
+                if (info.exists)
+                {
+                    FileInfo finfo = new FileInfo(Path);
+                    info.size = finfo.Length;
+                    info.md5_hash = CalculateHash(Path);
+                    info.fuzzyHash = CalculateFuzzyHash(Path);
+                }
+
+                // Since a new access has been performed, we might want to save this into the history.
+                // A new history line is relevant if something has changed into the file from last version.
+                // So compare the struct with the last one in memory and add it to the track if it is different.
+                if (_info.Count == 0)
+                    // If this is the first time we see the file, it is necessary to add it!
                     _info.Add(info);
+                else
+                {
+                    var lastinfo = _info.Last();
+                    if (lastinfo.exists != info.exists ||
+                        lastinfo.fuzzyHash != info.fuzzyHash ||
+                        lastinfo.md5_hash != info.md5_hash ||
+                        lastinfo.size != info.size ||
+                        lastinfo.path != info.path)
+                        // Something has changed, add this item to the history chain
+                        _info.Add(info);
+                }
+            }
+            finally {
+                ProgramStatus.Instance.SetBusy(false);
             }
         }
 
