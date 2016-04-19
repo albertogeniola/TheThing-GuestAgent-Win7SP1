@@ -93,6 +93,8 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
                 InstallerAnalyzer1_Guest.NativeMethods.RECT rc;
                 if (NativeMethods.GetClientRect(_handle, out rc))
                 {
+                    if (rc.Height == 0 || rc.Width == 0)
+                        return null;
 
                     Bitmap bmp = new Bitmap(rc.Width, rc.Height, PixelFormat.Format32bppArgb);
                     Graphics gfxBmp = Graphics.FromImage(bmp);
@@ -110,7 +112,7 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
                 }
             }
             catch (Exception e) {
-                return new Bitmap(0,0);
+                return null;
             }
             /*
             // Note that if the destination window is hang, this method will stuck. Before running, check if the window is responding

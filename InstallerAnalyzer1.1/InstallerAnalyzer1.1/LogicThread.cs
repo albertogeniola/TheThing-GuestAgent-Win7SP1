@@ -595,6 +595,9 @@ namespace InstallerAnalyzer1_Guest
             {
                 using (Bitmap b = waitingWindnow.GetWindowsScreenshot())
                 {
+                    if (b == null)
+                        return false;
+
                     string fname = Path.Combine(Settings.Default.STABLE_SCREEN_PATH, c + "_" + UIAnalysis.NativeAndVisualRanker.CalculateHash(b) + ".bmp");
                     b.Save(fname);
                     return true;
@@ -611,6 +614,9 @@ namespace InstallerAnalyzer1_Guest
             {
                 using (Bitmap b = waitingWindnow.GetWindowsScreenshot())
                 {
+                    if (b == null)
+                        return false;
+
                     using (Graphics g = Graphics.FromImage(b))
                     {
                         using (Pen markerPen = new Pen(Color.Red, 5))
@@ -1265,14 +1271,18 @@ namespace InstallerAnalyzer1_Guest
                 {
                     prevWindow = currentWindow;
                     prevHash = UIAnalysis.NativeAndVisualRanker.CalculateHash(prevWindow);
-                    previousHashes.Add(prevHash,1);
-                    
 
-                    // Reset all the other counters
-                    for (int i = previousHashes.Count - 1; i >= 0; i--)
+                    if (prevHash != null)
                     {
-                        var k = previousHashes.ElementAt(i).Key;
-                        previousHashes[k] = 1;
+                        previousHashes.Add(prevHash, 1);
+
+
+                        // Reset all the other counters
+                        for (int i = previousHashes.Count - 1; i >= 0; i--)
+                        {
+                            var k = previousHashes.ElementAt(i).Key;
+                            previousHashes[k] = 1;
+                        }
                     }
 
                     stableScans = 0;
@@ -1283,7 +1293,7 @@ namespace InstallerAnalyzer1_Guest
                 // Here we have the situation in which prevWindow is not null and currentWindow is neither. 
                 // So I need to check weather there are visual differences between the two windows.
                 string currentHash = UIAnalysis.NativeAndVisualRanker.CalculateHash(currentWindow);
-                if (prevHash.CompareTo(currentHash) != 0)
+                if (currentHash!=null && prevHash.CompareTo(currentHash) != 0)
                 {
                     // Something changed
                     prevWindow = currentWindow;
