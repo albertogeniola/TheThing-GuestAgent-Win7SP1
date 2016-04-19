@@ -636,7 +636,7 @@ namespace InstallerAnalyzer1_Guest
             _visitedVindows = new Dictionary<string, int>();
             _originalList = new List<string>();
             _interactionTimer = new System.Timers.Timer(Settings.Default.EXECUTE_JOB_TIMEOUT);
-            _stuckUiWatcher = new System.Timers.Timer(30000);
+            _stuckUiWatcher = new System.Timers.Timer(60000);
             _stuckUiWatcher.Elapsed += _stuckUiWatcher_Elapsed;
         }
 
