@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "injector.h"
 #include "../../InstallerAnalyzer1.1/Common/common.h"
-
+#include <algorithm>
 
 void Log(const char* str) {
 	OutputDebugStringA(str);
@@ -92,17 +92,39 @@ int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,LPSTR lpCmdLine,
 			Log("[INJECTOR] DCOM Injection performed! :)");
 		}
 
+		// We might be asked to start an MSI file. In that case, we need to use MSIEXEC.
+		bool isMsi = isMsiFile(argv[1]);
+		std::string msiexec;
+		if (isMsi) {
+			// retrieve msiexec installation path
+			msiexec = getMsiexecPath();
+		}
+		
 		// Prepare arguments for create process
 		ZeroMemory(&si, sizeof(STARTUPINFO));
 		ZeroMemory(&pi, sizeof(PROCESS_INFORMATION));
 		si.cb = sizeof(STARTUPINFO);
 
-		if (!MyDetourCreateProcessWithDll(NULL, argv[1], NULL, NULL, TRUE, CREATE_DEFAULT_ERROR_MODE, NULL, NULL, &si, &pi, DLLPATH, NULL))
+		processCreated = false;
+		if (isMsi){
+			std::string args("/passive /norestart /package ");
+			args.append("\"");
+			args.append(argv[1]);
+			args.append("\"");
+			OutputDebugStringA(args.c_str());
+			processCreated = MyDetourCreateProcessWithDll(msiexec.c_str(), (char*)args.c_str(), NULL, NULL, TRUE, CREATE_DEFAULT_ERROR_MODE, NULL, NULL, &si, &pi, DLLPATH, NULL);
+		} else{
+			processCreated = MyDetourCreateProcessWithDll(NULL, argv[1], NULL, NULL, TRUE, CREATE_DEFAULT_ERROR_MODE, NULL, NULL, &si, &pi, DLLPATH, NULL);
+		}
+		
+		if (!processCreated)
 		{
 			DWORD e = GetLastError();
 			LogError("XXXXXXXXXXX INJECTOR ERROR XXXXXXXXXXXXXX: DetoursCreateProcessWithDll failed");
+			LogError(msiexec.c_str());
 			exit(-1);
 		}
+		
 
 		_snprintf_s(strbuff, _countof(strbuff),"[INJECTOR] INJECTOR: child process created (%u) and DLL injected.", pi.dwProcessId);
 		Log(strbuff);
@@ -121,6 +143,57 @@ int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,LPSTR lpCmdLine,
 		return -1;
 	}
 	
+}
+
+std::string getMsiexecPath() {
+	HKEY hKey;
+	DWORD type;
+	DWORD cbData;
+
+	if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Installer", 0, KEY_READ, &hKey) != ERROR_SUCCESS)
+		throw "Could not open registry key";
+	
+	if (RegQueryValueExA(hKey, "InstallerLocation", NULL, &type, NULL, &cbData) != ERROR_SUCCESS)
+	{
+		RegCloseKey(hKey);
+		throw "Could not read registry value";
+	}
+
+	if (type != REG_SZ)
+	{
+		RegCloseKey(hKey);
+		throw "Incorrect registry value type";
+	}
+
+	BYTE *buffer = (BYTE*)LocalAlloc(LPTR, cbData);
+	if (RegQueryValueExA(hKey, "InstallerLocation", NULL, NULL, buffer, &cbData) != ERROR_SUCCESS)
+	{
+		RegCloseKey(hKey);
+		throw "Could not read registry value";
+	}
+
+	RegCloseKey(hKey);
+
+	std::string result((char*)buffer);
+	result.append("msiexec.exe");
+	LocalFree(buffer);
+
+	return result;
+}
+
+bool isMsiFile(char* filepath) {
+	std::string ext = std::string(filepath);
+	int pos = ext.find_last_of('.');
+	if (pos != std::string::npos) {
+		
+		// Found an extension. Extract the extension. This will clear the previous value
+		ext = ext.substr(pos);
+		std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+		// Check if the extension matches MSI
+		return ext.compare(".msi") == 0;
+	}
+
+	return false;
 }
 
 int injectIntoPID(int process, const char* dll)

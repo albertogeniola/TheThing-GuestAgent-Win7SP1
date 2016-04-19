@@ -364,9 +364,8 @@ namespace InstallerAnalyzer1_Guest
                         ProgramStatus.Instance.WaitUntilNotBusy();
 
                         // We shall wait until the process lograte is low enough. That means the window is "waiting for us"
-                        if (ProgramStatus.Instance.LogsPerSec > 3)
+                        if (ProgramStatus.Instance.LogsPerSec > 100)
                         {
-                            
                             // Give some time before repeating the analysis!
                             Thread.Sleep(3000);
                             continue;
@@ -374,50 +373,60 @@ namespace InstallerAnalyzer1_Guest
 
                         // Interact with the best control according to the rank assinged by the Interaction Policy
                         var candidate = w.PopTopCandidate();
-                        Console.WriteLine("UI Bot: Interacting with control " + candidate.ToString());
 
-                        // Register our intention to interact with a particular window
-                        int counter;
-                        if (_visitedVindows.TryGetValue(w.Hash, out counter))
+                        // We only accept positive scores. 
+                        if (candidate.Score > 0)
                         {
-                            _visitedVindows[w.Hash]++;
-                        }
-                        else
-                        {
-                            counter = 1;
-                            _visitedVindows.Add(w.Hash, counter);
-                        }
+                            Console.WriteLine("UI Bot: Interacting with control " + candidate.ToString());
 
-                        // Are we interacting again with the same window as before? Have we exceeded the threshold?
-                        if (counter > CIRCULAR_LOOP_THRESHOLD)
-                        {
-                            throw new UILoopException();
-                        }
-
-                        // Save a screenshot with interaction information for debugging and reporting
-                        SaveInteractionScreen(waitingWindnow, candidate, c);
-                        candidate.Interact();
-                        c++;
-
-                        // Wait for something to happen
-                        Console.WriteLine("UI Bot: Waiting for UI reaction.");
-                        uiHasChanged = ranker.WaitReaction(waitingWindnow, w, REACTION_TIMEOUT);
-
-                        // If we hit the timeout, check if there still are process running. If not, just break.
-                        if (!uiHasChanged)
-                        {
-                            Console.WriteLine("UI Bot: UI Reaction didn't happen within the specific TIMEOUT.");
-                            int procs = ProgramStatus.Instance.Pids.Length;
-                            long lograte = ProgramStatus.Instance.LogsPerSec;
-                            if (procs == 0 && lograte == 0)
+                            // Register our intention to interact with a particular window
+                            int counter;
+                            if (_visitedVindows.TryGetValue(w.Hash, out counter))
                             {
-                                Console.WriteLine("UI Bot: All processes are ended and lograte is 0. It's done!");
-                                break;
+                                _visitedVindows[w.Hash]++;
                             }
                             else
                             {
-                                Console.WriteLine("UI Bot: but there still are " + procs + " processes running and lograte is " + lograte + " msg/sec. I keep waiting.");
+                                counter = 1;
+                                _visitedVindows.Add(w.Hash, counter);
                             }
+
+                            // Are we interacting again with the same window as before? Have we exceeded the threshold?
+                            if (counter > CIRCULAR_LOOP_THRESHOLD)
+                            {
+                                throw new UILoopException();
+                            }
+
+                            // Save a screenshot with interaction information for debugging and reporting
+                            SaveInteractionScreen(waitingWindnow, candidate, c);
+                            candidate.Interact();
+                            c++;
+
+                            // Wait for something to happen
+                            Console.WriteLine("UI Bot: Waiting for UI reaction.");
+                            uiHasChanged = ranker.WaitReaction(waitingWindnow, w, REACTION_TIMEOUT);
+
+                            // If we hit the timeout, check if there still are process running. If not, just break.
+                            if (!uiHasChanged)
+                            {
+                                Console.WriteLine("UI Bot: UI Reaction didn't happen within the specific TIMEOUT.");
+                                int procs = ProgramStatus.Instance.Pids.Length;
+                                long lograte = ProgramStatus.Instance.LogsPerSec;
+                                if (procs == 0 && lograte == 0)
+                                {
+                                    Console.WriteLine("UI Bot: All processes are ended and lograte is 0. It's done!");
+                                    break;
+                                }
+                                else
+                                {
+                                    Console.WriteLine("UI Bot: but there still are " + procs + " processes running and lograte is " + lograte + " msg/sec. I keep waiting.");
+                                }
+                            }
+                        }
+                        else { 
+                            Console.WriteLine(String.Format("UI Bot: candidate {1} had negative score of {0}. Not interacting with it.",candidate.Score,candidate.ToString()));
+                            // Simulate interaction even if we didn't interact
+                            Thread.Sleep(3000);
                         }
 
                     } while (!uiHasChanged && !_timeout);

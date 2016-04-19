@@ -34,3 +34,6 @@ BOOL WINAPI MyDetourCreateProcessWithDll(LPCSTR lpApplicationName,
 	LPPROCESS_INFORMATION lpProcessInformation,
 	LPCSTR lpDllName,
 	PDETOUR_CREATE_PROCESS_ROUTINEA pfCreateProcessA);
+
+bool isMsiFile(char* filepath);
+std::string getMsiexecPath();
