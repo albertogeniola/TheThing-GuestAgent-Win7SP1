@@ -52,6 +52,11 @@ template <typename T>string to_string(T a) {
 #endif
 
 
+/* >>>>>>>>>>>>>> ExitProcess <<<<<<<<<<<<<<< */
+typedef VOID(WINAPI * pExitProcess)(UINT uExitCode);
+VOID WINAPI MyExitProcess(UINT uExitCode);
+static pExitProcess realExitProcess;
+
 /* >>>>>>>>>>>>>> CreateProcessInternalW <<<<<<<<<<<<<<< */
 typedef BOOL(WINAPI * pCreateProcessInternalW)(HANDLE hToken,
 	LPCWSTR lpApplicationName,
@@ -105,6 +110,7 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 	case DLL_PROCESS_ATTACH:
 		OutputDebugStringA("[DCOM INJECTOR] injection started. Time to hook! - XXXXX");
 		realCreateProcessInternalW = (pCreateProcessInternalW)(GetProcAddress(kern32dllmod, "CreateProcessInternalW"));
+		realExitProcess = (pExitProcess)(GetProcAddress(kern32dllmod, "ExitProcess"));
 
 		DisableThreadLibraryCalls(hModule);
 
@@ -116,6 +122,15 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 			OutputDebugString(TEXT("[DCOM INJECTOR] CreateProcessInternalW not derouted correctly"));
 		else
 			OutputDebugString(TEXT("[DCOM INJECTOR] CreateProcessInternalW successful"));
+
+		// ExitProcess
+		DetourTransactionBegin();
+		DetourUpdateThread(GetCurrentThread());
+		DetourAttach(&(PVOID&)realExitProcess, MyExitProcess);
+		if (DetourTransactionCommit() != NO_ERROR)
+			OutputDebugString(TEXT("[DCOM INJECTOR] ExitProcess not derouted correctly"));
+		else
+			OutputDebugString(TEXT("[DCOM INJECTOR] ExitProcess successful"));
 
 
 		break;
@@ -134,23 +149,36 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 		else
 			OutputDebugString(TEXT("[DCOM INJECTOR] CreateProcessInternalW detached successfully"));
 
+		// ExitProcess
+		DetourTransactionBegin();
+		DetourUpdateThread(GetCurrentThread());
+		DetourDetach(&(PVOID&)realExitProcess, MyExitProcess);
+		if (DetourTransactionCommit() != NO_ERROR)
+			OutputDebugString(TEXT("[DCOM INJECTOR] ExitProcess not detached correctly"));
+		else
+			OutputDebugString(TEXT("[DCOM INJECTOR] ExitProcess detached successfully"));
+
 		break;
 	}
 	return TRUE;
 }
 
 
-void notifyNewPid(DWORD pid){
+void notifyPidEvent(DWORD pid, DWORD evt){
 	bool connected = false;
 	int attempts = 0;
 	bool ok = false;
 	char buff[512];
 
+	DWORD info[2];
+	info[0] = pid;
+	info[1] = evt;
+
 	while (!connected && attempts<5){
 		// Connect to the named pipe
 		DWORD ack;
 		DWORD read;
-		if (!CallNamedPipe(TEXT(DCOM_HOOK_PIPE), &pid, sizeof(DWORD), &ack, sizeof(ack), &read, 3000)){
+		if (!CallNamedPipe(TEXT(DCOM_HOOK_PIPE), &info, sizeof(info), &ack, sizeof(ack), &read, 3000)){
 			DWORD error = GetLastError();
 			// An error has occurred
 			sprintf_s(buff, "[DCOM INJECTOR] notify error pid error: Cannot write on the pipe. Error %u XXXX", error);
@@ -164,129 +192,15 @@ void notifyNewPid(DWORD pid){
 				return;
 			}
 		}
-		/*
-		HANDLE hPipe = CreateFile(
-			TEXT(DCOM_HOOK_PIPE),   // pipe name 
-			GENERIC_READ |  // read and write access 
-			GENERIC_WRITE,
-			0,              // no sharing 
-			NULL,           // default security attributes
-			OPEN_EXISTING,  // opens existing pipe 
-			0,              // default attributes 
-			NULL);          // no template file 
-
-		if (hPipe == INVALID_HANDLE_VALUE) {
-			DWORD err = GetLastError();
-			// There may be a couple of reasons why that method failed. If the pipe is currently busy, we have to retry later. 
-			// otherwise there may be none listening for it, so we can skip all of this.
-			if (err == ERROR_PIPE_BUSY) {
-				OutputDebugString(TEXT("DCOM_INJECTOR: Pipe is busy. Waiting for it to become free..."));
-				
-				// Wait up to 5 seconds before retrying
-				if (!WaitNamedPipe(TEXT(DCOM_HOOK_PIPE), 1000)){
-					OutputDebugString(TEXT("DCOM_INJECTOR: Pipe is still busy."));
-					connected = false;
-					attempts++;
-				}
-			}
-			else {
-				char buff[512];
-				sprintf_s(buff, "DCOM_INJECTOR: XXX Error opening dcom_hook_pipe. Error code: %u XXX", err);
-				OutputDebugStringA(buff);
-				// Some severe error occurred. We can't recover, so skip the notification
-				connected = false;
-				break;
-			}
-		}
-		else {
-			connected = true;
-		}
-
-
-		// Check if the connection went ok.
-		if (!connected) {
-			OutputDebugString(TEXT("DCOM_INJECTOR: Could not notify the GuestController because pipe connection failed."));
-			CloseHandle(hPipe);
-			return;
-		}
-
-		// If ok, send the data and wait for the response
-		DWORD dwMode = PIPE_READMODE_MESSAGE; // Our messages are only pids, so It's ok for us to send them as messages instead of byte stream.
-		if (!SetNamedPipeHandleState(
-			hPipe,    // pipe handle 
-			&dwMode,  // new pipe mode 
-			NULL,     // don't set maximum bytes 
-			NULL)    // don't set maximum time 
-			){
-				
-			OutputDebugString(TEXT("DCOM_INJECTOR: Could not set the pipe mode. Cannot notify the Guestcontroller."));
-			CloseHandle(hPipe);
-			return;
-		}
-
-		int cbToWrite = sizeof(DWORD);
-		
-		DWORD cbWritten = 0;
-		if (!WriteFile(
-			hPipe,                  // pipe handle 
-			&pid,		             // message 
-			cbToWrite,              // message length 
-			&cbWritten,             // bytes written 
-			NULL)                  // not overlapped 
-			)
-		{
-			OutputDebugString(TEXT("DCOM_INJECTOR: Could not write message on the pipe. Cannot notify the Guestcontroller."));
-			CloseHandle(hPipe);
-			return;
-		}
-		
-		//TODO: can we assume cbwritten always matches sizeof(DWORD)?? Do we have to check that?
-		printf("\nMessage sent to server, receiving reply as follows:\n");
-
-		// Now we wait for an ACK by the GuestController
-		DWORD guestControllerResponse = 0;
-		DWORD cbRead = 0;
-		BOOL fSuccess = FALSE;
-		do
-		{
-			// Read from the pipe. 
-			fSuccess = ReadFile(
-				hPipe,    // pipe handle 
-				&guestControllerResponse,    // buffer to receive reply 
-				sizeof(DWORD),				// size of buffer 
-				&cbRead,  // number of bytes read 
-				NULL);    // not overlapped 
-
-			if (!fSuccess && GetLastError() != ERROR_MORE_DATA)
-			{
-				// If we failed and the error is different from "there is more data", then we can't recover. Close everything and giveup.
-				OutputDebugString(TEXT("DCOM_INJECTOR: Could not read ACK from the pipe. Giving up"));
-				CloseHandle(hPipe);
-				return;
-			}
-		} while (!fSuccess);  // repeat loop if ERROR_MORE_DATA 
-
-		if (!fSuccess)
-		{
-			OutputDebugString(TEXT("DCOM_INJECTOR: Could not read ACK from the pipe. Giving up"));
-			CloseHandle(hPipe);
-			return;
-		}
-
-		// At this point we need to check if ACK has been received
-		if (guestControllerResponse == DCOM_PROCESS_SPAWN_ACK) {
-			// Ok everything has gone well. Printa debug string just for notification
-			OutputDebugString(TEXT("DCOM_INJECTOR: ACK received from GuestController"));
-		}
-		else {
-			// this should never happen, but never say never...
-			OutputDebugString(TEXT("DCOM_INJECTOR: Invalid ACK received from guest controller!!"));
-		}
-
-		CloseHandle(hPipe);
-		return;
-		*/
 	}
+}
+
+
+VOID WINAPI MyExitProcess(UINT uExitCode)
+{
+	// We hook this to let the GuestController know about our intention to terminate
+	notifyPidEvent(GetCurrentProcessId(), PROC_EXITING);
+	return realExitProcess(uExitCode);
 }
 
 
@@ -352,7 +266,7 @@ BOOL WINAPI MyCreateProcessInternalW(HANDLE hToken,
 			OutputDebugStringA("[DCOM INJECTOR] DLL copied into host process memory space");
 
 			// Notify the HostController that a new process has been created
-			notifyNewPid(lpProcessInformation->dwProcessId);
+			notifyPidEvent(lpProcessInformation->dwProcessId, PROC_SPAWNING);
 			kern32dllmod = GetModuleHandle(TEXT("kernel32.dll"));
 			HANDLE loadLibraryAddress = GetProcAddress(kern32dllmod, "LoadLibraryA");
 			if (loadLibraryAddress == NULL)

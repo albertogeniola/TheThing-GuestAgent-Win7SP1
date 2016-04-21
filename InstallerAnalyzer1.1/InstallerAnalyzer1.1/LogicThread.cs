@@ -1298,11 +1298,19 @@ namespace InstallerAnalyzer1_Guest
                     Thread.Sleep(REACTION_TIMEOUT);
                     continue;
                 }
-                    
+                   
+                
                 // Here we have the situation in which prevWindow is not null and currentWindow is neither. 
                 // So I need to check weather there are visual differences between the two windows.
                 string currentHash = UIAnalysis.NativeAndVisualRanker.CalculateHash(currentWindow);
-                if (currentHash!=null && prevHash.CompareTo(currentHash) != 0)
+                if (prevHash == null) {
+                    prevHash = currentHash;
+                    stableScans = 0;
+                    Thread.Sleep(REACTION_TIMEOUT);
+                    continue;
+                }
+
+                if (currentHash!=null && prevHash != currentHash)
                 {
                     // Something changed
                     prevWindow = currentWindow;
@@ -1334,7 +1342,11 @@ namespace InstallerAnalyzer1_Guest
                 // TODO
 
                 // Ok, after all the check above, I can assume the window UI has not changed. Increase the counter.
-                previousHashes[prevHash]++;
+                if (previousHashes.ContainsKey(prevHash))
+                    previousHashes[prevHash]++;
+                else
+                    previousHashes.Add(prevHash, 0);
+
                 stableScans++;
                 Thread.Sleep(REACTION_TIMEOUT);
                 

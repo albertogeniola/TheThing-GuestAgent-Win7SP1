@@ -17,6 +17,8 @@ namespace InstallerAnalyzer1_Guest
     {
         public const uint DCOM_PROCESS_SPAWN_ACK = 1;
         public const uint DCOM_PROCESS_SPAWN_NACK = 0;
+        public const uint DCOM_PROCESS_SPAWNING = 1;
+        public const uint DCOM_PROCESS_EXITING = 2;
         public const string DCOM_HOOK_PIPE = "dcom_hook_pipe";
         public readonly byte[] ENCODED_ACK = BitConverter.GetBytes(DCOM_PROCESS_SPAWN_ACK);
         public readonly byte[] ENCODED_NACK = BitConverter.GetBytes(DCOM_PROCESS_SPAWN_NACK);
@@ -102,8 +104,8 @@ namespace InstallerAnalyzer1_Guest
         private void Run() {
             
             // Allocate a buffer that can contain the message expected from the client. 
-            // Our client will send to use simple DWORD data, and a DWORD is mapped to uint in CLR.
-            byte[] buff = new byte[sizeof(uint)];
+            // Our client will send to use simple 2-DWORDs data, and a DWORD is mapped to uint in CLR.
+            byte[] buff = new byte[sizeof(uint)*2];
             while (_shouldRun)
             {
                 _running = true;
@@ -119,14 +121,15 @@ namespace InstallerAnalyzer1_Guest
                     var res = _pipeServer.Read(buff, 0, buff.Length);
 
 
-                    if (res != sizeof(uint))
+                    if (res != sizeof(uint)*2)
                     {
                         // Incomplete message! Send NOACK
                         //TODO.
                     }
 
-                    // Unmarshal data and get the UINT.
+                    // Unmarshal data and get both the pid and the event number.
                     uint pid = (uint)BitConverter.ToUInt32(buff, 0);
+                    uint evt = (uint)BitConverter.ToUInt32(buff, sizeof(uint));
 
                     if (pid == uint.MaxValue) { 
                         // This means that someone has dediced to stop. No need to anwer, just quit.
@@ -134,8 +137,11 @@ namespace InstallerAnalyzer1_Guest
                     }
 
                     // Now notify our ProgramLogger and when done, send an ACK
-                    ProgramStatus.Instance.AddPid(pid);
-
+                    if (evt == DCOM_PROCESS_SPAWNING)
+                        ProgramStatus.Instance.AddPid(pid);
+                    else if (evt == DCOM_PROCESS_EXITING)
+                        ProgramStatus.Instance.RemovePid(pid);
+                    
                     // Send the ACK ( ACK = 1 )
                     _pipeServer.Write(ENCODED_ACK, 0, ENCODED_ACK.Length);
                     _pipeServer.Flush();

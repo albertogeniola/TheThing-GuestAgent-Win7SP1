@@ -23,6 +23,10 @@
 #define COPYDATA_KEY_CREATED 10
 #define COPYDATA_KEY_OPEN 11
 
+// Pipe constants
+#define PROC_SPAWNING 1
+#define PROC_EXITING 2
+
 // Guest Controller window's name
 #ifdef UNICODE
 #define GUESTCONTROLLER_WINDOW_NAME L"WKWatcher"
