@@ -129,13 +129,15 @@ int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,LPSTR lpCmdLine,
 		_snprintf_s(strbuff, _countof(strbuff),"[INJECTOR] INJECTOR: child process created (%u) and DLL injected.", pi.dwProcessId);
 		Log(strbuff);
 		
-
+		/*
 		// Wait until the process ends
 		Log("[INJECTOR] INJECTOR: Waiting for child process to exit");
 		res = WaitForSingleObject(pi.hProcess, INFINITE);
 		Log("[INJECTOR] INJECTOR: Child process ended.");
 		CloseHandle(pi.hProcess);
 		Log("[INJECTOR] INJECTOR: Child process handle closed.");
+		*/
+		CloseHandle(pi.hProcess);
 		return 0;
 	}
 	catch (int e){

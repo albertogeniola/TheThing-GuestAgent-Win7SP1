@@ -15,7 +15,7 @@
       <Value Profile="(Default)">C:\GuestController\interaction</Value>
     </Setting>
     <Setting Name="EXECUTE_JOB_TIMEOUT" Type="System.Int32" Scope="Application">
-      <Value Profile="(Default)">1200000</Value>
+      <Value Profile="(Default)">900000</Value>
     </Setting>
     <Setting Name="STRINGS_MIN_LEN" Type="System.Int32" Scope="Application">
       <Value Profile="(Default)">10</Value>

@@ -513,8 +513,8 @@ namespace InstallerAnalyzer1_Guest
 
                     Console.WriteLine("UIBot: There are no new programs on the system.");
 
-                    if (ProgramStatus.Instance.LogsPerSec > 0) {
-                        Console.WriteLine("UIBot: The background processes are still working. Wait until the message rate becomes 0 (or timeout is reached) and loop again.");
+                    if (ProgramStatus.Instance.LogsPerSec > 50) {
+                        Console.WriteLine("UIBot: The background processes are still working. Wait until the message rate becomes <50 (or timeout is reached) and loop again.");
                         if (!ProgramStatus.Instance.WaitUntilIdle(IDLE_TIMEOUT))
                         {
                             // Timeout occurred
@@ -785,7 +785,7 @@ namespace InstallerAnalyzer1_Guest
                         reported = true;
                     } catch(Exception e) {
                         // In this case we want to keep trying. It is important to let the Controller know that the job was not ok.
-                        Console.WriteLine("Cannot report work back to host controller. I will retry in a moment. Error: "+e.Message);
+                        Console.WriteLine("Cannot report work back to host controller. I will retry in a moment. Error: "+e.Message+". "+e.StackTrace);
                         Thread.Sleep(ACQUIRE_WORK_SLEEP_SECS * 1000);
                         reported = false;
                     }
@@ -814,6 +814,7 @@ namespace InstallerAnalyzer1_Guest
         private void TimeoutReached(object sender, System.Timers.ElapsedEventArgs e)
         {
             _timeout = true;
+            Console.WriteLine("TimeoutWatcher: TIMEOUT EXPIRED");
             _interactionTimer.Stop();
             Program.SetTimeoutExpired();
         }
