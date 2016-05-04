@@ -161,6 +161,7 @@
   <ItemGroup>
     <Compile Include="InteractionResult.cs" />
     <Compile Include="NamedPipeServer.cs" />
+    <Compile Include="ProcessHierarchy.cs" />
     <Compile Include="ProgramStatus.cs" />
     <Compile Include="ProtocolException.cs" />
     <Compile Include="UIAnalysis\IUIRanker.cs" />

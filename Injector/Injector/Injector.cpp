@@ -1,6 +1,5 @@
 #include "stdafx.h"
 #include "injector.h"
-#include "../../InstallerAnalyzer1.1/Common/common.h"
 #include <algorithm>
 
 void Log(const char* str) {
@@ -84,12 +83,21 @@ int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,LPSTR lpCmdLine,
 		Log("[INJECTOR] Args are ok.");
 
 		// Some processes will use DCOMLAUNCHER in order to spawn processes. If we really want to catch them, we should hook that process too. 
-		if (!HookAndInjectDCOMLauncher(DCOM_DLL_PATH)) {
+		if (!HookAndInjectService(DCOM_DLL_PATH, DCOM_LAUNCH_SERVICE_NAME)) {
 			LogError("XXXXXXXXXX INJECTOR ERROR XXXXXXXXXXXX: Cannot hook DCOMLauncher");
 			// We do not exit btw.
 		}
 		else {
 			Log("[INJECTOR] DCOM Injection performed! :)");
+		}
+
+		// Some processes will use Windows Installer, so we need to hook that service too
+		if (!HookAndInjectService(DCOM_DLL_PATH, WINDOWS_INSTALLER_SERVICE_NAME)) {
+			LogError("XXXXXXXXXX INJECTOR ERROR XXXXXXXXXXXX: Cannot hook WindowsInstaller service");
+			// We do not exit btw.
+		}
+		else {
+			Log("[INJECTOR] WindowsInstaller Injection performed! :)");
 		}
 
 		// We might be asked to start an MSI file. In that case, we need to use MSIEXEC.
@@ -273,14 +281,14 @@ int injectIntoPID(int process, const char* dll)
 	}
 }
 
-BOOL HookAndInjectDCOMLauncher(const char* dllPath){
+BOOL HookAndInjectService(const char* dllPath, const char* serviceName){
 
 	HANDLE hProcess = NULL;
 	PWSTR allocatedAddr = NULL;
 	HANDLE hThread = NULL;
 	DWORD dwProcessId; /*TODOOOOO*/
 	SC_HANDLE schSCManager;
-	SC_HANDLE dcomLauncherService;
+	SC_HANDLE service;
 	SERVICE_STATUS_PROCESS srvStatus;
 	DWORD dwBytesNeeded;
 	char strbuff[512];
@@ -295,12 +303,12 @@ BOOL HookAndInjectDCOMLauncher(const char* dllPath){
 		return FALSE;
 	}
 
-	dcomLauncherService = OpenService(
+	service = OpenService(
 		schSCManager,						// SCM database 
-		DCOM_LAUNCH_SERVICE_NAME,           // name of service 
-		SERVICE_QUERY_STATUS);				// full access 
+		serviceName,           // name of service 
+		SERVICE_QUERY_STATUS);				// Query Status
 
-	if (dcomLauncherService == NULL) {
+	if (service == NULL) {
 		DWORD err = GetLastError();
 		sprintf_s(strbuff, sizeof(strbuff), "XXXXXX Injector Error: Cannot open service, error: %d", err);
 		LogError(strbuff);
@@ -311,16 +319,27 @@ BOOL HookAndInjectDCOMLauncher(const char* dllPath){
 	ZeroMemory(&srvStatus, sizeof(srvStatus));
 
 	// At this point we want to know which is the PID of the process running this service.
-	if (!QueryServiceStatusEx(dcomLauncherService, SC_STATUS_PROCESS_INFO, (LPBYTE)&srvStatus, sizeof(SERVICE_STATUS_PROCESS), &dwBytesNeeded)){
+	if (!QueryServiceStatusEx(service, SC_STATUS_PROCESS_INFO, (LPBYTE)&srvStatus, sizeof(SERVICE_STATUS_PROCESS), &dwBytesNeeded)){
 		DWORD err = GetLastError();
-		sprintf_s(strbuff, sizeof(strbuff), "XXXXXX Injector Error: Cannot retrieve status info about dcomService, error: %d", err);
+		sprintf_s(strbuff, sizeof(strbuff), "XXXXXX Injector Error: Cannot retrieve status info about service %s, error: %d",serviceName, err);
 		LogError(strbuff);
 		CloseServiceHandle(schSCManager);
 		return FALSE;
 	}
 
-	// We finally have the pid now. Copy into a local variable.
-	dwProcessId = srvStatus.dwProcessId;
+	// Check if the service is started. If not, start it now.
+	if (srvStatus.dwCurrentState != SERVICE_RUNNING) {
+		sprintf_s(strbuff, sizeof(strbuff), "Service %s was not running. I'll start it now.", serviceName);
+		Log(strbuff);
+
+		StartSampleService(schSCManager, serviceName, &dwProcessId);
+	}
+	else {
+		// We finally have the pid now. Copy into a local variable.
+		dwProcessId = srvStatus.dwProcessId;
+	}
+
+	
 
 	// We don't need this anymore.
 	CloseServiceHandle(schSCManager);
@@ -333,7 +352,7 @@ BOOL HookAndInjectDCOMLauncher(const char* dllPath){
 		return FALSE;
 	}
 
-	sprintf_s(strbuff, sizeof(strbuff), "Process ID of dcomLauncher is %d", dwProcessId);
+	sprintf_s(strbuff, sizeof(strbuff), "Process ID of %s is %d", serviceName, dwProcessId);
 	Log(strbuff);
 
 	// Get the handle of the running dcomlauncher process
@@ -528,8 +547,11 @@ BOOL WINAPI MyDetourCreateProcessWithDll(LPCSTR lpApplicationName,
 		CopyMemory(lpProcessInformation, &pi, sizeof(pi));
 	}
 
+	PID_MESSAGE msg;
+	msg.ppid = GetCurrentProcessId();
+	msg.pid = pi.dwProcessId;
 	// Notify the GuestController we have spawned the process
-	notifyNewPid(pi.dwProcessId);
+	notifyNewPid(msg);
 
 	if (!(dwCreationFlags & CREATE_SUSPENDED)) {
 		ResumeThread(pi.hThread);
@@ -537,14 +559,14 @@ BOOL WINAPI MyDetourCreateProcessWithDll(LPCSTR lpApplicationName,
 	return TRUE;
 }
 
-void notifyNewPid(DWORD pid)
+void notifyNewPid(PID_MESSAGE pm)
 {
 	DWORD res = 0;
 	COPYDATASTRUCT ds;
 
 	ds.dwData = COPYDATA_PROC_SPAWNED;
-	ds.cbData = sizeof(DWORD);
-	ds.lpData = (PVOID)&pid;
+	ds.cbData = sizeof(PID_MESSAGE);
+	ds.lpData = (PVOID)&pm;
 
 	// Send message...
 	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);
@@ -592,4 +614,98 @@ HANDLE RtlCreateUserThread(
 	funcRtlCreateUserThread(hProcess, NULL, 0, 0, 0, 0, lpBaseAddress, lpSpace, &hRemoteThread, NULL);
 	DWORD lastError = GetLastError();
 	return hRemoteThread;
+}
+
+
+BOOL StartSampleService(SC_HANDLE schSCManager, const char* serviceName, DWORD* processId)
+{
+	SC_HANDLE schService;
+	SERVICE_STATUS_PROCESS ssStatus;
+	DWORD dwOldCheckPoint;
+	DWORD dwStartTickCount;
+	DWORD dwWaitTime;
+	char strbuff[512];
+	DWORD dwBytesNeeded;
+
+	schService = OpenService(
+		schSCManager, // SCM database
+		serviceName, // service name
+		SERVICE_ALL_ACCESS);
+
+	if (schService == NULL)
+	{
+		DWORD err = GetLastError();
+		_snprintf_s(strbuff, _countof(strbuff), "[INJECTOR] StartService failed, cannot open service %s, error %d.", serviceName, err);
+		LogError(strbuff);
+		return FALSE;
+	}
+
+	if (!StartService(
+		schService, // handle to service
+		0, // number of arguments
+		NULL)) // no arguments
+	{
+		DWORD err = GetLastError();
+		_snprintf_s(strbuff, _countof(strbuff), "[INJECTOR] StartService failed, cannot start service %s, error %d.", serviceName, err);
+		LogError(strbuff);
+		return FALSE;
+	}
+	
+	if (!QueryServiceStatusEx(schService, SC_STATUS_PROCESS_INFO, (LPBYTE)&ssStatus, sizeof(SERVICE_STATUS_PROCESS), &dwBytesNeeded))
+
+	// Save the tick count and initial checkpoint.
+	dwStartTickCount = GetTickCount();
+	dwOldCheckPoint = ssStatus.dwCheckPoint;
+
+	while (ssStatus.dwCurrentState == SERVICE_START_PENDING)
+	{
+		// Just some info...
+		printf("Wait Hint: %d\n", ssStatus.dwWaitHint);
+
+		// Do not wait longer than the wait hint. A good interval is one tenth the wait hint, but no less than 1 second and no more than 10 seconds...
+		dwWaitTime = ssStatus.dwWaitHint / 10;
+
+		if (dwWaitTime <1000> 10000)
+			dwWaitTime = 10000;
+		Sleep(dwWaitTime);
+
+		// Check the status again...
+		if (!QueryServiceStatusEx(schService, SC_STATUS_PROCESS_INFO, (LPBYTE)&ssStatus, sizeof(SERVICE_STATUS_PROCESS), &dwBytesNeeded))
+			break;
+
+		if (ssStatus.dwCheckPoint > dwOldCheckPoint)
+		{
+			// The service is making progress...
+			
+			_snprintf_s(strbuff, _countof(strbuff), "[INJECTOR] StartService: service %s starting...", serviceName);
+			Log(strbuff);
+			
+			dwStartTickCount = GetTickCount();
+			dwOldCheckPoint = ssStatus.dwCheckPoint;
+		}
+		else
+		{
+			if ((GetTickCount() - dwStartTickCount) > ssStatus.dwWaitHint)
+			{
+				// No progress made within the wait hint
+				break;
+			}
+		}
+	}
+	
+	CloseServiceHandle(schService);
+	
+	if (ssStatus.dwCurrentState == SERVICE_RUNNING)
+	{
+		(*processId) = ssStatus.dwProcessId;
+		_snprintf_s(strbuff, _countof(strbuff), "[INJECTOR] StartService: service %s started OK, pid %d.", serviceName, *processId);
+		Log(strbuff);
+		return TRUE;
+	}
+	else
+	{
+		_snprintf_s(strbuff, _countof(strbuff), "[INJECTOR] StartService failed, service %s did not start correctly.", serviceName);
+		LogError(strbuff);
+		return FALSE;
+	}
 }

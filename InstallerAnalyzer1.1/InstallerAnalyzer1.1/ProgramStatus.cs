@@ -31,6 +31,7 @@ namespace InstallerAnalyzer1_Guest
         
         private ProgramStatus() {
             _monitoredPids = new List<uint>();
+            _hierarchy = new ProcessHierarchy();
             _fileMap = new Dictionary<string, FileAccessInfo>();
             _regMap = new Dictionary<string, RegAccessInfo>();
             _clients = new List<IObserver<uint[]>>();
@@ -266,6 +267,7 @@ namespace InstallerAnalyzer1_Guest
         private long _logRate, _logRateVal;
         private bool _firstDone;
         private Thread _timer = null;
+        private ProcessHierarchy _hierarchy;
 
         public void NotifyInjectorExited() {
             lock (_pidsLock)
@@ -276,11 +278,16 @@ namespace InstallerAnalyzer1_Guest
             }
         }
 
-        public void AddPid(uint pid) {
+        public ProcessHierarchy ProcHierarchy {
+            get { return _hierarchy; }
+        }
+
+        public void AddPid(uint ppid, uint pid) {
             uint[] notify = null;
             lock (_pidsLock)
             {
                 _monitoredPids.Add(pid);
+                _hierarchy.AddProcess(ppid, pid);
                 if (!_firstDone)
                     _firstDone = true;
 

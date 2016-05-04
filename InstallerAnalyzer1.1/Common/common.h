@@ -39,6 +39,7 @@
 #define DLLPATH "C:\\GuestController\\CHookingDll.dll"
 #define DCOM_DLL_PATH "C:\\GuestController\\inject_dcom.dll"
 #define DCOM_LAUNCH_SERVICE_NAME "DcomLaunch"
+#define WINDOWS_INSTALLER_SERVICE_NAME "msiserver"
 
 #define DCOM_PROCESS_SPAWN_ACK 1
 #define DCOM_PROCESS_SPAWN_NACK 0
@@ -49,3 +50,8 @@ typedef struct srename_file_info {
 	// Has to be null terminated!
 	wchar_t newPath[PATH_MAX_LEN];
 } rename_file_info;
+
+typedef struct PID_MESSAGE_S {
+	DWORD ppid;
+	DWORD pid;
+} PID_MESSAGE;

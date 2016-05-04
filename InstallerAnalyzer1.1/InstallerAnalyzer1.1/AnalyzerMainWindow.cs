@@ -110,8 +110,9 @@ namespace InstallerAnalyzer1_Guest
                     else if (d.dwData == MESSAGE_NEW_PROC)
                     {
                         // New process spawned
-                        var pid = BitConverter.ToUInt32(bb, 0);
-                        ProgramStatus.Instance.AddPid(pid);
+                        var ppid = BitConverter.ToUInt32(bb, 0);
+                        var pid = BitConverter.ToUInt32(bb, 4);
+                        ProgramStatus.Instance.AddPid(ppid, pid);
 
                     }
                     else if (d.dwData == MESSAGE_PROC_DIED)

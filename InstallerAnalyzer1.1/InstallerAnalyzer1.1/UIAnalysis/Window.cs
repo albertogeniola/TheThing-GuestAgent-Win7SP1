@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Windows.Forms;
 
 namespace InstallerAnalyzer1_Guest.UIAnalysis
 {
@@ -91,7 +92,7 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
             try
             {
                 InstallerAnalyzer1_Guest.NativeMethods.RECT rc;
-                if (NativeMethods.GetClientRect(_handle, out rc))
+                if (NativeMethods.GetWindowRect(_handle, out rc))
                 {
                     if (rc.Height == 0 || rc.Width == 0)
                         return null;
@@ -100,12 +101,32 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
                     Graphics gfxBmp = Graphics.FromImage(bmp);
                     IntPtr hdcBitmap = gfxBmp.GetHdc();
 
+                    // The following will work only if the WM_PRINT message is correctly handled by the app. 
+                    // Some of them do not handle this message, so in case we get a black screen, we fall back to the 
+                    // desktop screenshot.
                     NativeMethods.PrintWindow(_handle, hdcBitmap, 0);
 
                     gfxBmp.ReleaseHdc(hdcBitmap);
                     gfxBmp.Dispose();
 
+                    /*
+                    if (!bmp_is_black(bmp))
+                    {
+                        using (Bitmap b = CaptureScreen.GetDesktopImage())
+                        {
+
+                            var gfxScreenshot = Graphics.FromImage(bmp);
+                            Rectangle dest = new Rectangle(0, 0, bmp.Width, bmp.Height);
+                            Rectangle src = new Rectangle(rc.X, rc.Y, rc.Width, rc.Height);
+                            gfxScreenshot.DrawImage(b, dest, src, GraphicsUnit.Pixel);
+                            gfxScreenshot.Dispose();
+                        }
+                    }
+                    */
+                    
                     return bmp;
+                    
+
                 }
                 else {
                     return new Bitmap(0, 0);
@@ -132,6 +153,36 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
             return bmp;
              * */
         }
+
+        /*
+        private bool bmp_is_black(Bitmap bmp) {
+            // Lock the bitmap's bits.  
+            Rectangle rect = new Rectangle(0, 0, bmp.Width, bmp.Height);
+            BitmapData bmpData = bmp.LockBits(rect, ImageLockMode.ReadWrite, bmp.PixelFormat);
+
+            // Get the address of the first line.
+            IntPtr ptr = bmpData.Scan0;
+
+            // Declare an array to hold the bytes of the bitmap.
+            int bytes = bmpData.Stride * bmp.Height;
+            byte[] rgbValues = new byte[bytes];
+
+            // Copy the RGB values into the array.
+            Marshal.Copy(ptr, rgbValues, 0, bytes);
+
+            // Scanning for non-zero bytes
+            bool allBlack = true;
+            for (int index = 0; index < rgbValues.Length; index++)
+                if (rgbValues[index] != 0)
+                {
+                    allBlack = false;
+                    break;
+                }
+            // Unlock the bits.
+            bmp.UnlockBits(bmpData);
+
+            return allBlack;
+        }*/
     }
 
 }

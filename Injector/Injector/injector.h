@@ -4,17 +4,16 @@
 #include <detours.h>
 #include <memory.h> 
 #include "pugixml.hpp"
+#include "../../InstallerAnalyzer1.1/Common/common.h"
 #pragma comment(lib, "detours.lib")
 
 void log(pugi::xml_node * element);
 
 PCHAR* CommandLineToArgvA(PCHAR CmdLine, int* _argc);
 
-void notifyNewPid(DWORD pid);
-
 BOOL setDebugPrivileges();
 
-BOOL HookAndInjectDCOMLauncher(const char* dllPath);
+BOOL HookAndInjectService(const char* dllPath, const char* serviceName);
 
 HANDLE RtlCreateUserThread(
 	HANDLE hProcess,
@@ -37,3 +36,7 @@ BOOL WINAPI MyDetourCreateProcessWithDll(LPCSTR lpApplicationName,
 
 bool isMsiFile(char* filepath);
 std::string getMsiexecPath();
+
+void notifyNewPid(PID_MESSAGE pm);
+
+BOOL StartSampleService(SC_HANDLE schSCManager, const char* serviceName, DWORD* processId);

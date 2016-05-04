@@ -1,6 +1,5 @@
 #include "stdafx.h"
 #include "dllmain.h"
-#include "../../InstallerAnalyzer1.1/Common/common.h"
 #include "HandleMap.h"
 
 /* Global variables. 
@@ -1700,7 +1699,10 @@ BOOL WINAPI MyCreateProcessInternalW(HANDLE hToken,
 		OutputDebugStringA("-----> INJECTOR: DLL copied into host process memory space");
 
 		// Notify the HostController that a new process has been created
-		notifyNewPid(cwHandle, lpProcessInformation->dwProcessId);
+		PID_MESSAGE msg;
+		msg.ppid = GetCurrentProcessId();
+		msg.pid = lpProcessInformation->dwProcessId;
+		notifyNewPid(cwHandle, msg);
 		kern32dllmod = GetModuleHandle(TEXT("kernel32.dll"));
 		HANDLE loadLibraryAddress = GetProcAddress(kern32dllmod, "LoadLibraryA");
 		if (loadLibraryAddress == NULL)
@@ -2335,14 +2337,14 @@ bool configureWindowName()
 	return true;
 }
 
-void notifyNewPid(HWND cwHandle, DWORD pid)
+void notifyNewPid(HWND cwHandle, PID_MESSAGE pm)
 {
 	DWORD res = 0;
 	COPYDATASTRUCT ds;
 
 	ds.dwData = COPYDATA_PROC_SPAWNED;
-	ds.cbData = sizeof(DWORD);
-	ds.lpData = (PVOID)&pid;
+	ds.cbData = sizeof(PID_MESSAGE);
+	ds.lpData = (PVOID)&pm;
 
 	// Send message...
 	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);

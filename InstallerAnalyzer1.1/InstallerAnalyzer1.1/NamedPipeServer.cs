@@ -105,7 +105,7 @@ namespace InstallerAnalyzer1_Guest
             
             // Allocate a buffer that can contain the message expected from the client. 
             // Our client will send to use simple 2-DWORDs data, and a DWORD is mapped to uint in CLR.
-            byte[] buff = new byte[sizeof(uint)*2];
+            byte[] buff = new byte[sizeof(uint)*3];
             while (_shouldRun)
             {
                 _running = true;
@@ -130,6 +130,7 @@ namespace InstallerAnalyzer1_Guest
                     // Unmarshal data and get both the pid and the event number.
                     uint pid = (uint)BitConverter.ToUInt32(buff, 0);
                     uint evt = (uint)BitConverter.ToUInt32(buff, sizeof(uint));
+                    uint currentPid = (uint)BitConverter.ToUInt32(buff, 2 * sizeof(uint));
 
                     if (pid == uint.MaxValue) { 
                         // This means that someone has dediced to stop. No need to anwer, just quit.
@@ -138,7 +139,7 @@ namespace InstallerAnalyzer1_Guest
 
                     // Now notify our ProgramLogger and when done, send an ACK
                     if (evt == DCOM_PROCESS_SPAWNING)
-                        ProgramStatus.Instance.AddPid(pid);
+                        ProgramStatus.Instance.AddPid(currentPid, pid);
                     else if (evt == DCOM_PROCESS_EXITING)
                         ProgramStatus.Instance.RemovePid(pid);
                     

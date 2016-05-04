@@ -196,6 +196,10 @@ namespace InstallerAnalyzer1_Guest
 
                 // Done!
             }
+            catch (Exception e) {
+                Console.WriteLine("Error occurred while reporting work: " + e.Message + ". Trace: " + e.StackTrace);
+                throw e;
+            }
             finally
             {
                 client.Close();
@@ -286,6 +290,7 @@ namespace InstallerAnalyzer1_Guest
                 catch (ArgumentException e) { 
                     // The process is dead. Remove it from the list of monitored ones.
                     Console.WriteLine("AreProcsFinished: Process " + ((int)p) + " may be dead. Skipping.");
+                    ProgramStatus.Instance.RemovePid(p);
                 }
             }
 
@@ -350,7 +355,7 @@ namespace InstallerAnalyzer1_Guest
                     // Otherwise we have a window on the foreground. 
                     Console.WriteLine("UI Bot: Stable hWND " + waitingWindnow.Handle.ToString("X") + ", loc: " + waitingWindnow.WindowLocation.ToString());
                     
-                    SaveStableScreen(waitingWindnow, c);
+                    //SaveStableScreen(waitingWindnow, c);
 
                     // Analyze the window and build the controls rank.
                     Console.WriteLine("UI Bot: Analyze Window (PID: " + proc.Process.Id + ", HWND: " + waitingWindnow.Handle + ", TITLE: " + waitingWindnow.Title + ") " + "Interaction: " + c);
@@ -398,7 +403,7 @@ namespace InstallerAnalyzer1_Guest
                             }
 
                             // Save a screenshot with interaction information for debugging and reporting
-                            SaveInteractionScreen(waitingWindnow, candidate, c);
+                            SaveInteractionScreen(waitingWindnow, w, candidate, c);
                             candidate.Interact();
                             c++;
 
@@ -617,7 +622,14 @@ namespace InstallerAnalyzer1_Guest
             }
         }
 
-        private bool SaveInteractionScreen(Window waitingWindnow, UIControlCandidate candidate, int c)
+
+        private static readonly Font scoreFont = new Font(FontFamily.GenericSansSerif, 10.0F, FontStyle.Bold);
+        private static readonly Brush whiteBrush = new SolidBrush(Color.White);
+        private static readonly Brush secondChoiceScoreBrush = new SolidBrush(Color.Blue);
+        private static readonly Pen secondChoicePen = new Pen(Color.Blue, 3);
+        private static readonly Pen markerPen = new Pen(Color.Red, 5);
+        private static readonly Brush firstChoiceScoreBrush = new SolidBrush(Color.Red);
+        private bool SaveInteractionScreen(Window waitingWindnow, CandidateSet w, UIControlCandidate candidate, int c)
         {
             try
             {
@@ -628,13 +640,35 @@ namespace InstallerAnalyzer1_Guest
 
                     using (Graphics g = Graphics.FromImage(b))
                     {
-                        using (Pen markerPen = new Pen(Color.Red, 5))
-                            g.DrawRectangle(markerPen, candidate.PositionWindowRelative);
-                    }
+                        string text = "";
+                        var size = new SizeF();
+                        var rect = new RectangleF();
+                        // Draw the candidate set
+                        foreach (var item in w)
+                        {
+                            text = "" + item.Score;
+                            g.DrawRectangle(secondChoicePen, item.PositionWindowRelative);
+                            size = g.MeasureString(text, scoreFont);
+                            rect = new RectangleF(item.PositionWindowRelative.X, item.PositionWindowRelative.Y - scoreFont.Height, size.Width, size.Height);
+                            g.FillRectangle(whiteBrush, rect);
+                            g.DrawString(text, scoreFont, secondChoiceScoreBrush, item.PositionWindowRelative.X, item.PositionWindowRelative.Y-scoreFont.Height);
+                        }
+                            
+                        // Darw the selected one
+                        g.DrawRectangle(markerPen, candidate.PositionWindowRelative);
+                        text ="" + candidate.Score;
+                        g.DrawRectangle(secondChoicePen, candidate.PositionWindowRelative);
+                        size = g.MeasureString(text, scoreFont);
+                        rect = new RectangleF(candidate.PositionWindowRelative.X, candidate.PositionWindowRelative.Y - scoreFont.Height, size.Width, size.Height);
+                        g.FillRectangle(whiteBrush, rect);
+                        g.DrawString(text, scoreFont, firstChoiceScoreBrush, candidate.PositionWindowRelative.X, candidate.PositionWindowRelative.Y-scoreFont.Height);
+                        
 
-                    string fname = Path.Combine(Settings.Default.INTERACTIONS_SCREEN_PATH, c + ".bmp");
-                    b.Save(fname);
-                    return true;
+                        string fname = Path.Combine(Settings.Default.INTERACTIONS_SCREEN_PATH, c + ".bmp");
+                        b.Save(fname);
+                        return true;
+                        
+                    }
                 }
             }
             catch (Exception e)
@@ -770,6 +804,7 @@ namespace InstallerAnalyzer1_Guest
                     }
                     catch (Exception e) { 
                         // The process may already be dead. Ignore it.
+                        Console.WriteLine("Error: " + e.Message);
                     }
                 }
 
@@ -817,6 +852,40 @@ namespace InstallerAnalyzer1_Guest
             Console.WriteLine("TimeoutWatcher: TIMEOUT EXPIRED");
             _interactionTimer.Stop();
             Program.SetTimeoutExpired();
+
+            // Kill everything
+            try
+            {
+                // TODO: for some reason this is not working.
+                var pids = ProgramStatus.Instance.Pids;
+                foreach (var p in pids)
+                {
+                    try
+                    {
+                        Console.WriteLine("TimeoutWatcher: Killing child process with pid " + p);
+                        var child = Process.GetProcessById((int)p);
+                        child.Kill();
+                        // Wait 3 seconds before going with the next one.
+                        child.WaitForExit(3000);
+                        Console.WriteLine("TimeoutWatcher: Killed child process with pid " + child.Id);
+                    }
+                    catch (InvalidOperationException ex) {
+                        Console.WriteLine("TimeoutWatcher: Cannot kill " + p+". Process may be already exited. "+ex.Message);
+                        // According to the MSDN this happens when the process we want to terminate is already gone.
+                        ProgramStatus.Instance.RemovePid(p);
+                    }
+                    catch (Exception ex)
+                    {
+                        // The process may already be dead. Ignore it.
+                        Console.WriteLine("TimeoutWatcher: Cannot kill " + p + ". " + ex.Message);
+                    }
+                }
+            }
+            catch (Exception ex) { 
+                // Do nothing
+                Console.WriteLine("TimeoutWatcher: Error occurred. " + ex.Message);
+            }
+
         }
         
         private List<string> CheckNewPrograms() {
@@ -889,6 +958,10 @@ namespace InstallerAnalyzer1_Guest
             uiResult.AppendChild(uiResultValue);
             uiResult.AppendChild(uiResultDescription);
             result.AppendChild(uiResult);
+
+            // Process hierarchy
+            var procHierarchy = ProgramStatus.Instance.ProcHierarchy.GetHierarchy(log.OwnerDocument);
+            result.AppendChild(procHierarchy);
 
             // Regsitry access
             var regAccess = log.OwnerDocument.CreateElement("RegistryAccess");
@@ -1363,8 +1436,9 @@ namespace InstallerAnalyzer1_Guest
         /// <returns>Guessed hWND of the UI Window, or IntPtr.Zero if no window can be found.</returns>
         private IntPtr GetProcUIWindowHandle()
         {
-            // Check if we have a foreground window owned by anyone of our processes
             var mypids = ProgramStatus.Instance.Pids;
+            /*
+            // Check if we have a foreground window owned by anyone of our processes
             var foreground = NativeMethods.GetForegroundWindow();
             uint processId = 0;
             GetWindowThreadProcessId(foreground, out processId);
@@ -1373,7 +1447,7 @@ namespace InstallerAnalyzer1_Guest
                     // This is our main window!
                     return foreground;
                 }
-            }
+            }*/
 
             // Proceed using AutomationElement, maybe we find something more.
             AutomationElement winner = null;

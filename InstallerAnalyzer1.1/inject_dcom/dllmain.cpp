@@ -170,9 +170,10 @@ void notifyPidEvent(DWORD pid, DWORD evt){
 	bool ok = false;
 	char buff[512];
 
-	DWORD info[2];
+	DWORD info[3];
 	info[0] = pid;
 	info[1] = evt;
+	info[2] = GetCurrentProcessId();  // It is very ugly but it is a quick fix for the moment. Time is running out!
 
 	while (!connected && attempts<5){
 		// Connect to the named pipe

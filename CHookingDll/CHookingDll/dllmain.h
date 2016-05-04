@@ -15,6 +15,8 @@
 #include <sstream>
 #include <detours.h>
 
+#include "../../InstallerAnalyzer1.1/Common/common.h"
+
 // Windows UNICODE PAIN
 #ifdef UNICODE
 typedef std::wstring string;
@@ -268,7 +270,7 @@ void from_unicode_to_wstring(PUNICODE_STRING u, std::wstring* w);
 /* Messages functions */
 void log(pugi::xml_node *element);
 bool configureWindowName();
-void notifyNewPid(HWND cwHandle, DWORD pid);
+void notifyNewPid(HWND cwHandle, PID_MESSAGE pm);
 void notifyRemovedPid(HWND cwHandle, DWORD pid);
 void NotifyFileAccess(std::wstring fullPath, const int AccessMode);
 void NotifyRegistryAccess(std::wstring fullPath, const int AccessMode);
