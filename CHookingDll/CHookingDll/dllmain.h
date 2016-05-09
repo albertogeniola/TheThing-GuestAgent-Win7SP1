@@ -14,6 +14,7 @@
 #include "pugixml.hpp"
 #include <sstream>
 #include <detours.h>
+#include <mutex>          
 
 #include "../../InstallerAnalyzer1.1/Common/common.h"
 
@@ -268,13 +269,21 @@ void add_value_name(pugi::xml_node * element, PUNICODE_STRING ValueName);
 void from_unicode_to_wstring(PUNICODE_STRING u, std::wstring* w);
 
 /* Messages functions */
+HANDLE connectToPipe(DWORD index, char* pipeName);
+bool sendMessageToPipe(HANDLE hPipe, std::wstring msg);
+void disconnectPipe(HANDLE hPipe);
+void sendToLogPipe(pugi::xml_node* node);
+void sendToEventPipe(pugi::xml_node* node);
 void log(pugi::xml_node *element);
 bool configureWindowName();
-void notifyNewPid(HWND cwHandle, PID_MESSAGE pm);
+void notifyNewPid(DWORD parentPid, DWORD childPid);
 void notifyRemovedPid(HWND cwHandle, DWORD pid);
-void NotifyFileAccess(std::wstring fullPath, const int AccessMode);
-void NotifyRegistryAccess(std::wstring fullPath, const int AccessMode);
+void NotifyFileAccess(std::wstring fullPath, const wchar_t* mode);
+void NotifyRegistryAccess(std::wstring fullPath, const wchar_t* mode);
 void NotifyFileRename(std::wstring oldPath, std::wstring newPath);
+void incHookingDepth();
+void decHookingDepth();
+bool shouldIntercept();
 
 const DWORD WRITE_FLAGS[] = { 
 	FILE_WRITE_DATA,

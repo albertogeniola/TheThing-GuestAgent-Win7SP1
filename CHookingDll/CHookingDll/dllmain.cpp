@@ -14,6 +14,10 @@ HMODULE wsmod;
 HMODULE ws2mod;
 HandleMap handleMap;
 
+// Index of TLS used by threads in order to retrieve the hooking count.
+// This has to be global so that any thread in this Process can refer to that.
+static DWORD dwTlsIndex; 
+
 /*
  * This is the Main DLL Entry. Detours will execute this code after the DLL has been injected.
  * In this function we will get real function addresses and store them into relatives static
@@ -41,8 +45,14 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		break;
 	case DLL_PROCESS_ATTACH:
 		
+		// Initialize the TLS index. Every allocated slot is guaranteed to be initialized to 0. So we don't need to initialize them.
+		if ((dwTlsIndex = TlsAlloc()) == TLS_OUT_OF_INDEXES)
+			return FALSE;
+
 		tmplog.append(_T("Attached to process"));
 		tmplog.append(to_string(GetCurrentProcessId()));
+
+		DisableThreadLibraryCalls(hDLL);
 
 		//wsprintf(msgbuf, _T("Attached to process %d."), GetCurrentProcessId());
 		OutputDebugString(tmplog.c_str());
@@ -74,35 +84,11 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		realNtTerminateProcess = (pNtTerminateProcess)(GetProcAddress(ntdllmod, "NtTerminateProcess"));
 		realNtClose = (pNtClose)(GetProcAddress(ntdllmod, "NtClose"));
 		
-		/*
-		// TODO: needed if hooking internal??
-		realCreateProcessA = (pCreateProcessA)(GetProcAddress(kern32dllmod, "CreateProcessA"));
-		realCreateProcessW = (pCreateProcessA)(GetProcAddress(kern32dllmod, "CreateProcessW"));
-		*/
 		realCreateProcessInternalW = (pCreateProcessInternalW)(GetProcAddress(kern32dllmod, "CreateProcessInternalW"));
 		//realCreateProcessInternalA = (pCreateProcessInternalA)(GetProcAddress(kern32dllmod, "CreateProcessInternalA"));
 
 		realNtQueryInformationProcess = (pNtQueryInformationProcess)(GetProcAddress(ntdllmod, "NtQueryInformationProcess"));
 		realExitProcess = (pExitProcess)ExitProcess;
-		/*
-		// WinSock 1
-		realConnect = (pConnect)(GetProcAddress(wsmod, "connect"));
-		realSend = (pSend)(GetProcAddress(wsmod, "send"));
-		// WinSock 2
-		realWSARecv = (pWSARecv)(GetProcAddress(ws2mod, "WSARecv"));
-		realWSASend = (pWSASend)(GetProcAddress(ws2mod, "WSASend"));
-		realWSAConnect = (pWSAConnect)(GetProcAddress(ws2mod,"WSAConnect"));
-		realWSAConnectByName = (pWSAConnectByName)(GetProcAddress(ws2mod, "WSAConnectByName"));
-		*/
-
-		// Read from shared memory the name of the window to send message to
-		if (!configureWindowName())
-		{
-			OutputDebugString(_T("It was impossible to read get the window name to which send messages."));
-			return FALSE;
-		}
-		
-		DisableThreadLibraryCalls(hDLL);
 		
 		// Hook the functions now!
 		// NtCreateFile
@@ -278,37 +264,6 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		else
 			OutputDebugString(_T("NtClose successfully"));
 
-		/*
-		// CreateProcessA
-		DetourTransactionBegin();
-		DetourUpdateThread(GetCurrentThread());
-		DetourAttach(&(PVOID&)realCreateProcessA, MyCreateProcessA);
-		if (DetourTransactionCommit() != NO_ERROR)
-			OutputDebugString(_T("CreateProcessA not derouted correctly"));
-		else
-			OutputDebugString(_T("CreateProcessA successful"));
-
-		// CreateProcessW
-		DetourTransactionBegin();
-		DetourUpdateThread(GetCurrentThread());
-		DetourAttach(&(PVOID&)realCreateProcessW, MyCreateProcessW);
-		if (DetourTransactionCommit() != NO_ERROR)
-			OutputDebugString(_T("CreateProcessW not derouted correctly"));
-		else
-			OutputDebugString(_T("CreateProcessW successful"));
-		*/
-
-		/*
-		// CreateProcessInternalA
-		DetourTransactionBegin();
-		DetourUpdateThread(GetCurrentThread());
-		DetourAttach(&(PVOID&)realCreateProcessInternalA, MyCreateProcessInternalA);
-		if (DetourTransactionCommit() != NO_ERROR)
-			OutputDebugString(_T("CreateProcessInternalA not derouted correctly"));
-		else
-			OutputDebugString(_T("CreateProcessInternalA successful"));
-		*/
-
 		// CreateProcessInternalW
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
@@ -327,66 +282,9 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		else
 			OutputDebugString(_T("ExitProcess successful"));
 		
-
-
-		/*
-		// Winsock Connect
-		DetourTransactionBegin();
-		DetourUpdateThread(GetCurrentThread());
-		DetourAttach(&(PVOID&)realConnect, MyConnect);
-		if (DetourTransactionCommit() != NO_ERROR)
-			OutputDebugString(_T("Winsock Connect not derouted correctly"));
-		else
-			OutputDebugString(_T("Winsock Connect derouted successfully"));
-
-		// Winsock2 WSAConnect
-		DetourTransactionBegin();
-		DetourUpdateThread(GetCurrentThread());
-		DetourAttach(&(PVOID&)realWSAConnect, MyWSAConnect);
-		if (DetourTransactionCommit() != NO_ERROR)
-			OutputDebugString(_T("Winsock2 WSAConnect not derouted correctly"));
-		else
-			OutputDebugString(_T("Winsock2 WSAConnect derouted successfully"));
-
-		// Winsock2 WSAConnectByName
-		DetourTransactionBegin();
-		DetourUpdateThread(GetCurrentThread());
-		DetourAttach(&(PVOID&)realWSAConnectByName, MyWSAConnectByName);
-		if (DetourTransactionCommit() != NO_ERROR)
-			OutputDebugString(_T("Winsock2 WSAConnectByName not derouted correctly"));
-		else
-			OutputDebugString(_T("Winsock2 WSAConnectByName derouted successfully"));
-
-		// Winsock2 WSASend
-		DetourTransactionBegin();
-		DetourUpdateThread(GetCurrentThread());
-		DetourAttach(&(PVOID&)realWSASend, MyWSASend);
-		if (DetourTransactionCommit() != NO_ERROR)
-			OutputDebugString(_T("Winsock WSASend not derouted correctly"));
-		else
-			OutputDebugString(_T("Winsock WSASend derouted successfully"));
-
-		// Winsock2 WSARecv
-		DetourTransactionBegin();
-		DetourUpdateThread(GetCurrentThread());
-		DetourAttach(&(PVOID&)realWSARecv, MyWSARecv);
-		if (DetourTransactionCommit() != NO_ERROR)
-			OutputDebugString(_T("Winsock WSARecv not derouted correctly"));
-		else
-			OutputDebugString(_T("Winsock WSARecv derouted successfully"));
-
-		// Winsock Send
-		DetourTransactionBegin();
-		DetourUpdateThread(GetCurrentThread());
-		DetourAttach(&(PVOID&)realSend, MySend);
-		if (DetourTransactionCommit() != NO_ERROR)
-			OutputDebugString(_T("Winsock Send not derouted correctly"));
-		else
-			OutputDebugString(_T("Winsock Send derouted successfully"));
-		*/
+		notifyNewPid(0, GetCurrentProcessId());
 
 		break;
-
 	case DLL_PROCESS_DETACH:
 		OutputDebugString(_T("PROCESS DETACHED FROM DLL."));
 		
@@ -583,36 +481,6 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		else
 			OutputDebugString(_T("NtTerminateProcess detached successfully"));
 
-		/*
-		// CreateProcessA
-		DetourTransactionBegin();
-		DetourUpdateThread(GetCurrentThread());
-		DetourDetach(&(PVOID&)realCreateProcessA, MyCreateProcessA);
-		if (DetourTransactionCommit() != NO_ERROR)
-			OutputDebugString(_T("CreateProcessA not detached correctly"));
-		else
-			OutputDebugString(_T("CreateProcessA detached successfully"));
-
-		// CreateProcessW
-		DetourTransactionBegin();
-		DetourUpdateThread(GetCurrentThread());
-		DetourDetach(&(PVOID&)realCreateProcessW, MyCreateProcessW);
-		if (DetourTransactionCommit() != NO_ERROR)
-			OutputDebugString(_T("CreateProcessW not detached correctly"));
-		else
-			OutputDebugString(_T("CreateProcessW detached successfully"));
-		*/
-		/*
-		// CreateProcessInternalA
-		DetourTransactionBegin();
-		DetourUpdateThread(GetCurrentThread());
-		DetourDetach(&(PVOID&)realCreateProcessInternalA, MyCreateProcessInternalA);
-		if (DetourTransactionCommit() != NO_ERROR)
-			OutputDebugString(_T("CreateProcessInternalA not detached correctly"));
-		else
-			OutputDebugString(_T("CreateProcessInternalA detached successfully"));
-		*/
-
 		// CreateProcessInternalW
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
@@ -622,63 +490,6 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		else
 			OutputDebugString(_T("CreateProcessInternalW detached successfully"));
 
-		/*
-		// Sock connect
-		DetourTransactionBegin();
-		DetourUpdateThread(GetCurrentThread());
-		DetourDetach(&(PVOID&)realConnect, MyConnect);
-		if (DetourTransactionCommit() != NO_ERROR)
-			OutputDebugString(_T("Winsock Connect not detached correctly"));
-		else
-			OutputDebugString(_T("Winsock Connect detached successfully"));
-
-		// Sock2 WSAConnect
-		DetourTransactionBegin();
-		DetourUpdateThread(GetCurrentThread());
-		DetourDetach(&(PVOID&)realWSAConnect, MyWSAConnect);
-		if (DetourTransactionCommit() != NO_ERROR)
-			OutputDebugString(_T("Winsock2 WSAConnect not detached correctly"));
-		else
-			OutputDebugString(_T("Winsock2 WSAConnect detached successfully"));
-
-		// Sock2 WSAConnectByName
-		DetourTransactionBegin();
-		DetourUpdateThread(GetCurrentThread());
-		DetourDetach(&(PVOID&)realWSAConnectByName, MyWSAConnectByName);
-		if (DetourTransactionCommit() != NO_ERROR)
-			OutputDebugString(_T("Winsock2 WSAConnectByName not detached correctly"));
-		else
-			OutputDebugString(_T("Winsock2 WSAConnectByName detached successfully"));
-
-		// Sock2 WSARecv
-		DetourTransactionBegin();
-		DetourUpdateThread(GetCurrentThread());
-		DetourDetach(&(PVOID&)realWSARecv, MyWSARecv);
-		if (DetourTransactionCommit() != NO_ERROR)
-			OutputDebugString(_T("Winsock2 WSARecv not detached correctly"));
-		else
-			OutputDebugString(_T("Winsock2 WSARecv detached successfully"));
-
-
-		// Sock WSASend
-		DetourTransactionBegin();
-		DetourUpdateThread(GetCurrentThread());
-		DetourDetach(&(PVOID&)realWSASend, MyWSASend);
-		if (DetourTransactionCommit() != NO_ERROR)
-			OutputDebugString(_T("Winsock WSASend not detached correctly"));
-		else
-			OutputDebugString(_T("Winsock WSASend detached successfully"));
-
-		// Sock Send
-		DetourTransactionBegin();
-		DetourUpdateThread(GetCurrentThread());
-		DetourDetach(&(PVOID&)realSend, MySend);
-		if (DetourTransactionCommit() != NO_ERROR)
-			OutputDebugString(_T("Winsock Send not detached correctly"));
-		else
-			OutputDebugString(_T("Winsock Send detached successfully"));
-
-*/
 		break;
 	}
 
@@ -690,14 +501,18 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 */
 NTSTATUS WINAPI MyNtCreateFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, PIO_STATUS_BLOCK IoStatusBlock, PLARGE_INTEGER AllocationSize, ULONG FileAttributes, ULONG ShareAccess, ULONG CreateDisposition, ULONG CreateOptions, PVOID EaBuffer, ULONG EaLength)
 {
-	
+	if (!shouldIntercept())
+		return realNtCreateFile(FileHandle, DesiredAccess, ObjectAttributes, IoStatusBlock, AllocationSize, FileAttributes, ShareAccess, CreateDisposition, CreateOptions, EaBuffer, EaLength);
+
+	incHookingDepth();
+
 	// If the handle has write access, it is a good idea to calculate the hash before the attached thread changes the file itself.
 	// To do so, we send a message to the GuestController everytime we see an NtOpenFile with write access. The Guest controller
 	// will then try to open the file and store, in its report, the hash of the file before any modification. After that, the Guest
 	// controller will answer to the SendMessage and this thread will continue (yeah, SendMessage blocks until the sender eats the message from the pump).
 	string s = GetFullPathByObjectAttributes(ObjectAttributes);
 	if (IsRequestingWriteAccess(DesiredAccess))
-		NotifyFileAccess(s, COPYDATA_FILE_CREATED);
+		NotifyFileAccess(s, WK_FILE_CREATED);
 		
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtCreateFile(FileHandle, DesiredAccess, ObjectAttributes, IoStatusBlock, AllocationSize, FileAttributes, ShareAccess, CreateDisposition, CreateOptions, EaBuffer, EaLength);
@@ -762,18 +577,25 @@ NTSTATUS WINAPI MyNtCreateFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, PO
 
 	log(&element);
 
+	decHookingDepth();
+
 	return res;
 	
 }
 NTSTATUS WINAPI MyNtOpenFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, PIO_STATUS_BLOCK IoStatusBlock, ULONG ShareAccess, ULONG OpenOptions)
 {
+	if (!shouldIntercept())
+		return realNtOpenFile(FileHandle, DesiredAccess, ObjectAttributes, IoStatusBlock, ShareAccess, OpenOptions);
+
+	incHookingDepth();
+
 	// If the handle has write access, it is a good idea to calculate the hash before the attached thread changes the file itself.
 	// To do so, we send a message to the GuestController everytime we see an NtOpenFile with write access. The Guest controller
 	// will then try to open the file and store, in its report, the hash of the file before any modification. After that, the Guest
 	// controller will answer to the SendMessage and this thread will continue (yeah, SendMessage blocks until the sender eats the message from the pump).
 	string s = GetFullPathByObjectAttributes(ObjectAttributes);
 	if (IsRequestingWriteAccess(DesiredAccess))
-		NotifyFileAccess(s, COPYDATA_FILE_OPENED);
+		NotifyFileAccess(s, WK_FILE_OPENED);
 	
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtOpenFile(FileHandle, DesiredAccess, ObjectAttributes, IoStatusBlock, ShareAccess, OpenOptions);
@@ -821,15 +643,22 @@ NTSTATUS WINAPI MyNtOpenFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJ
 
 	log(&element);
 
+	decHookingDepth();
+
 	return res;
 }
 NTSTATUS WINAPI MyNtDeleteFile(POBJECT_ATTRIBUTES ObjectAttributes)
 {
+	if (!shouldIntercept())
+		return realNtDeleteFile(ObjectAttributes);
+
+	incHookingDepth();
+
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtDeleteFile(ObjectAttributes);
 
 	// Ok we notify our component only after the call has happened, so the GuestController will understand file has been deleted
-	NotifyFileAccess(GetFullPathByObjectAttributes(ObjectAttributes), COPYDATA_FILE_DELETED);
+	NotifyFileAccess(GetFullPathByObjectAttributes(ObjectAttributes), WK_FILE_DELETED);
 
 	// Use a node object to create the XML string: this will contain all information about the SysCall
 	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtDeleteFile"));
@@ -859,11 +688,18 @@ NTSTATUS WINAPI MyNtDeleteFile(POBJECT_ATTRIBUTES ObjectAttributes)
 
 	log(&element);
 
+	decHookingDepth();
+
 	return res;
 
 }
 NTSTATUS WINAPI MyNtOpenDirectoryObject(PHANDLE DirectoryObject, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes)
 {
+	if (!shouldIntercept())
+		return realNtOpenDirectoryObject(DirectoryObject, DesiredAccess, ObjectAttributes);
+
+	incHookingDepth();
+
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtOpenDirectoryObject(DirectoryObject, DesiredAccess, ObjectAttributes);
 
@@ -900,17 +736,24 @@ NTSTATUS WINAPI MyNtOpenDirectoryObject(PHANDLE DirectoryObject, ACCESS_MASK Des
 
 	log(&element);
 
+	decHookingDepth();
+
 	return res;
 }
 NTSTATUS WINAPI MyNtOpenKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes)
 {
+	if (!shouldIntercept())
+		return realNtOpenKey(KeyHandle, DesiredAccess, ObjectAttributes);
+
+	incHookingDepth();
+
 	// We need to notify the GuestController that this process is going to manipulate, somehow, this key. By sending a synch. notification
 	// before any operation happens on the key, we give a chance to the GuestController to retrieve the original value of the key before any
 	// change happens. When the process is done, the GuestController will compare original values with the final ones.
 	// For this reason we just need to notify it when we open Keys with write mode.
 	string s = GetFullPathByObjectAttributes(ObjectAttributes);
 	if (IsRequestingRegistryWriteAccess(DesiredAccess))
-		NotifyRegistryAccess(s, COPYDATA_KEY_OPEN);
+		NotifyRegistryAccess(s, WK_KEY_OPENED);
 
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtOpenKey(KeyHandle, DesiredAccess, ObjectAttributes);
@@ -947,14 +790,21 @@ NTSTATUS WINAPI MyNtOpenKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJEC
 
 	log(&element);
 
+	decHookingDepth();
+
 	return res;
 }
 NTSTATUS WINAPI MyNtCreateKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, ULONG TitleIndex, PUNICODE_STRING Class, ULONG CreateOptions, PULONG Disposition)
 {
+	if (!shouldIntercept())
+		return realNtCreateKey(KeyHandle, DesiredAccess, ObjectAttributes, TitleIndex, Class, CreateOptions, Disposition);
+
+	incHookingDepth();
+
 	// Notify the GuestController the process wants to create a key
 	string s = GetFullPathByObjectAttributes(ObjectAttributes);
 	if (IsRequestingRegistryWriteAccess(DesiredAccess))
-		NotifyRegistryAccess(s, COPYDATA_KEY_CREATED);
+		NotifyRegistryAccess(s, WK_KEY_CREATED);
 
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtCreateKey(KeyHandle, DesiredAccess, ObjectAttributes, TitleIndex, Class, CreateOptions, Disposition);
@@ -1012,10 +862,18 @@ NTSTATUS WINAPI MyNtCreateKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJ
 
 	log(&element);
 	
+	decHookingDepth();
+
 	return res;	
 }
 NTSTATUS WINAPI MyNtQueryKey(HANDLE KeyHandle, KEY_INFORMATION_CLASS KeyInformationClass, PVOID KeyInformation, ULONG Length, PULONG ResultLength)
 {
+
+	if (!shouldIntercept())
+		return realNtQueryKey(KeyHandle, KeyInformationClass, KeyInformation, Length, ResultLength);
+
+	incHookingDepth();
+
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtQueryKey(KeyHandle,KeyInformationClass,KeyInformation,Length,ResultLength);
 
@@ -1047,11 +905,18 @@ NTSTATUS WINAPI MyNtQueryKey(HANDLE KeyHandle, KEY_INFORMATION_CLASS KeyInformat
 
 	log(&element);
 
+	decHookingDepth();
+
 	return res;
 
 }
 NTSTATUS WINAPI MyNtDeleteKey(HANDLE KeyHandle)
 {
+	if (!shouldIntercept())
+		return realNtDeleteKey(KeyHandle);
+
+	incHookingDepth();
+
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtDeleteKey(KeyHandle);
 
@@ -1079,10 +944,17 @@ NTSTATUS WINAPI MyNtDeleteKey(HANDLE KeyHandle)
 
 	log(&element);
 
+	decHookingDepth();
+
 	return res;
 }
 NTSTATUS WINAPI MyNtDeleteValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName){
 	
+	if (!shouldIntercept())
+		return realNtDeleteValueKey(KeyHandle, ValueName);
+
+	incHookingDepth();
+
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtDeleteValueKey(KeyHandle, ValueName);
 
@@ -1113,10 +985,18 @@ NTSTATUS WINAPI MyNtDeleteValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName){
 	}
 
 	log(&element);
+
+	decHookingDepth();
+
 	return res;
 }
 NTSTATUS WINAPI MyNtEnumerateKey(HANDLE KeyHandle, ULONG Index, KEY_INFORMATION_CLASS KeyInformationClass, PVOID KeyInformation, ULONG Length, PULONG ResultLength)
 {
+	if (!shouldIntercept())
+		return realNtEnumerateKey(KeyHandle, Index, KeyInformationClass, KeyInformation, Length, ResultLength);
+
+	incHookingDepth();
+
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtEnumerateKey(KeyHandle,Index,KeyInformationClass,KeyInformation,Length,ResultLength);
 
@@ -1146,10 +1026,17 @@ NTSTATUS WINAPI MyNtEnumerateKey(HANDLE KeyHandle, ULONG Index, KEY_INFORMATION_
 
 	log(&element);
 
+	decHookingDepth();
+
 	return res;
 }
 NTSTATUS WINAPI MyNtEnumerateValueKey(HANDLE KeyHandle, ULONG Index, KEY_VALUE_INFORMATION_CLASS KeyValueInformationClass, PVOID KeyValueInformation, ULONG Length, PULONG ResultLength)
 {
+	if (!shouldIntercept())
+		return realNtEnumerateValueKey(KeyHandle, Index, KeyValueInformationClass, KeyValueInformation, Length, ResultLength);
+
+	incHookingDepth();
+
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtEnumerateValueKey(KeyHandle, Index, KeyValueInformationClass, KeyValueInformation, Length, ResultLength);
 
@@ -1181,10 +1068,17 @@ NTSTATUS WINAPI MyNtEnumerateValueKey(HANDLE KeyHandle, ULONG Index, KEY_VALUE_I
 	}
 
 	log(&element);
+	decHookingDepth();
+
 	return res;
 }
 NTSTATUS WINAPI MyNtLockFile(HANDLE FileHandle, HANDLE Event, PIO_APC_ROUTINE ApcRoutine, PVOID ApcContext, PIO_STATUS_BLOCK IoStatusBlock, PLARGE_INTEGER ByteOffset, PLARGE_INTEGER Length, ULONG Key, BOOLEAN FailImmediately, BOOLEAN ExclusiveLock)
 {
+	if (!shouldIntercept())
+		return realNtLockFile(FileHandle, Event, ApcRoutine, ApcContext, IoStatusBlock, ByteOffset, Length, Key, FailImmediately, ExclusiveLock);
+
+	incHookingDepth();
+
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtLockFile(FileHandle,Event,ApcRoutine,ApcContext,IoStatusBlock,ByteOffset,Length,Key,FailImmediately,ExclusiveLock);
 
@@ -1232,6 +1126,8 @@ NTSTATUS WINAPI MyNtLockFile(HANDLE FileHandle, HANDLE Event, PIO_APC_ROUTINE Ap
 
 	log(&element);
 
+	decHookingDepth();
+
 	return res;
 }
 /*
@@ -1274,6 +1170,9 @@ NTSTATUS WINAPI MyNtOpenProcess(PHANDLE ProcessHandle, ACCESS_MASK DesiredAccess
 */
 NTSTATUS WINAPI MyNtQueryDirectoryFile(HANDLE FileHandle, HANDLE Event, PIO_APC_ROUTINE ApcRoutine, PVOID ApcContext, PIO_STATUS_BLOCK IoStatusBlock, PVOID FileInformation, ULONG Length, FILE_INFORMATION_CLASS FileInformationClass, BOOLEAN ReturnSingleEntry, PUNICODE_STRING FileName, BOOLEAN RestartScan)
 {
+	if (!shouldIntercept())
+		return realNtQueryDirectoryFile(FileHandle, Event, ApcRoutine, ApcContext, IoStatusBlock, FileInformation, Length, FileInformationClass, ReturnSingleEntry, FileName, RestartScan);
+	incHookingDepth();
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtQueryDirectoryFile(FileHandle,Event,ApcRoutine, ApcContext, IoStatusBlock, FileInformation, Length,FileInformationClass,ReturnSingleEntry,FileName,RestartScan);
 
@@ -1306,11 +1205,14 @@ NTSTATUS WINAPI MyNtQueryDirectoryFile(HANDLE FileHandle, HANDLE Event, PIO_APC_
 	}
 
 	log(&element);
-
+	decHookingDepth();
 	return res;
 }
 NTSTATUS WINAPI MyNtQueryFullAttributesFile(POBJECT_ATTRIBUTES ObjectAttributes, PFILE_NETWORK_OPEN_INFORMATION FileInformation)
 {
+	if (!shouldIntercept())
+		return realNtQueryFullAttributesFile(ObjectAttributes, FileInformation);
+	incHookingDepth();
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtQueryFullAttributesFile(ObjectAttributes, FileInformation);
 
@@ -1338,11 +1240,14 @@ NTSTATUS WINAPI MyNtQueryFullAttributesFile(POBJECT_ATTRIBUTES ObjectAttributes,
 	}
 
 	log(&element);
-
+	decHookingDepth();
 	return res;
 }
 NTSTATUS WINAPI MyNtQueryValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName, KEY_VALUE_INFORMATION_CLASS KeyValueInformationClass, PVOID KeyValueInformation, ULONG Length, PULONG ResultLength)
 {
+	if (!shouldIntercept())
+		return realNtQueryValueKey(KeyHandle, ValueName, KeyValueInformationClass, KeyValueInformation, Length, ResultLength);
+	incHookingDepth();
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtQueryValueKey(KeyHandle, ValueName, KeyValueInformationClass, KeyValueInformation, Length, ResultLength);
 	
@@ -1377,12 +1282,14 @@ NTSTATUS WINAPI MyNtQueryValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName, K
 	}
 
 	log(&element);
-	
+	decHookingDepth();
 	return res;
 }
-
 NTSTATUS WINAPI MyNtSetInformationFile(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock, PVOID FileInformation, ULONG Length, FILE_INFORMATION_CLASS FileInformationClass)
 {
+	if (!shouldIntercept())
+		return realNtSetInformationFile(FileHandle, IoStatusBlock, FileInformation, Length, FileInformationClass);
+	incHookingDepth();
 	// _FILE_INFORMATION_CLASS::FileRenameInformation = 10 /*0xA*/
 	// FILE_INFORMATION_CLASS::FileRenameInformationBypassAccessCheck => only valid in kernel mode and for Windows 8. So we do not care about this right now.
 	bool isRename = (FileInformationClass == 0xA);
@@ -1422,7 +1329,7 @@ NTSTATUS WINAPI MyNtSetInformationFile(HANDLE FileHandle, PIO_STATUS_BLOCK IoSta
 
 		// The old path may be unknown for some reason (implementation bug?). In that case, simulate a create file behaviour, so we don't loose any info
 		if (!pathFound) {
-			NotifyFileAccess(newPath, COPYDATA_FILE_CREATED);
+			NotifyFileAccess(newPath, WK_FILE_CREATED);
 		}
 		else {
 			// Otherwise trigger a rename
@@ -1459,10 +1366,14 @@ NTSTATUS WINAPI MyNtSetInformationFile(HANDLE FileHandle, PIO_STATUS_BLOCK IoSta
 	}
 
 	log(&element);
+	decHookingDepth();
 	return res;
 }
 NTSTATUS WINAPI MyNtSetValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName, ULONG TitleIndex, ULONG Type, PVOID Data, ULONG DataSize)
 {
+	if (!shouldIntercept())
+		return realNtSetValueKey(KeyHandle, ValueName, TitleIndex, Type, Data, DataSize);
+	incHookingDepth();
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtSetValueKey(KeyHandle,ValueName,TitleIndex,Type,Data,DataSize);
 
@@ -1498,11 +1409,14 @@ NTSTATUS WINAPI MyNtSetValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName, ULO
 	}
 
 	log(&element);
-
+	decHookingDepth();
 	return res;
 }
 NTSTATUS WINAPI MyNtTerminateProcess(HANDLE ProcessHandle, NTSTATUS ExitStatus)
 {
+	if (!shouldIntercept())
+		return realNtTerminateProcess(ProcessHandle, ExitStatus);
+	incHookingDepth();
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtTerminateProcess(ProcessHandle,ExitStatus);
 
@@ -1528,12 +1442,14 @@ NTSTATUS WINAPI MyNtTerminateProcess(HANDLE ProcessHandle, NTSTATUS ExitStatus)
 	}
 
 	log(&element);
-
+	decHookingDepth();
 	return res;
 }
-
 NTSTATUS WINAPI MyNtClose(HANDLE Handle)
 {
+	if (!shouldIntercept())
+		return realNtClose(Handle);
+	incHookingDepth();
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtClose(Handle);
 	
@@ -1568,7 +1484,7 @@ NTSTATUS WINAPI MyNtClose(HANDLE Handle)
 	}
 
 	log(&element);
-	
+	decHookingDepth();
 	return res;
 }
 
@@ -1676,10 +1592,10 @@ BOOL WINAPI MyCreateProcessInternalW(HANDLE hToken,
 	LPPROCESS_INFORMATION lpProcessInformation,
 	PHANDLE hNewToken)
 {
-	//return realCreateProcessInternalW(hToken, lpApplicationName, lpCommandLine, lpProcessAttributes, lpThreadAttributes, bInheritHandles, dwCreationFlags, lpEnvironment, lpCurrentDirectory, lpStartupInfo, lpProcessInformation, hNewToken);
-
+	if (!shouldIntercept())
+		return realCreateProcessInternalW(hToken, lpApplicationName, lpCommandLine, lpProcessAttributes, lpThreadAttributes, bInheritHandles, dwCreationFlags, lpEnvironment, lpCurrentDirectory, lpStartupInfo, lpProcessInformation, hNewToken);
+	incHookingDepth();
 	// This is the API that gets eventually called by all the others. Ansi params get converted into wide characters, so the A version is useless.
-	
 	CHAR   DllPath[MAX_PATH] = { 0 };
 	OutputDebugString(_T("MyCreateProcessInternalW"));
 	GetModuleFileNameA((HINSTANCE)&__ImageBase, DllPath, _countof(DllPath));
@@ -1699,10 +1615,7 @@ BOOL WINAPI MyCreateProcessInternalW(HANDLE hToken,
 		OutputDebugStringA("-----> INJECTOR: DLL copied into host process memory space");
 
 		// Notify the HostController that a new process has been created
-		PID_MESSAGE msg;
-		msg.ppid = GetCurrentProcessId();
-		msg.pid = lpProcessInformation->dwProcessId;
-		notifyNewPid(cwHandle, msg);
+		notifyNewPid(GetCurrentProcessId(), lpProcessInformation->dwProcessId);
 		kern32dllmod = GetModuleHandle(TEXT("kernel32.dll"));
 		HANDLE loadLibraryAddress = GetProcAddress(kern32dllmod, "LoadLibraryA");
 		if (loadLibraryAddress == NULL)
@@ -1759,7 +1672,7 @@ BOOL WINAPI MyCreateProcessInternalW(HANDLE hToken,
 
 
 	log(&element);
-
+	decHookingDepth();
 	return processCreated;
 	
 }
@@ -1767,133 +1680,270 @@ BOOL WINAPI MyCreateProcessInternalW(HANDLE hToken,
 
 VOID WINAPI MyExitProcess(UINT uExitCode)
 {
+	if (!shouldIntercept())
+		return realExitProcess(uExitCode);
+	incHookingDepth();
+	
 	// We hook this to let the GuestController know about our intention to terminate
 	notifyRemovedPid(cwHandle, GetCurrentProcessId());
-	return realExitProcess(uExitCode);
+	
+	decHookingDepth();
+	realExitProcess(uExitCode);
 }
 
-/*
-// Winsock
-int WINAPI MySend(SOCKET s, const char *buf, int len, int flags)
-{
-	//OutputDebugString(_T("SEEEEEND!"));
-	return realSend(s, buf, len, flags);
+
+void incHookingDepth() {
+	DWORD depth = (DWORD)TlsGetValue(dwTlsIndex);
+	depth++;
+	TlsSetValue(dwTlsIndex, (LPVOID)depth);
 }
 
-int WINAPI MyWSAConnect(SOCKET s, const struct sockaddr* name, int namelen, LPWSABUF lpCallerData, LPWSABUF lpCalleeData, LPQOS lpSQOS, LPQOS lpGQOS)
-{
-	OutputDebugString(_T("WSAConnect!!!!!"));
-	return realWSAConnect(s, name, namelen, lpCallerData, lpCalleeData, lpSQOS, lpGQOS);
+void decHookingDepth() {
+	DWORD depth = (DWORD)TlsGetValue(dwTlsIndex);
+	depth--;
+	TlsSetValue(dwTlsIndex, (LPVOID)depth);
 }
 
-int WINAPI MyConnect(SOCKET s, const struct sockaddr* name, int namelen)
-{
-	OutputDebugString(_T("Connect!!!!!"));
-	return realConnect(s, name, namelen);
+bool shouldIntercept() {
+	DWORD depth = (DWORD)TlsGetValue(dwTlsIndex);
+	return depth == 0;
 }
 
-BOOL WINAPI MyWSAConnectByName(SOCKET s, LPTSTR nodename, LPTSTR servicename, LPDWORD LocalAddressLength, LPSOCKADDR LocalAddress, LPDWORD RemoteAddressLength, LPSOCKADDR RemoteAddress, const struct timeval *timeout, LPWSAOVERLAPPED Reserved)
-{
-	OutputDebugString(_T("MyWSAConnectByName!!!!!"));
-	return realWSAConnectByName(s, nodename,servicename, LocalAddressLength,LocalAddress, RemoteAddressLength, RemoteAddress, timeout, Reserved);
-}
-
-int WINAPI MyWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
-{
-	OutputDebugString(_T("WSAsend!!!!"));
-	return realWSASend(s, lpBuffers,dwBufferCount, lpNumberOfBytesSent, dwFlags, lpOverlapped, lpCompletionRoutine);
-}
-
-int WINAPI MyWSARecv(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesRecvd, LPDWORD lpFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
-{
-	OutputDebugString(_T("WSARecv!!!!"));
-	return realWSARecv(s,lpBuffers,dwBufferCount,lpNumberOfBytesRecvd,lpFlags,lpOverlapped,lpCompletionRoutine);
-}
-*/
 extern "C" __declspec(dllexport)VOID NullExport(VOID)
 {
 }
 
 
-void NotifyFileAccess(std::wstring fullPath, const int AccessMode) {
+void NotifyFileAccess(std::wstring fullPath, const wchar_t* mode) {
 	
-	COPYDATASTRUCT ds;
-		
-	ds.dwData = AccessMode;
-	ds.cbData = fullPath.length()*sizeof(wchar_t);
-	ds.lpData = (PVOID)fullPath.c_str();
-	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);
+	pugi::xml_document doc;
+	pugi::xml_node element = doc.append_child(WK_FILE_EVENT);
+	element.addAttribute(WK_FILE_EVENT_MODE, mode);
+	element.addAttribute(WK_FILE_EVENT_PATH, fullPath.c_str());
+
+	sendToEventPipe(&element);
+
 }
 
 void NotifyFileRename(std::wstring oldPath, std::wstring newPath) {
+	
+	pugi::xml_document doc;
+	pugi::xml_node element = doc.append_child(WK_FILE_EVENT);
+	element.addAttribute(WK_FILE_EVENT_MODE, WK_FILE_RENAMED);
+	element.addAttribute(WK_FILE_EVENT_OLD_PATH, oldPath.c_str());
+	element.addAttribute(WK_FILE_EVENT_NEW_PATH, newPath.c_str());
 
-	COPYDATASTRUCT ds;
-	rename_file_info data;
-
-	// Fill in data: that will be the struct sent to the Guest Controller
-	oldPath.copy(data.oldPath, PATH_MAX_LEN, 0);
-	data.oldPath[oldPath.length()] = '\0';
-
-	newPath.copy(data.newPath, PATH_MAX_LEN, 0);
-	data.newPath[newPath.length()] = '\0';
-
-	ds.dwData = COPYDATA_FILE_RENAMED;
-	ds.cbData = sizeof(rename_file_info);
-	ds.lpData = &data;
-
-	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);
+	sendToEventPipe(&element);
 }
 
-void NotifyRegistryAccess(std::wstring fullPath, const int AccessMode) {
+void NotifyRegistryAccess(std::wstring fullPath, const wchar_t* mode) {
 
-	COPYDATASTRUCT ds;
+	pugi::xml_document doc;
+	pugi::xml_node element = doc.append_child(WK_REGISTRY_EVENT);
+	element.addAttribute(WK_REGISTRY_EVENT_MODE, mode);
+	element.addAttribute(WK_REGISTRY_EVENT_PATH, fullPath.c_str());
 
-	ds.dwData = AccessMode;
-	ds.cbData = fullPath.length()*sizeof(wchar_t);
-	ds.lpData = (PVOID)fullPath.c_str();
-	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);
+	sendToEventPipe(&element);
+
 }
 
-void log(pugi::xml_node *element)
-{
-	DWORD res = 0;
-	COPYDATASTRUCT ds;
 
+void log(pugi::xml_node *element) {
+	
 	element->append_attribute(_T("ThreadId")) = to_string(GetCurrentThreadId()).c_str();
 	element->append_attribute(_T("PId")) = to_string(GetCurrentProcessId()).c_str();
 
-	/*
-	std::wstringstream ss;
-	element->print(ss, _T(""), pugi::format_no_declaration|pugi::format_raw);
-	
-	
-	// Create a string and copy your document data in to the string    
-	string str = ss.str();
+	// We have now to send the data on using the named pipe.
+	try{
+		sendToLogPipe(element);
+	}
+	catch (int e) {
+	}
+}
 
-	ds.dwData = 0;
-	ds.cbData = str.size()*sizeof(wchar_t);
-	ds.lpData = (wchar_t*)str.c_str();
-		
-	// Send message...
-	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);
-	*/
 
-	// We use a wchart_t type for buffer
+HANDLE connectToPipe(char* pipeName) {
+	char buff[512];
+	bool firstConnection = false;
+	HANDLE pipeh = INVALID_HANDLE_VALUE;
+
+	// Check if the handle has been already initialized.
+	while (pipeh == INVALID_HANDLE_VALUE) {
+		// The pipe is disconnected, we need to connect.
+		firstConnection = true;
+		pipeh = CreateFileA(
+			pipeName,   // pipe name 
+			GENERIC_READ |  // read and write access 
+			GENERIC_WRITE,
+			0,              // no sharing 
+			NULL,           // default security attributes
+			OPEN_EXISTING,  // opens existing pipe 
+			0,              // default attributes 
+			NULL);          // no template file 
+
+		if (pipeh != INVALID_HANDLE_VALUE) {
+			break;
+		}
+		DWORD error = GetLastError();
+		// If the error is different from PIPE_BUSY, we have to give up and return
+		if (error != ERROR_PIPE_BUSY)
+		{
+			// An error has occurred
+			sprintf_s(buff, "[CHOOKING DLL] Cannot open pipe %s. Error %u XXXX", pipeName, error);
+			OutputDebugStringA(buff);
+			return INVALID_HANDLE_VALUE;
+		}
+
+		// If the control reaches this point, it means all the pipe instances are busy. Wait up to 20 seconds and try again.
+		if (!WaitNamedPipeA(pipeName, NMPWAIT_WAIT_FOREVER))
+		{
+			sprintf_s(buff, "[CHOOKING DLL] Timeout waiting for pipe %s. Giving up.", pipeName);
+			OutputDebugStringA(buff);
+			return INVALID_HANDLE_VALUE;
+		}
+	}
 	
-	std::wostringstream ss;
-	element->print(ss, _T(""), pugi::format_no_declaration | pugi::format_raw,pugi::xml_encoding::encoding_utf16_le);
+	// The pipe connected; change to message-read mode. 
+	DWORD dwMode = PIPE_READMODE_MESSAGE;
+	if (!SetNamedPipeHandleState(
+		pipeh,    // pipe handle 
+		&dwMode,  // new pipe mode 
+		NULL,     // don't set maximum bytes 
+		NULL))    // don't set maximum time 
+	{
+		DWORD error = GetLastError();
+		// An error has occurred
+		sprintf_s(buff, "[CHOOKING DLL] Cannot set message mode on pipe %s. Error %u XXXX", pipeName, error);
+		OutputDebugStringA(buff);
+		return INVALID_HANDLE_VALUE;
+	}
 	
-	std::wstring s = ss.str();
-	const wchar_t* str = s.c_str();
-
-	ds.dwData = COPYDATA_LOG;
-	ds.cbData = s.length()*sizeof(wchar_t); 
-	ds.lpData = (PVOID)str;
-
-	// Send message...
-	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);
+	// At this point we are sure the pipe is connected and read for messages
+	return pipeh;
 	
 }
+
+bool sendMessageToPipe(HANDLE hPipe, std::wstring msg) {
+	char buff[512];
+	DWORD ack;
+	DWORD read;
+	BOOL fSuccess;
+	DWORD wrt;
+	DWORD rd;
+	// Dimension of the string to send
+	const wchar_t* str = msg.c_str();
+	DWORD bytelen = sizeof(wchar_t)* msg.size();
+	
+	// Write data to the pipe
+	if (!WriteFile(
+		hPipe,          // pipe handle 
+		str,            // message 
+		bytelen,        // message length 
+		&wrt,           // bytes written 
+		NULL))          // not overlapped 
+	{
+		DWORD error = GetLastError();
+		// An error has occurred
+		sprintf_s(buff, "[CHOOKING DLL] Cannot write on pipe (handle %u). Error %u XXXX", hPipe, error);
+		OutputDebugStringA(buff);
+		return false;
+	}
+
+	// Message has been sent, receive the ack
+	fSuccess = ReadFile(
+		hPipe,			// pipe handle 
+		&ack,			// buffer to receive reply 
+		sizeof(DWORD),  // size of buffer 
+		&rd,			// number of bytes read 
+		NULL);			// not overlapped 
+
+	if (!fSuccess && GetLastError() != ERROR_MORE_DATA) {
+		return false;
+	}
+	
+	return true;
+}
+
+void disconnectPipe(HANDLE hPipe) {
+	CloseHandle(hPipe);
+}
+
+void sendToLogPipe(pugi::xml_node* node){
+	HANDLE pipe;
+	bool done = false;
+	int attempts = 0;
+
+	// We use a wchart_t type for buffer
+	std::wostringstream ss;
+	node->print(ss, _T(""), pugi::format_raw, pugi::xml_encoding::encoding_utf16_le);
+	std::wstring s = ss.str();
+
+	while (!done) {
+		pipe = connectToPipe(LOG_PIPE);
+		if (pipe != INVALID_HANDLE_VALUE) {
+			done = sendMessageToPipe(pipe, s);
+			disconnectPipe(pipe);
+			attempts++;
+		}
+		else {
+			// We had a severe error and we cannot try again.
+			break;
+		}
+	}
+
+	if (done) {
+		if (attempts > 1) {
+			char buff[512];
+			sprintf_s(buff, "[CHOOKING DLL] Sending message on LOG PIPE required %d attempts.", attempts);
+			OutputDebugStringA(buff);
+		}
+	} else {
+		// In case of failure let it be known
+		char buff[512];
+		sprintf_s(buff, "[CHOOKING DLL] Sending message on LOG EVENT FAILED after %d attempts.", attempts);
+		OutputDebugStringA(buff);
+	}
+}
+
+void sendToEventPipe(pugi::xml_node* node) {
+	bool done = false;
+	HANDLE pipe;
+	int attempts = 0;
+
+	// We use a wchart_t type for buffer
+	std::wostringstream ss;
+	node->print(ss, _T(""), pugi::format_raw, pugi::xml_encoding::encoding_utf16_le);
+	std::wstring s = ss.str();
+
+	while (!done) {
+		pipe = connectToPipe(EVENT_PIPE);
+		if (pipe != INVALID_HANDLE_VALUE) {
+			done = sendMessageToPipe(pipe, s);
+			disconnectPipe(pipe);
+			attempts++;
+		}
+		else {
+			// We had a severe error and we cannot try again.
+			break;
+		}
+	}
+
+	if (done) {
+		// Only notify if we had delays
+		if (attempts > 1) {
+			char buff[512];
+			sprintf_s(buff, "[CHOOKING DLL] Sending message on EVENT PIPE required %d attempts.", attempts);
+			OutputDebugStringA(buff);
+		}
+	}
+	else {
+		// In case of failure let it be known
+		char buff[512];
+		sprintf_s(buff, "[CHOOKING DLL] Sending message on LOG EVENT FAILED after %d attempts.", attempts);
+		OutputDebugStringA(buff);
+	}
+}
+
 
 bool IsRequestingWriteAccess(ACCESS_MASK DesiredAccess) {
 	bool notification = false;
@@ -2318,49 +2368,37 @@ void from_unicode_to_wstring(PUNICODE_STRING u, string* w)
 	free(tmp);
 }
 
-bool configureWindowName()
+void notifyNewPid(DWORD parentPid, DWORD childPid)
 {
-	TCHAR buf[SHMEMSIZE];
-	buf[0] = '\0';
+	pugi::xml_document doc;
+	pugi::xml_node element = doc.append_child(WK_PROCESS_EVENT);
+	std::wstring s;
 
-	cwHandle = FindWindow(NULL, GUESTCONTROLLER_WINDOW_NAME);
+	element.addAttribute(WK_PROCESS_EVENT_TYPE, WK_PROCESS_EVENT_TYPE_SPAWNED);
+	s.clear();
 
-	if (cwHandle == NULL)
-	{
-		return false;
-	}
+	s.append(std::to_wstring(parentPid));
+	element.addAttribute(WK_PROCESS_EVENT_PARENT_PID, s.c_str());
+	s.clear();
 
-	_stprintf_s(buf, _T("Sending events to window name: %s"), GUESTCONTROLLER_WINDOW_NAME);
+	s.append(std::to_wstring(childPid));
+	element.addAttribute(WK_PROCESS_EVENT_PID, s.c_str());
 
-	OutputDebugString(buf);
-
-	return true;
-}
-
-void notifyNewPid(HWND cwHandle, PID_MESSAGE pm)
-{
-	DWORD res = 0;
-	COPYDATASTRUCT ds;
-
-	ds.dwData = COPYDATA_PROC_SPAWNED;
-	ds.cbData = sizeof(PID_MESSAGE);
-	ds.lpData = (PVOID)&pm;
-
-	// Send message...
-	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);
-
+	sendToEventPipe(&element);
 }
 
 void notifyRemovedPid(HWND cwHandle, DWORD pid)
 {
-	DWORD res = 0;
-	COPYDATASTRUCT ds;
+	pugi::xml_document doc;
+	pugi::xml_node element = doc.append_child(WK_PROCESS_EVENT);
+	std::wstring s;
 
-	ds.dwData = COPYDATA_PROC_DIED;
-	ds.cbData = sizeof(DWORD);
-	ds.lpData = (PVOID)&pid;
+	element.addAttribute(WK_PROCESS_EVENT_TYPE, WK_PROCESS_EVENT_TYPE_DEAD);
+	s.clear();
 
-	// Send message...
-	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);
+	s.append(std::to_wstring(pid));
+	element.addAttribute(WK_PROCESS_EVENT_PID, s.c_str());
+	
+	sendToEventPipe(&element);
 
 }
