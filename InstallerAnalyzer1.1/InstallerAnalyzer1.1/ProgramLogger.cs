@@ -92,6 +92,7 @@ namespace InstallerAnalyzer1_Guest
                     });
                 else
                     _output.AppendText("" + value);
+
         }
 
         public string GetLogFile() {

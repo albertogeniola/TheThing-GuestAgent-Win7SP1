@@ -9,49 +9,42 @@
 // According to the MSDN documentation, this is the maximum path length
 #define PATH_MAX_LEN 260
 
-// Constants used for IPC among our processes
-#define COPYDATA_LOG 0
-
-#define COPYDATA_PROC_SPAWNED 1
-#define COPYDATA_PROC_DIED 2
-
-#define COPYDATA_FILE_CREATED 3
-#define COPYDATA_FILE_DELETED 4
-#define COPYDATA_FILE_OPENED 5
-#define COPYDATA_FILE_RENAMED 6
-
-#define COPYDATA_KEY_CREATED 10
-#define COPYDATA_KEY_OPEN 11
 
 // Pipe constants
-#define PROC_SPAWNING 1
-#define PROC_EXITING 2
+#define EVENT_PIPE_TIMEOUT 20000 // Wait up to 20 seconds for event dispatching. Those are crucial and it is worth to wait if the GuestController is busy
+#define LOG_PIPE_TIMEOUT 3000
+#define EVENT_PIPE "\\\\.\\pipe\\wk_event_pipe"
+#define LOG_PIPE "\\\\.\\pipe\\wk_log_pipe"
 
-// Guest Controller window's name
-#ifdef UNICODE
-#define GUESTCONTROLLER_WINDOW_NAME L"WKWatcher"
-
-#else
-#define GUESTCONTROLLER_WINDOW_NAME "WKWatcher"
-#endif
-
-#define DCOM_HOOK_PIPE "\\\\.\\pipe\\dcom_hook_pipe"
 #define DLLPATH "C:\\GuestController\\CHookingDll.dll"
-#define DCOM_DLL_PATH "C:\\GuestController\\inject_dcom.dll"
 #define DCOM_LAUNCH_SERVICE_NAME "DcomLaunch"
 #define WINDOWS_INSTALLER_SERVICE_NAME "msiserver"
 
-#define DCOM_PROCESS_SPAWN_ACK 1
-#define DCOM_PROCESS_SPAWN_NACK 0
 
-typedef struct srename_file_info {
-	// Has to be null terminated!
-	wchar_t oldPath[PATH_MAX_LEN];
-	// Has to be null terminated!
-	wchar_t newPath[PATH_MAX_LEN];
-} rename_file_info;
+// Process Constants
+#define WK_PROCESS_EVENT TEXT("ProcessEvent")
+#define WK_PROCESS_EVENT_TYPE TEXT("Type")
+#define WK_PROCESS_EVENT_TYPE_SPAWNED TEXT("Spawned")
+#define WK_PROCESS_EVENT_TYPE_DEAD TEXT("Dead")
+#define WK_PROCESS_EVENT_PARENT_PID TEXT("ParentPid")
+#define WK_PROCESS_EVENT_PID TEXT("Pid")
 
-typedef struct PID_MESSAGE_S {
-	DWORD ppid;
-	DWORD pid;
-} PID_MESSAGE;
+// File and registry constants
+#define WK_FILE_EVENT TEXT("FileEvent")
+#define WK_FILE_EVENT_MODE TEXT("Mode")
+#define WK_FILE_EVENT_PATH TEXT("Path")
+#define WK_FILE_EVENT_OLD_PATH TEXT("OldPath")
+#define WK_FILE_EVENT_NEW_PATH TEXT("NewPath")
+#define WK_REGISTRY_EVENT TEXT("RegistryEvent")
+#define WK_REGISTRY_EVENT_MODE TEXT("Mode")
+#define WK_REGISTRY_EVENT_PATH TEXT("Path")
+
+#define WK_FILE_CREATED TEXT("Create")
+#define WK_FILE_OPENED TEXT("Open")
+#define WK_FILE_DELETED TEXT("Delete")
+#define WK_FILE_RENAMED TEXT("Rename")
+#define WK_KEY_OPENED TEXT("Open")
+#define WK_KEY_CREATED TEXT("Create")
+
+#define PIPE_ACK 1
+#define PIPE_NACK 0

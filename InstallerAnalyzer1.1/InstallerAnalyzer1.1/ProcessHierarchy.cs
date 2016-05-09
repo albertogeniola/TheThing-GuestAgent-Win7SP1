@@ -24,7 +24,7 @@ namespace InstallerAnalyzer1_Guest
                     _processes.Add(pid, parentPid);
                 }
                 catch (Exception e) {
-                    Console.Out.WriteLine("XXX Error. Pid registered twice! XXX ");
+                    //Console.Out.WriteLine("XXX Error. Pid registered twice! XXX ");
                     // Ignore it and go on
                 }
             }

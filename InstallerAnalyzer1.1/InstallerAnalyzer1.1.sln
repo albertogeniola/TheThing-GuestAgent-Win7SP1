@@ -1,13 +1,12 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.21005.1
+# Visual Studio 14
+VisualStudioVersion = 14.0.25123.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InstallerAnalyzer1_Guest", "InstallerAnalyzer1.1\InstallerAnalyzer1_Guest.csproj", "{F551A581-1409-41E1-B5CD-D6114FD459EC}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Injector", "..\Injector\Injector\Injector.vcxproj", "{04D664E9-153B-4ADF-BE85-3804357163F4}"
 	ProjectSection(ProjectDependencies) = postProject
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97} = {88E7FC89-113C-40E4-9EF6-3F4C580F7D97}
 		{D76AD18B-56C6-4051-A58B-ECB87A35DFD8} = {D76AD18B-56C6-4051-A58B-ECB87A35DFD8}
 	EndProjectSection
 EndProject
@@ -20,8 +19,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Common", "Common\Common.vcxproj", "{17CBAC80-1694-40A9-BE8A-2132B2BADFB8}"
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "inject_dcom", "inject_dcom\inject_dcom.vcxproj", "{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ResultAnalyzerUtility", "ResultAnalyzerUtility\ResultAnalyzerUtility.csproj", "{158B5B38-72B0-480A-9595-2676657BE4BD}"
 EndProject
@@ -216,46 +213,6 @@ Global
 		{17CBAC80-1694-40A9-BE8A-2132B2BADFB8}.RemoteDebug|Win32.Build.0 = Debug|Win32
 		{17CBAC80-1694-40A9-BE8A-2132B2BADFB8}.RemoteDebug|x64.ActiveCfg = Debug|Win32
 		{17CBAC80-1694-40A9-BE8A-2132B2BADFB8}.RemoteDebug|x86.ActiveCfg = Debug|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.Debug|Any CPU.ActiveCfg = Debug|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.Debug|Mixed Platforms.ActiveCfg = Debug|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.Debug|Mixed Platforms.Build.0 = Debug|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.Debug|Win32.ActiveCfg = Debug|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.Debug|Win32.Build.0 = Debug|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.Debug|x64.ActiveCfg = Debug|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.Debug|x86.ActiveCfg = Debug|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.Debug|x86.Build.0 = Debug|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.Only Injector|Any CPU.ActiveCfg = Release|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.Only Injector|Mixed Platforms.ActiveCfg = Release|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.Only Injector|Mixed Platforms.Build.0 = Release|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.Only Injector|Win32.ActiveCfg = Release|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.Only Injector|Win32.Build.0 = Release|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.Only Injector|x64.ActiveCfg = Release|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.Only Injector|x86.ActiveCfg = Release|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.Only Injector|x86.Build.0 = Release|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.Publish|Any CPU.ActiveCfg = Release|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.Publish|Mixed Platforms.ActiveCfg = Release|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.Publish|Mixed Platforms.Build.0 = Release|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.Publish|Win32.ActiveCfg = Release|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.Publish|Win32.Build.0 = Release|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.Publish|x64.ActiveCfg = Release|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.Publish|x86.ActiveCfg = Release|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.Publish|x86.Build.0 = Release|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.Release|Any CPU.ActiveCfg = Release|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.Release|Mixed Platforms.ActiveCfg = Release|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.Release|Mixed Platforms.Build.0 = Release|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.Release|Win32.ActiveCfg = Release|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.Release|Win32.Build.0 = Release|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.Release|x64.ActiveCfg = Release|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.Release|x86.ActiveCfg = Release|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.Release|x86.Build.0 = Release|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.RemoteDebug|Any CPU.ActiveCfg = Debug|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.RemoteDebug|Mixed Platforms.ActiveCfg = Debug|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.RemoteDebug|Mixed Platforms.Build.0 = Debug|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.RemoteDebug|Win32.ActiveCfg = Debug|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.RemoteDebug|Win32.Build.0 = Debug|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.RemoteDebug|x64.ActiveCfg = Debug|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.RemoteDebug|x86.ActiveCfg = RemoteDebug|Win32
-		{88E7FC89-113C-40E4-9EF6-3F4C580F7D97}.RemoteDebug|x86.Build.0 = RemoteDebug|Win32
 		{158B5B38-72B0-480A-9595-2676657BE4BD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{158B5B38-72B0-480A-9595-2676657BE4BD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{158B5B38-72B0-480A-9595-2676657BE4BD}.Debug|Mixed Platforms.ActiveCfg = Debug|Any CPU

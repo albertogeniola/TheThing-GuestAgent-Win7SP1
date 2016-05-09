@@ -30,7 +30,6 @@
         {
             this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(AnalyzerMainWindow));
-            this.logbox = new System.Windows.Forms.RichTextBox();
             this.consoleBox = new System.Windows.Forms.RichTextBox();
             this.notifyIcon1 = new System.Windows.Forms.NotifyIcon(this.components);
             this.pictureBox1 = new System.Windows.Forms.PictureBox();
@@ -40,31 +39,19 @@
             this.label2 = new System.Windows.Forms.Label();
             this.elapsedTime = new System.Windows.Forms.Label();
             this.timeout = new System.Windows.Forms.Label();
+            this.label4 = new System.Windows.Forms.Label();
+            this.servicePids = new System.Windows.Forms.Label();
+            this.logRateBox = new System.Windows.Forms.Label();
+            this.busy = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             this.SuspendLayout();
-            // 
-            // logbox
-            // 
-            this.logbox.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.logbox.BackColor = System.Drawing.Color.Black;
-            this.logbox.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.logbox.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.logbox.ForeColor = System.Drawing.Color.Yellow;
-            this.logbox.Location = new System.Drawing.Point(391, 25);
-            this.logbox.Name = "logbox";
-            this.logbox.ReadOnly = true;
-            this.logbox.Size = new System.Drawing.Size(632, 31);
-            this.logbox.TabIndex = 0;
-            this.logbox.Text = "";
             // 
             // consoleBox
             // 
             this.consoleBox.BackColor = System.Drawing.Color.Black;
             this.consoleBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.consoleBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.consoleBox.ForeColor = System.Drawing.Color.Gold;
+            this.consoleBox.Font = new System.Drawing.Font("Consolas", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.consoleBox.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(224)))), ((int)(((byte)(224)))), ((int)(((byte)(224)))));
             this.consoleBox.HideSelection = false;
             this.consoleBox.Location = new System.Drawing.Point(88, 12);
             this.consoleBox.Name = "consoleBox";
@@ -92,13 +79,12 @@
             // 
             // label1
             // 
-            this.label1.AutoSize = true;
             this.label1.ForeColor = System.Drawing.Color.White;
-            this.label1.Location = new System.Drawing.Point(388, 9);
+            this.label1.Location = new System.Drawing.Point(391, 9);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(163, 13);
+            this.label1.Size = new System.Drawing.Size(90, 13);
             this.label1.TabIndex = 4;
-            this.label1.Text = "Last Message from Injected DLL:";
+            this.label1.Text = "Logging rate:";
             // 
             // label3
             // 
@@ -111,11 +97,13 @@
             // 
             // monitoredPids
             // 
+            this.monitoredPids.Cursor = System.Windows.Forms.Cursors.No;
             this.monitoredPids.ForeColor = System.Drawing.Color.Yellow;
             this.monitoredPids.Location = new System.Drawing.Point(484, 57);
             this.monitoredPids.Name = "monitoredPids";
-            this.monitoredPids.Size = new System.Drawing.Size(539, 13);
+            this.monitoredPids.Size = new System.Drawing.Size(363, 22);
             this.monitoredPids.TabIndex = 6;
+            this.monitoredPids.Text = "...";
             this.monitoredPids.Click += new System.EventHandler(this.monitoredPids_Click);
             // 
             // label2
@@ -144,6 +132,44 @@
             this.timeout.Size = new System.Drawing.Size(87, 13);
             this.timeout.TabIndex = 9;
             // 
+            // label4
+            // 
+            this.label4.ForeColor = System.Drawing.Color.White;
+            this.label4.Location = new System.Drawing.Point(391, 34);
+            this.label4.Name = "label4";
+            this.label4.Size = new System.Drawing.Size(87, 13);
+            this.label4.TabIndex = 10;
+            this.label4.Text = "Session 0 PIDs:";
+            // 
+            // servicePids
+            // 
+            this.servicePids.Cursor = System.Windows.Forms.Cursors.No;
+            this.servicePids.ForeColor = System.Drawing.Color.Yellow;
+            this.servicePids.Location = new System.Drawing.Point(484, 34);
+            this.servicePids.Name = "servicePids";
+            this.servicePids.Size = new System.Drawing.Size(363, 22);
+            this.servicePids.TabIndex = 11;
+            this.servicePids.Text = "...";
+            this.servicePids.Click += new System.EventHandler(this.servicePids_Click);
+            // 
+            // logRateBox
+            // 
+            this.logRateBox.ForeColor = System.Drawing.Color.Yellow;
+            this.logRateBox.Location = new System.Drawing.Point(484, 9);
+            this.logRateBox.Name = "logRateBox";
+            this.logRateBox.Size = new System.Drawing.Size(268, 23);
+            this.logRateBox.TabIndex = 12;
+            this.logRateBox.Text = "...";
+            // 
+            // busy
+            // 
+            this.busy.Font = new System.Drawing.Font("Consolas", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.busy.ForeColor = System.Drawing.Color.Red;
+            this.busy.Location = new System.Drawing.Point(761, 34);
+            this.busy.Name = "busy";
+            this.busy.Size = new System.Drawing.Size(138, 22);
+            this.busy.TabIndex = 13;
+            // 
             // AnalyzerMainWindow
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -151,6 +177,10 @@
             this.BackColor = System.Drawing.Color.Black;
             this.ClientSize = new System.Drawing.Size(1035, 82);
             this.ControlBox = false;
+            this.Controls.Add(this.busy);
+            this.Controls.Add(this.logRateBox);
+            this.Controls.Add(this.servicePids);
+            this.Controls.Add(this.label4);
             this.Controls.Add(this.timeout);
             this.Controls.Add(this.elapsedTime);
             this.Controls.Add(this.label2);
@@ -159,7 +189,6 @@
             this.Controls.Add(this.label1);
             this.Controls.Add(this.pictureBox1);
             this.Controls.Add(this.consoleBox);
-            this.Controls.Add(this.logbox);
             this.Cursor = System.Windows.Forms.Cursors.Default;
             this.ForeColor = System.Drawing.Color.Lime;
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
@@ -175,8 +204,6 @@
         }
 
         #endregion
-
-        private System.Windows.Forms.RichTextBox logbox;
         private System.Windows.Forms.RichTextBox consoleBox;
         private System.Windows.Forms.NotifyIcon notifyIcon1;
         private System.Windows.Forms.PictureBox pictureBox1;
@@ -186,5 +213,9 @@
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Label elapsedTime;
         private System.Windows.Forms.Label timeout;
+        private System.Windows.Forms.Label label4;
+        private System.Windows.Forms.Label servicePids;
+        private System.Windows.Forms.Label logRateBox;
+        private System.Windows.Forms.Label busy;
     }
 }

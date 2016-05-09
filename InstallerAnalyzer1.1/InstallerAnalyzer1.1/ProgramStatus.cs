@@ -1,15 +1,17 @@
 ﻿using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Management;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 
 namespace InstallerAnalyzer1_Guest
 {
-    public class ProgramStatus:IObservable<uint[]>
+    public class ProgramStatus:IObservable<MonitoredProcesses>
     {
         
         #region Singleton
@@ -31,10 +33,11 @@ namespace InstallerAnalyzer1_Guest
         
         private ProgramStatus() {
             _monitoredPids = new List<uint>();
+            _servicePids = new List<uint>();
             _hierarchy = new ProcessHierarchy();
             _fileMap = new Dictionary<string, FileAccessInfo>();
             _regMap = new Dictionary<string, RegAccessInfo>();
-            _clients = new List<IObserver<uint[]>>();
+            _clients = new List<IObserver<MonitoredProcesses>>();
             _firstDone = false;
             _logRateVal = 0;
             _logRate = 0;
@@ -128,7 +131,7 @@ namespace InstallerAnalyzer1_Guest
                 }
             }
         }
-
+        
         public void NotifyFileAccess(string ss) {
             string wild_path = "";
             if (ss.StartsWith(@"\??\"))
@@ -264,6 +267,7 @@ namespace InstallerAnalyzer1_Guest
         #region Pids and lograte. Lock on _pidsLock.
         private static object _pidsLock = new object();
         private List<uint> _monitoredPids;
+        private List<uint> _servicePids;
         private long _logRate, _logRateVal;
         private bool _firstDone;
         private Thread _timer = null;
@@ -283,35 +287,69 @@ namespace InstallerAnalyzer1_Guest
         }
 
         public void AddPid(uint ppid, uint pid) {
-            uint[] notify = null;
+            // We might receive a process running as user or a service.
+            // We will keep monitoring only user processes, not services.
+            bool isService = IsService(pid);
+
+            MonitoredProcesses msg = new MonitoredProcesses();
+
             lock (_pidsLock)
             {
-                _monitoredPids.Add(pid);
+                if (isService && !_servicePids.Contains(pid))
+                    _servicePids.Add(pid);
+                else if (!_monitoredPids.Contains(pid))
+                    _monitoredPids.Add(pid);
+
                 _hierarchy.AddProcess(ppid, pid);
                 if (!_firstDone)
                     _firstDone = true;
 
-                notify = _monitoredPids.ToArray();
+                msg.processPids = _monitoredPids.ToArray();
+                msg.servicePids = _servicePids.ToArray();
+
                 Monitor.Pulse(_pidsLock);
             }
+
             foreach (var c in _clients)
-                c.OnNext(notify);
+                c.OnNext(msg);
         }
-        
+
+        public static bool IsService(uint pid)
+        {
+            try
+            {
+                // Assume everything running in session 0 is a service
+                Process p = Process.GetProcessById((int)pid);
+                if (p.SessionId == 0)
+                    return true;
+            }
+            catch (Exception e) {
+                return false;
+            }
+            return false;
+        }
+
         public void RemovePid(uint pid)
         {
-            uint[] notify = null;
+            MonitoredProcesses msg = new MonitoredProcesses();
+            
             lock (_pidsLock)
             {
                 if (_monitoredPids.Contains(pid))
-                {
                     _monitoredPids.Remove(pid);
-                    notify = _monitoredPids.ToArray();
-                    Monitor.Pulse(_pidsLock);
-                }
+
+                msg.processPids = _monitoredPids.ToArray();
+                Monitor.Pulse(_pidsLock);
+
+                if (_servicePids.Contains(pid))
+                    _servicePids.Remove(pid);
+
+                msg.servicePids = _monitoredPids.ToArray();
+                Monitor.Pulse(_pidsLock);
             }
+
             foreach (var c in _clients)
-                c.OnNext(notify);
+                c.OnNext(msg);
         }
         
         public uint[] Pids
@@ -382,14 +420,14 @@ namespace InstallerAnalyzer1_Guest
 
         #region Observer implementation
         
-        private List<IObserver<uint[]>> _clients;
+        private List<IObserver<MonitoredProcesses>> _clients;
         
-        public IDisposable Subscribe(IObserver<uint[]> observer)
+        public IDisposable Subscribe(IObserver<MonitoredProcesses> observer)
         {
             if (!_clients.Contains(observer))
                 _clients.Add(observer);
 
-            return new Unsubscriber<uint[]>(_clients, observer);
+            return new Unsubscriber<MonitoredProcesses>(_clients, observer);
         }
         
         #endregion
@@ -408,6 +446,12 @@ namespace InstallerAnalyzer1_Guest
                 while (_busy) {
                     Monitor.Wait(_busyLock);
                 }
+            }
+        }
+
+        public bool IsBusy() {
+            lock (_busyLock) {
+                return _busy;
             }
         }
     }
@@ -895,12 +939,17 @@ namespace InstallerAnalyzer1_Guest
 
     }
 
+    public struct MonitoredProcesses {
+        public uint[] processPids;
+        public uint[] servicePids;
+    }
+
     internal class Unsubscriber<Object> : IDisposable
     {
-        private List<IObserver<uint[]>> _observers;
-        private IObserver<uint[]> _observer;
+        private List<IObserver<MonitoredProcesses>> _observers;
+        private IObserver<MonitoredProcesses> _observer;
 
-        internal Unsubscriber(List<IObserver<uint[]>> observers, IObserver<uint[]> observer)
+        internal Unsubscriber(List<IObserver<MonitoredProcesses>> observers, IObserver<MonitoredProcesses> observer)
         {
             this._observers = observers;
             this._observer = observer;

@@ -12,17 +12,10 @@ using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using System.Xml;
 
-/**
- * ==================== VERY IMPORTANT NOTE! ==================== 
- * Alberto Geniola, 03/02/2016
- * The Title of this window is used by the Injected DLL in order to send messages via SendMessage.
- * If we change the window name, this will be broken. At the moment the window name is WKWatcher.
- * If you change that, PLEASE UPDATE THIS NOTE and also the Injector/dll
-** ==================== VERY IMPORTANT NOTE! ==================== */
 
 namespace InstallerAnalyzer1_Guest
 {
-    public partial class AnalyzerMainWindow : Form, IObserver<uint[]>
+    public partial class AnalyzerMainWindow : Form, IObserver<MonitoredProcesses>
     {
         private const int PATH_MAX_LEN = 260;
         private readonly static IntPtr MESSAGE_LOG = new IntPtr(0);
@@ -60,17 +53,21 @@ namespace InstallerAnalyzer1_Guest
 
         void _timer_Tick(object sender, EventArgs e)
         {
-            string elapse = DateTime.Now.Subtract(_startTime).ToString();
+            string elapse = DateTime.Now.Subtract(_startTime).ToString(@"hh\:mm\:ss");
 
             // Update the timer on the UI
             if (InvokeRequired)
             {
                 Invoke(new Action(()=>{
                     elapsedTime.Text = elapse;
+                    logRateBox.Text = ""+ProgramStatus.Instance.LogsPerSec;
+                    busy.Text = ProgramStatus.Instance.IsBusy() ? "Busy" : "";
                 }));
             }
             else {
                 elapsedTime.Text = elapse;
+                logRateBox.Text = "" + ProgramStatus.Instance.LogsPerSec;
+                busy.Text = ProgramStatus.Instance.IsBusy() ? "Busy" : "";
             }
         }
 
@@ -82,197 +79,25 @@ namespace InstallerAnalyzer1_Guest
             _timer.Start();
         }
 
-        protected override void WndProc(ref Message m)
-        {
-            Exception toLog = null;
-
-            // Intercept CopyData messages
-            if (m.Msg == 0x004A)
-            {
-                try
-                {
-                    CopyDataStruct d = (CopyDataStruct)Marshal.PtrToStructure(m.LParam, typeof(CopyDataStruct));
-                    // Log data
-                    byte[] bb = new byte[d.cbData];
-                    for (int i = 0; i < bb.Length; i++)
-                        bb[i] = Marshal.ReadByte(d.lpData, i);
-
-                    if (d.dwData == MESSAGE_LOG)
-                    {
-                        // Let the program status we are receiving logs from the process.
-                        // This can give us a hint about how hard are the background processes
-                        // working on the system.
-                        ProgramStatus.Instance.IncLogRate();
-                        string s = Encoding.Unicode.GetString(bb);
-                        LogSyscall(s);
-
-                    }
-                    else if (d.dwData == MESSAGE_NEW_PROC)
-                    {
-                        // New process spawned
-                        var ppid = BitConverter.ToUInt32(bb, 0);
-                        var pid = BitConverter.ToUInt32(bb, 4);
-                        ProgramStatus.Instance.AddPid(ppid, pid);
-
-                    }
-                    else if (d.dwData == MESSAGE_PROC_DIED)
-                    {
-                        // Process died
-                        var pid = BitConverter.ToUInt32(bb, 0);
-                        ProgramStatus.Instance.RemovePid(pid);
-
-                    }
-                    else if (d.dwData == MESSAGE_FILE_CREATED || d.dwData == MESSAGE_FILE_OPENED || d.dwData == MESSAGE_FILE_DELETED)
-                    {
-                        string s = Encoding.Unicode.GetString(bb);
-                        ProgramStatus.Instance.NotifyFileAccess(s);
-
-                    }
-                    else if (d.dwData == MESSAGE_FILE_RENAMED)
-                    {
-                        // Convert raw bytes received by the message pump into a conveniente struct and parse the strings
-                        RenameFileStruct data = (RenameFileStruct)Marshal.PtrToStructure(d.lpData, typeof(RenameFileStruct));
-                        // Now notify the file rename
-                        ProgramStatus.Instance.NotifyFileRename(data.oldPath, data.newPath);
-
-                    }
-                    else if (d.dwData == MESSAGE_REG_KEY_OPEN || d.dwData == MESSAGE_REG_KEY_CREATED)
-                    {
-                        string s = Encoding.Unicode.GetString(bb);
-                        ProgramStatus.Instance.NotifyRegistryAccess(s);
-                    }
-                }
-                catch (Exception e)
-                {
-                    toLog = e;
-                }
-            }
-            
-            base.WndProc(ref m);
-
-            if (toLog != null)
-                ProgramLogger.Instance.WriteLine("Exception: " + toLog.Message + ". Stack: " + toLog.StackTrace);
-            
-        }
-
-        private int _seq = 0;
-        private void LogSyscall(string xmlIn)
-        {
-            string row = null;
-            try
-            {
-                row = xmlIn.Normalize();
-            }
-            catch (Exception e) {
-                row = UnicodeEncoding.Unicode.GetString(UnicodeEncoding.Unicode.GetBytes(xmlIn));
-            }
-                
-            
-            // Load the XML
-            XmlDocument doc = new XmlDocument();
-            try
-            {
-                doc.LoadXml(row);
-            }
-            catch (Exception e) {
-                // This kind of error may happen when we receive invalid XML. Load it in base64
-                // format for further investigation
-                var sc = doc.CreateElement("Syscall");
-                sc.SetAttribute("Method", "UNKNOWN");
-                sc.SetAttribute("Sequence", _seq.ToString());
-                doc.AppendChild(sc);
-                
-                // Encode in base 64 and add it to the raw data
-                var rawData = doc.CreateElement("RawData");
-                byte[] b = Encoding.UTF8.GetBytes(row);
-                rawData.InnerText = Convert.ToBase64String(b);
-                sc.AppendChild(rawData);
-
-                _seq++;
-                Program.appendXmlLog(sc);
-                logbox.Text = row;
-                return;
-            }
-                
-            XmlElement root = doc.DocumentElement;
-                
-            // Now translate into a structured form
-            string syscallName = root.Name;
-            var el = doc.CreateElement("Syscall");
-            el.SetAttribute("Method", syscallName);
-            el.SetAttribute("Sequence", _seq.ToString());
-            doc.RemoveChild(root);
-            doc.AppendChild(el);
-
-            // Add the syscall name
-            var method = doc.CreateElement("Method");
-            method.InnerText = syscallName;
-            el.AppendChild(method);
-
-            foreach (XmlAttribute attr in root.Attributes) {
-                var child = doc.CreateElement(attr.Name);
-                child.InnerText = attr.Value;
-                el.AppendChild(child);
-            }
-
-            _seq++;
-            Program.appendXmlLog(el);
-            logbox.Text = row;
-            
-        }
-
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-        public struct CopyDataStruct
-        {
-            public IntPtr dwData;
-            public int cbData;
-            public IntPtr lpData;
-        }
-
-
-        public string getInstallerLog()
-        {
-            return logbox.Text;
-        }
-
-        public void resetInstallerLog()
-        {
-            logbox.Text = "";
-        }
-
-        private void label2_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        public void appendInstallerLog(string xmlElement)
-        {
-            LogSyscall(xmlElement);
-        }
-
+        
         public RichTextBox getConsoleBox()
         {
-            return this.consoleBox;
+            return consoleBox;
         }
 
-        public void OnCompleted()
+        
+        public void OnNext(MonitoredProcesses pids)
         {
-            throw new NotImplementedException();
-        }
-
-        public void OnError(Exception error)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void OnNext(uint[] pids)
-        {
-
             var action = new Action(() =>
                 {
                     monitoredPids.Text = "";
-                    foreach (var pid in pids)
+                    foreach (var pid in pids.processPids)
                         monitoredPids.Text += pid + ", ";
+
+                    servicePids.Text = "";
+                    foreach (var pid in pids.servicePids)
+                        servicePids.Text += pid + ", ";
+
                 });
 
             if (InvokeRequired)
@@ -283,11 +108,6 @@ namespace InstallerAnalyzer1_Guest
         }
 
         private void monitoredPids_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void timer1_Tick(object sender, EventArgs e)
         {
 
         }
@@ -308,14 +128,19 @@ namespace InstallerAnalyzer1_Guest
             } 
         }
 
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
-        public struct RenameFileStruct
+        public void OnError(Exception error)
         {
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = PATH_MAX_LEN)]
-            public string oldPath;
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = PATH_MAX_LEN)]
-            public string newPath;
-        };
+            throw new NotImplementedException();
+        }
 
+        public void OnCompleted()
+        {
+            throw new NotImplementedException();
+        }
+
+        private void servicePids_Click(object sender, EventArgs e)
+        {
+
+        }
     }
 }

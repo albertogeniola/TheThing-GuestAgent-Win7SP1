@@ -163,48 +163,6 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 	return TRUE;
 }
 
-
-void notifyPidEvent(DWORD pid, DWORD evt){
-	bool connected = false;
-	int attempts = 0;
-	bool ok = false;
-	char buff[512];
-
-	DWORD info[3];
-	info[0] = pid;
-	info[1] = evt;
-	info[2] = GetCurrentProcessId();  // It is very ugly but it is a quick fix for the moment. Time is running out!
-
-	while (!connected && attempts<5){
-		// Connect to the named pipe
-		DWORD ack;
-		DWORD read;
-		if (!CallNamedPipe(TEXT(DCOM_HOOK_PIPE), &info, sizeof(info), &ack, sizeof(ack), &read, 3000)){
-			DWORD error = GetLastError();
-			// An error has occurred
-			sprintf_s(buff, "[DCOM INJECTOR] notify error pid error: Cannot write on the pipe. Error %u XXXX", error);
-			OutputDebugStringA(buff);
-			return;
-		}
-		else {
-			if (read == sizeof(DWORD)) {
-				sprintf_s(buff, "[DCOM INJECTOR] Pipe, received: %u.", ack);
-				OutputDebugStringA(buff);
-				return;
-			}
-		}
-	}
-}
-
-
-VOID WINAPI MyExitProcess(UINT uExitCode)
-{
-	// We hook this to let the GuestController know about our intention to terminate
-	notifyPidEvent(GetCurrentProcessId(), PROC_EXITING);
-	return realExitProcess(uExitCode);
-}
-
-
 BOOL WINAPI MyCreateProcessInternalW(HANDLE hToken,
 	LPCWSTR lpApplicationName,
 	LPWSTR lpCommandLine,
@@ -245,6 +203,7 @@ BOOL WINAPI MyCreateProcessInternalW(HANDLE hToken,
 			OutputDebugStringA(buff);
 		}
 		
+		/*/
 		if (sessionId == 0) {
 			// Inject myself
 			//OutputDebugStringA("This process has session ID 0, I won't inject myself.");
@@ -253,7 +212,9 @@ BOOL WINAPI MyCreateProcessInternalW(HANDLE hToken,
 		} else {
 			dllpath = DLLPATH;
 		}
-		
+		*/
+		dllpath = DLLPATH;
+
 		if (dllpath != NULL){
 			_snprintf_s(buff, sizeof(buff), "[DCOM INJECTOR] Injecting DLL %s into PID %u", dllpath, lpProcessInformation->dwProcessId);
 			OutputDebugStringA(buff);
@@ -266,8 +227,6 @@ BOOL WINAPI MyCreateProcessInternalW(HANDLE hToken,
 
 			OutputDebugStringA("[DCOM INJECTOR] DLL copied into host process memory space");
 
-			// Notify the HostController that a new process has been created
-			notifyPidEvent(lpProcessInformation->dwProcessId, PROC_SPAWNING);
 			kern32dllmod = GetModuleHandle(TEXT("kernel32.dll"));
 			HANDLE loadLibraryAddress = GetProcAddress(kern32dllmod, "LoadLibraryA");
 			if (loadLibraryAddress == NULL)
