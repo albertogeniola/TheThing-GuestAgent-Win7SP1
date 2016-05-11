@@ -44,7 +44,7 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis.RankingPolicy
         
         // MAKE THEM LOWER CASE!
         private static string[] WHITE_LIST = new string[] {"i agree", "i accept","next","continue","agree","accept","ok","install","finish","run","done","yes", "accept and install", "next >"};
-        private static string[] BLACK_LIST = new string[] {"disagree", "do not accept", "cancel","abort","exit","back","decline","quit", "minimize", "no", "close", "pause"};
+        private static string[] BLACK_LIST = new string[] {"disagree", "do not accept", "cancel","abort","exit","back","<","< back","decline","quit", "minimize", "no", "close", "pause"};
 
         public int RankElement(UIControlCandidate control)
         {

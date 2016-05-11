@@ -35,6 +35,8 @@ namespace InstallerAnalyzer1_Guest
         const int CIRCULAR_LOOP_THRESHOLD = 5;
         readonly string DEFAULT_REPORT_PATH = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "report.xml");
 
+        const int LOG_PER_SEC_IDLE_THRESHOLD = 50;
+
         // I use a dictionary that will contain hashes about scanned windows.
         // This will be useful to prevent circular UI loopings.
         private Dictionary<string, int> _visitedVindows;
@@ -370,7 +372,7 @@ namespace InstallerAnalyzer1_Guest
                         ProgramStatus.Instance.WaitUntilNotBusy();
 
                         // We shall wait until the process lograte is low enough. That means the window is "waiting for us"
-                        if (ProgramStatus.Instance.LogsPerSec > 100)
+                        if (ProgramStatus.Instance.LogsPerSec > LOG_PER_SEC_IDLE_THRESHOLD)
                         {
                             // Give some time before repeating the analysis!
                             Thread.Sleep(3000);
@@ -519,7 +521,7 @@ namespace InstallerAnalyzer1_Guest
 
                     Console.WriteLine("UIBot: There are no new programs on the system.");
 
-                    if (ProgramStatus.Instance.LogsPerSec > 50) {
+                    if (ProgramStatus.Instance.LogsPerSec > LOG_PER_SEC_IDLE_THRESHOLD) {
                         Console.WriteLine("UIBot: The background processes are still working. Wait until the message rate becomes <50 (or timeout is reached) and loop again.");
                         if (!ProgramStatus.Instance.WaitUntilIdle(IDLE_TIMEOUT))
                         {

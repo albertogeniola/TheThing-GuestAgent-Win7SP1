@@ -287,6 +287,21 @@ namespace InstallerAnalyzer1_Guest
         }
 
         public void AddPid(uint ppid, uint pid) {
+            // Sometimes it happens we receive IEXplorer processes or Notepad ones.
+            // This usually happens when the installer has done and displays a Thank you message
+            // or similar the changelog/readme. In order to speed up the process, we should kill them.
+            try
+            {
+                Process p = Process.GetProcessById((int)pid);
+                if (p.ProcessName == "iexplore" || p.ProcessName == "notepad")
+                {
+                    p.Kill();
+                }
+            }
+            catch (Exception e) {
+                // Ignore this
+            }
+
             // We might receive a process running as user or a service.
             // We will keep monitoring only user processes, not services.
             bool isService = IsService(pid);

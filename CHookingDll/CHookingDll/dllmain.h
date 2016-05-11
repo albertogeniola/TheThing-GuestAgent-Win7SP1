@@ -15,7 +15,6 @@
 #include <sstream>
 #include <detours.h>
 #include <mutex>          
-
 #include "../../InstallerAnalyzer1.1/Common/common.h"
 
 // Windows UNICODE PAIN

@@ -18,6 +18,50 @@ HandleMap handleMap;
 // This has to be global so that any thread in this Process can refer to that.
 static DWORD dwTlsIndex; 
 
+// The following switch enables/disables SYSCALL logging/notification to GuestController.
+#undef SYSCALL_LOG
+
+template <typename Type>
+bool Hook(Type* realFunction, void* hookingFunction, HMODULE module, const char* function_name) {
+	char buff[512];
+
+	// Assign the pointer to the real function
+	(*realFunction) = (Type)(GetProcAddress(module, function_name));
+	
+	DetourTransactionBegin();
+	DetourUpdateThread(GetCurrentThread());
+	DetourAttach(&(PVOID&)(*realFunction), hookingFunction);
+	if (DetourTransactionCommit() != NO_ERROR) {
+		sprintf_s(buff, "[CHOOKING DLL] %s not derouted correctly", function_name);
+		OutputDebugStringA(buff);
+		return false;
+	}
+	else {
+		sprintf_s(buff, "[CHOOKING DLL] %s atteched OK", function_name);
+		OutputDebugStringA(buff);
+		return true;
+	}
+}
+
+template <typename Type>
+bool UnHook(Type* realFunction, void* hookingFunction, const char* function_name) {
+	char buff[512];
+
+	DetourTransactionBegin();
+	DetourUpdateThread(GetCurrentThread());
+	DetourDetach(&(PVOID&)(*realFunction), hookingFunction);
+	if (DetourTransactionCommit() != NO_ERROR) {
+		sprintf_s(buff, "[CHOOKING DLL] %s not detached correctly", function_name);
+		OutputDebugStringA(buff);
+		return false;
+	}
+	else {
+		sprintf_s(buff, "[CHOOKING DLL] %s detached OK", function_name);
+		OutputDebugStringA(buff);
+		return true;
+	}
+}
+
 /*
  * This is the Main DLL Entry. Detours will execute this code after the DLL has been injected.
  * In this function we will get real function addresses and store them into relatives static
@@ -61,9 +105,37 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
 		_set_abort_behavior(0, _WRITE_ABORT_MSG);
 
+		Hook(&realNtCreateFile, MyNtCreateFile, ntdllmod, "NtCreateFile");
+		Hook(&realNtOpenFile,MyNtOpenFile,ntdllmod, "NtOpenFile");
+		Hook(&realNtDeleteFile,MyNtDeleteFile,ntdllmod, "NtDeleteFile");
+		Hook(&realNtCreateKey, MyNtCreateKey,ntdllmod, "NtCreateKey");
+		Hook(&realNtOpenKey, MyNtOpenKey,ntdllmod, "NtOpenKey");
+		Hook(&realNtSetInformationFile, MyNtSetInformationFile,ntdllmod, "NtSetInformationFile");
+		Hook(&realNtClose, MyNtClose,ntdllmod, "NtClose");
+		Hook(&realCreateProcessInternalW, MyCreateProcessInternalW,kern32dllmod, "CreateProcessInternalW");
+		Hook(&realExitProcess, MyExitProcess, kern32dllmod, "ExitProcess");
+	
+		// Supplementay Hooks
+		//Hook(&realNtOpenDirectoryObject,MyNtOpenDirectoryObject,ntdllmod, "NtOpenDirectoryObject");
+		//Hook(&realNtDeleteKey, MyNtDeleteKey,ntdllmod, "NtDeleteKey");
+		//Hook(&realNtQueryKey, MyNtQueryKey,ntdllmod, "NtQueryKey");
+		//Hook(&realNtDeleteValueKey, MyNtDeleteValueKey,ntdllmod, "NtDeleteValueKey");
+		//Hook(&realNtEnumerateKey, MyNtEnumerateKey,ntdllmod, "NtEnumerateKey");
+		//Hook(&realNtEnumerateValueKey, MyNtEnumerateValueKey,ntdllmod, "NtEnumerateValueKey");
+		//Hook(&realNtLockFile, MyNtLockFile,ntdllmod, "NtLockFile");
+		//Hook(&realNtQueryDirectoryFile, MyNtQueryDirectoryFile,ntdllmod, "NtQueryDirectoryFile");
+		//Hook(&realNtQueryFullAttributesFile, MyNtQueryFullAttributesFile,ntdllmod, "NtQueryFullAttributesFile");
+		//Hook(&realNtQueryValueKey, MyNtQueryValueKey,ntdllmod, "NtQueryValueKey");
+		//Hook(&realNtSetValueKey, MyNtSetValueKey,ntdllmod, "NtSetValueKey");
+		//Hook(&realNtTerminateProcess, MyNtTerminateProcess,ntdllmod, "NtTerminateProcess");
+		//Hook(&realNtOpenProcess,MyNtOpenProcess,ntdllmod, "NtOpenProcess");
+		//realCreateProcessInternalA = (pCreateProcessInternalA,kern32dllmod, "CreateProcessInternalA"));
+		//Hook(&realNtQueryInformationProcess = (pNtQueryInformationProcess,ntdllmod, "NtQueryInformationProcess"));
+
+		// Old code
+		/*
 		// Assign the address location of the function to the static pointer
 		realNtCreateFile = (pNtCreateFile)(GetProcAddress(ntdllmod, "NtCreateFile"));
-
 		realNtOpenFile = (pNtOpenFile)(GetProcAddress(ntdllmod, "NtOpenFile"));
 		realNtDeleteFile = (pNtDeleteFile)(GetProcAddress(ntdllmod, "NtDeleteFile"));
 		realNtOpenDirectoryObject = (pNtOpenDirectoryObject)(GetProcAddress(ntdllmod, "NtOpenDirectoryObject"));
@@ -83,13 +155,13 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		realNtSetValueKey = (pNtSetValueKey)(GetProcAddress(ntdllmod, "NtSetValueKey"));
 		realNtTerminateProcess = (pNtTerminateProcess)(GetProcAddress(ntdllmod, "NtTerminateProcess"));
 		realNtClose = (pNtClose)(GetProcAddress(ntdllmod, "NtClose"));
-		
+
 		realCreateProcessInternalW = (pCreateProcessInternalW)(GetProcAddress(kern32dllmod, "CreateProcessInternalW"));
 		//realCreateProcessInternalA = (pCreateProcessInternalA)(GetProcAddress(kern32dllmod, "CreateProcessInternalA"));
 
 		realNtQueryInformationProcess = (pNtQueryInformationProcess)(GetProcAddress(ntdllmod, "NtQueryInformationProcess"));
 		realExitProcess = (pExitProcess)ExitProcess;
-		
+
 		// Hook the functions now!
 		// NtCreateFile
 		DetourTransactionBegin();
@@ -281,8 +353,10 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 			OutputDebugString(_T("ExitProcess not derouted correctly"));
 		else
 			OutputDebugString(_T("ExitProcess successful"));
-		
+		*/
+
 		notifyNewPid(0, GetCurrentProcessId());
+		
 
 		break;
 	case DLL_PROCESS_DETACH:
@@ -290,8 +364,33 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		
 		DisableThreadLibraryCalls(hDLL);
 		
+		UnHook(&realNtCreateFile, MyNtCreateFile, "NtCreateFile");
+		UnHook(&realNtOpenFile, MyNtOpenFile, "NtOpenFile");
+		UnHook(&realNtDeleteFile, MyNtDeleteFile, "NtDeleteFile");
+		UnHook(&realNtCreateKey, MyNtCreateKey,  "NtCreateKey");
+		UnHook(&realNtOpenKey, MyNtOpenKey,  "NtOpenKey");
+		UnHook(&realNtSetInformationFile, MyNtSetInformationFile, "NtSetInformationFile");
+		UnHook(&realNtClose, MyNtClose, "NtClose");
+		UnHook(&realCreateProcessInternalW, MyCreateProcessInternalW, "CreateProcessInternalW");
+		UnHook(&realExitProcess, MyExitProcess, "ExitProcess");
+
+		// Supplementay Hooks
+		//UnHook(&realNtSetValueKey, MyNtSetValueKey, "NtSetValueKey");
+		//UnHook(&realNtTerminateProcess, MyNtTerminateProcess, "NtTerminateProcess");
+		//UnHook(&realNtOpenDirectoryObject, MyNtOpenDirectoryObject, "NtOpenDirectoryObject");
+		//UnHook(&realNtDeleteKey, MyNtDeleteKey,  "NtDeleteKey");
+		//UnHook(&realNtQueryKey, MyNtQueryKey,  "NtQueryKey");
+		//UnHook(&realNtDeleteValueKey, MyNtDeleteValueKey,  "NtDeleteValueKey");
+		//UnHook(&realNtEnumerateKey, MyNtEnumerateKey,  "NtEnumerateKey");
+		//UnHook(&realNtEnumerateValueKey, MyNtEnumerateValueKey,  "NtEnumerateValueKey");
+		//UnHook(&realNtLockFile, MyNtLockFile, "NtLockFile");
+		//UnHook(&realNtQueryDirectoryFile, MyNtQueryDirectoryFile,  "NtQueryDirectoryFile");
+		//UnHook(&realNtQueryFullAttributesFile, MyNtQueryFullAttributesFile, "NtQueryFullAttributesFile");
+		//UnHook(&realNtQueryValueKey, MyNtQueryValueKey, "NtQueryValueKey");
+
+		// Old Code
+		/*
 		// NtClose
-		
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
 		DetourDetach(&(PVOID&)realNtClose, MyNtClose);
@@ -489,7 +588,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 			OutputDebugString(_T("CreateProcessInternalW not detached correctly"));
 		else
 			OutputDebugString(_T("CreateProcessInternalW detached successfully"));
-
+		*/
 		break;
 	}
 
@@ -521,6 +620,7 @@ NTSTATUS WINAPI MyNtCreateFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, PO
 	if (res == 0)
 		handleMap.Insert(*FileHandle, s);
 
+	#ifdef SYSCALL_LOG
 	// Use a node object to create the XML string: this will contain all information about the SysCall
 	pugi::xml_document doc;
 	pugi::xml_node element = doc.append_child(_T("NtCreateFile"));
@@ -574,8 +674,8 @@ NTSTATUS WINAPI MyNtCreateFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, PO
 		element.addAttribute(_T("Handle"), buff);
 	}
 	
-
 	log(&element);
+	#endif
 
 	decHookingDepth();
 
@@ -603,6 +703,7 @@ NTSTATUS WINAPI MyNtOpenFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJ
 	if (res == 0)
 		handleMap.Insert(*FileHandle, s);
 
+	#ifdef SYSCALL_LOG
 	// Use a node object to create the XML string: this will contain all information about the SysCall
 	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtOpenFile"));
 
@@ -643,6 +744,8 @@ NTSTATUS WINAPI MyNtOpenFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJ
 
 	log(&element);
 
+	#endif
+
 	decHookingDepth();
 
 	return res;
@@ -660,6 +763,7 @@ NTSTATUS WINAPI MyNtDeleteFile(POBJECT_ATTRIBUTES ObjectAttributes)
 	// Ok we notify our component only after the call has happened, so the GuestController will understand file has been deleted
 	NotifyFileAccess(GetFullPathByObjectAttributes(ObjectAttributes), WK_FILE_DELETED);
 
+	#ifdef SYSCALL_LOG
 	// Use a node object to create the XML string: this will contain all information about the SysCall
 	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtDeleteFile"));
 
@@ -687,6 +791,7 @@ NTSTATUS WINAPI MyNtDeleteFile(POBJECT_ATTRIBUTES ObjectAttributes)
 	element.addAttribute(_T("Result"), s.c_str());
 
 	log(&element);
+	#endif
 
 	decHookingDepth();
 
@@ -703,6 +808,7 @@ NTSTATUS WINAPI MyNtOpenDirectoryObject(PHANDLE DirectoryObject, ACCESS_MASK Des
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtOpenDirectoryObject(DirectoryObject, DesiredAccess, ObjectAttributes);
 
+	#ifdef SYSCALL_LOG
 	// Use a node object to create the XML string: this will contain all information about the SysCall
 	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtOpenDirectoryObject"));
 	
@@ -735,6 +841,7 @@ NTSTATUS WINAPI MyNtOpenDirectoryObject(PHANDLE DirectoryObject, ACCESS_MASK Des
 	}
 
 	log(&element);
+	#endif
 
 	decHookingDepth();
 
@@ -758,6 +865,7 @@ NTSTATUS WINAPI MyNtOpenKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJEC
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtOpenKey(KeyHandle, DesiredAccess, ObjectAttributes);
 
+	#ifdef SYSCALL_LOG
 	// Use a node object to create the XML string: this will contain all information about the SysCall
 	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtOpenKey"));
 	string w = string();
@@ -789,6 +897,7 @@ NTSTATUS WINAPI MyNtOpenKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJEC
 	}
 
 	log(&element);
+	#endif
 
 	decHookingDepth();
 
@@ -809,6 +918,7 @@ NTSTATUS WINAPI MyNtCreateKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJ
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtCreateKey(KeyHandle, DesiredAccess, ObjectAttributes, TitleIndex, Class, CreateOptions, Disposition);
 	
+	#ifdef SYSCALL_LOG
 	// Use a node object to create the XML string: this will contain all information about the SysCall
 	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtCreateKey"));
 	string w = string();
@@ -862,13 +972,14 @@ NTSTATUS WINAPI MyNtCreateKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJ
 
 	log(&element);
 	
+	#endif
+
 	decHookingDepth();
 
 	return res;	
 }
 NTSTATUS WINAPI MyNtQueryKey(HANDLE KeyHandle, KEY_INFORMATION_CLASS KeyInformationClass, PVOID KeyInformation, ULONG Length, PULONG ResultLength)
 {
-
 	if (!shouldIntercept())
 		return realNtQueryKey(KeyHandle, KeyInformationClass, KeyInformation, Length, ResultLength);
 
@@ -877,6 +988,7 @@ NTSTATUS WINAPI MyNtQueryKey(HANDLE KeyHandle, KEY_INFORMATION_CLASS KeyInformat
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtQueryKey(KeyHandle,KeyInformationClass,KeyInformation,Length,ResultLength);
 
+	#ifdef SYSCALL_LOG
 	// Use a node object to create the XML string: this will contain all information about the SysCall
 	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtQueryKey"));
 
@@ -904,6 +1016,7 @@ NTSTATUS WINAPI MyNtQueryKey(HANDLE KeyHandle, KEY_INFORMATION_CLASS KeyInformat
 	}
 
 	log(&element);
+	#endif
 
 	decHookingDepth();
 
@@ -920,6 +1033,7 @@ NTSTATUS WINAPI MyNtDeleteKey(HANDLE KeyHandle)
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtDeleteKey(KeyHandle);
 
+	#ifdef SYSCALL_LOG
 	// Use a node object to create the XML string: this will contain all information about the SysCall
 	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtDeleteKey"));
 
@@ -944,6 +1058,8 @@ NTSTATUS WINAPI MyNtDeleteKey(HANDLE KeyHandle)
 
 	log(&element);
 
+	#endif
+
 	decHookingDepth();
 
 	return res;
@@ -958,6 +1074,7 @@ NTSTATUS WINAPI MyNtDeleteValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName){
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtDeleteValueKey(KeyHandle, ValueName);
 
+	#ifdef SYSCALL_LOG
 	// Use a node object to create the XML string: this will contain all information about the SysCall
 	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtDeleteValueKey"));
 
@@ -986,6 +1103,8 @@ NTSTATUS WINAPI MyNtDeleteValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName){
 
 	log(&element);
 
+	#endif
+
 	decHookingDepth();
 
 	return res;
@@ -1000,6 +1119,7 @@ NTSTATUS WINAPI MyNtEnumerateKey(HANDLE KeyHandle, ULONG Index, KEY_INFORMATION_
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtEnumerateKey(KeyHandle,Index,KeyInformationClass,KeyInformation,Length,ResultLength);
 
+	#ifdef SYSCALL_LOG
 	// Use a node object to create the XML string: this will contain all information about the SysCall
 	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtEnumerateKey"));
 
@@ -1026,6 +1146,8 @@ NTSTATUS WINAPI MyNtEnumerateKey(HANDLE KeyHandle, ULONG Index, KEY_INFORMATION_
 
 	log(&element);
 
+	#endif
+
 	decHookingDepth();
 
 	return res;
@@ -1040,6 +1162,7 @@ NTSTATUS WINAPI MyNtEnumerateValueKey(HANDLE KeyHandle, ULONG Index, KEY_VALUE_I
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtEnumerateValueKey(KeyHandle, Index, KeyValueInformationClass, KeyValueInformation, Length, ResultLength);
 
+	#ifdef SYSCALL_LOG
 	// Use a node object to create the XML string: this will contain all information about the SysCall
 	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtEnumerateValueKey"));
 
@@ -1068,6 +1191,8 @@ NTSTATUS WINAPI MyNtEnumerateValueKey(HANDLE KeyHandle, ULONG Index, KEY_VALUE_I
 	}
 
 	log(&element);
+	#endif
+
 	decHookingDepth();
 
 	return res;
@@ -1081,6 +1206,8 @@ NTSTATUS WINAPI MyNtLockFile(HANDLE FileHandle, HANDLE Event, PIO_APC_ROUTINE Ap
 
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtLockFile(FileHandle,Event,ApcRoutine,ApcContext,IoStatusBlock,ByteOffset,Length,Key,FailImmediately,ExclusiveLock);
+
+	#ifdef SYSCALL_LOG
 
 	// Use a node object to create the XML string: this will contain all information about the SysCall
 	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtLockFile"));
@@ -1126,6 +1253,8 @@ NTSTATUS WINAPI MyNtLockFile(HANDLE FileHandle, HANDLE Event, PIO_APC_ROUTINE Ap
 
 	log(&element);
 
+	#endif
+
 	decHookingDepth();
 
 	return res;
@@ -1136,6 +1265,7 @@ NTSTATUS WINAPI MyNtOpenProcess(PHANDLE ProcessHandle, ACCESS_MASK DesiredAccess
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtOpenProcess(ProcessHandle,DesiredAccess,ObjectAttributes,ClientId);
 	
+	#ifdef SYSCALL_LOG
 	// Use a node object to create the XML string: this will contain all information about the SysCall
 	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtOpenProcess"));
 	
@@ -1162,6 +1292,7 @@ NTSTATUS WINAPI MyNtOpenProcess(PHANDLE ProcessHandle, ACCESS_MASK DesiredAccess
 		element.addAttribute(_T("Path"), ObjectAttributes->ObjectName->Buffer);
 	}
 	
+	#endif
 
 	log(&element);
 	
@@ -1176,6 +1307,7 @@ NTSTATUS WINAPI MyNtQueryDirectoryFile(HANDLE FileHandle, HANDLE Event, PIO_APC_
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtQueryDirectoryFile(FileHandle,Event,ApcRoutine, ApcContext, IoStatusBlock, FileInformation, Length,FileInformationClass,ReturnSingleEntry,FileName,RestartScan);
 
+	#ifdef SYSCALL_LOG
 	// Use a node object to create the XML string: this will contain all information about the SysCall
 	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtQueryDirectoryFile"));
 
@@ -1205,6 +1337,8 @@ NTSTATUS WINAPI MyNtQueryDirectoryFile(HANDLE FileHandle, HANDLE Event, PIO_APC_
 	}
 
 	log(&element);
+	#endif
+
 	decHookingDepth();
 	return res;
 }
@@ -1215,6 +1349,8 @@ NTSTATUS WINAPI MyNtQueryFullAttributesFile(POBJECT_ATTRIBUTES ObjectAttributes,
 	incHookingDepth();
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtQueryFullAttributesFile(ObjectAttributes, FileInformation);
+
+	#ifdef SYSCALL_LOG
 
 	// Use a node object to create the XML string: this will contain all information about the SysCall
 	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtQueryFullAttributesFile"));
@@ -1240,6 +1376,9 @@ NTSTATUS WINAPI MyNtQueryFullAttributesFile(POBJECT_ATTRIBUTES ObjectAttributes,
 	}
 
 	log(&element);
+
+	#endif
+
 	decHookingDepth();
 	return res;
 }
@@ -1251,6 +1390,8 @@ NTSTATUS WINAPI MyNtQueryValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName, K
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtQueryValueKey(KeyHandle, ValueName, KeyValueInformationClass, KeyValueInformation, Length, ResultLength);
 	
+	#ifdef SYSCALL_LOG
+
 	// Use a node object to create the XML string: this will contain all information about the SysCall
 	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtQueryValueKey"));
 
@@ -1282,6 +1423,9 @@ NTSTATUS WINAPI MyNtQueryValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName, K
 	}
 
 	log(&element);
+
+	#endif
+
 	decHookingDepth();
 	return res;
 }
@@ -1337,6 +1481,8 @@ NTSTATUS WINAPI MyNtSetInformationFile(HANDLE FileHandle, PIO_STATUS_BLOCK IoSta
 		}
 	}
 
+	#ifdef SYSCALL_LOG
+
 	// Use a node object to create the XML string: this will contain all information about the SysCall
 	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtSetInformationFile"));
 
@@ -1366,6 +1512,9 @@ NTSTATUS WINAPI MyNtSetInformationFile(HANDLE FileHandle, PIO_STATUS_BLOCK IoSta
 	}
 
 	log(&element);
+
+	#endif
+
 	decHookingDepth();
 	return res;
 }
@@ -1376,6 +1525,8 @@ NTSTATUS WINAPI MyNtSetValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName, ULO
 	incHookingDepth();
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtSetValueKey(KeyHandle,ValueName,TitleIndex,Type,Data,DataSize);
+
+	#ifdef SYSCALL_LOG
 
 	// Use a node object to create the XML string: this will contain all information about the SysCall
 	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtSetValueKey"));
@@ -1409,6 +1560,9 @@ NTSTATUS WINAPI MyNtSetValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName, ULO
 	}
 
 	log(&element);
+
+	#endif
+
 	decHookingDepth();
 	return res;
 }
@@ -1419,6 +1573,8 @@ NTSTATUS WINAPI MyNtTerminateProcess(HANDLE ProcessHandle, NTSTATUS ExitStatus)
 	incHookingDepth();
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtTerminateProcess(ProcessHandle,ExitStatus);
+
+	#ifdef SYSCALL_LOG
 
 	// Use a node object to create the XML string: this will contain all information about the SysCall
 	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtTerminateProcess"));
@@ -1442,6 +1598,9 @@ NTSTATUS WINAPI MyNtTerminateProcess(HANDLE ProcessHandle, NTSTATUS ExitStatus)
 	}
 
 	log(&element);
+
+	#endif
+
 	decHookingDepth();
 	return res;
 }
@@ -1463,6 +1622,7 @@ NTSTATUS WINAPI MyNtClose(HANDLE Handle)
 	//if (pathFound)
 	//	NotifyFileAccess(path, COPYDATA_FILE_CLOSED);
 
+	#ifdef SYSCALL_LOG
 	// Use a node object to create the XML string: this will contain all information about the SysCall
 	pugi::xml_document doc;pugi::xml_node element = doc.append_child(_T("NtClose")); 
 
@@ -1484,6 +1644,9 @@ NTSTATUS WINAPI MyNtClose(HANDLE Handle)
 	}
 
 	log(&element);
+
+	#endif
+
 	decHookingDepth();
 	return res;
 }
@@ -1646,21 +1809,8 @@ BOOL WINAPI MyCreateProcessInternalW(HANDLE hToken,
 			OutputDebugStringA("-----> INJECTOR: Thread resumed");
 		}
 	}
-	
-	
-	/*
-	// Use directly the Detours API
-	BOOL res = DetourCreateProcessWithDll(lpApplicationName, lpCommandLine, lpProcessAttributes, lpThreadAttributes, bInheritHandles, dwCreationFlags, lpEnvironment, lpCurrentDirectory, lpStartupInfo, lpProcessInformation, DllPath, realCreateProcessW);
-	if (!res)
-		OutputDebugString(_T("There was a problem when injecting the DLL to the new process via MyCreateProcessInternalW()."));
-	else {
-		notifyNewPid(cwHandle, lpProcessInformation->dwProcessId);
-		OutputDebugString(_T("New process created and dll injected via MyCreateProcessInternalW()."));
-	}
-	*/
 
-
-	
+	#ifdef SYSCALL_LOG	
 	// Use a node object to create the XML string: this will contain all information about the SysCall
 	pugi::xml_document doc; pugi::xml_node element = doc.append_child(_T("CreateProcessInternalW"));
 
@@ -1672,6 +1822,9 @@ BOOL WINAPI MyCreateProcessInternalW(HANDLE hToken,
 
 
 	log(&element);
+
+	#endif
+
 	decHookingDepth();
 	return processCreated;
 	
@@ -1713,7 +1866,6 @@ extern "C" __declspec(dllexport)VOID NullExport(VOID)
 {
 }
 
-
 void NotifyFileAccess(std::wstring fullPath, const wchar_t* mode) {
 	
 	pugi::xml_document doc;
@@ -1750,7 +1902,6 @@ void NotifyRegistryAccess(std::wstring fullPath, const wchar_t* mode) {
 
 void log(pugi::xml_node *element) {
 	
-	/*
 	element->append_attribute(_T("ThreadId")) = to_string(GetCurrentThreadId()).c_str();
 	element->append_attribute(_T("PId")) = to_string(GetCurrentProcessId()).c_str();
 
@@ -1760,7 +1911,6 @@ void log(pugi::xml_node *element) {
 	}
 	catch (int e) {
 	}
-	*/
 }
 
 
@@ -1945,7 +2095,6 @@ void sendToEventPipe(pugi::xml_node* node) {
 		OutputDebugStringA(buff);
 	}
 }
-
 
 bool IsRequestingWriteAccess(ACCESS_MASK DesiredAccess) {
 	bool notification = false;

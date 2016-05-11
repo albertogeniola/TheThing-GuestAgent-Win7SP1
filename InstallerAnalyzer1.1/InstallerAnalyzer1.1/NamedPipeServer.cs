@@ -53,8 +53,6 @@ namespace InstallerAnalyzer1_Guest
         public const string WK_REGISTRY_EVENT_PATH = "Path";
         public const string WK_KEY_OPENED = "Open";
         public const string WK_KEY_CREATED = "Create";
-        
-        
 
         /// <summary>
         /// Single private instance implementing the singleton pattern.
@@ -103,12 +101,11 @@ namespace InstallerAnalyzer1_Guest
             _logT = new Thread(new ThreadStart(RunLoggerLooper));
             _eventT = new Thread(new ThreadStart(RunEventLooper));
             */
-            _pipeServers = new Thread[5];
-            _pipeServers[0] = new Thread(LoggerSrv);
-            _pipeServers[1] = new Thread(LoggerSrv);
+            _pipeServers = new Thread[4];
+            _pipeServers[0] = new Thread(EventSrv);
+            _pipeServers[1] = new Thread(EventSrv);
             _pipeServers[2] = new Thread(LoggerSrv);
             _pipeServers[3] = new Thread(LoggerSrv);
-            _pipeServers[4] = new Thread(EventSrv);
         }
 
         public void Start() {
@@ -222,8 +219,8 @@ namespace InstallerAnalyzer1_Guest
                         }
                     }
                     var xml = xml_doc.DocumentElement;
-
-                    //Console.WriteLine(xml.Name);
+                    
+                    ProgramStatus.Instance.IncLogRate();
 
                     // Handle differently depending on the ElementName
                     switch (xml.Name)
