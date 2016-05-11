@@ -1,4 +1,5 @@
-﻿using Ionic.Zip;
+﻿using InstallerAnalyzer1_Guest.UIAnalysis;
+using Ionic.Zip;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -8,12 +9,20 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Xml;
+using System.Xml.Serialization;
 
 namespace ResultAnalyzerUtility
 {
+    public struct ScreenInfo {
+        public string clean_image;
+        public string rendered_image;
+        public InstallerAnalyzer1_Guest.UIAnalysis.CandidateSet cs;
+    }
+
     public partial class Form1 : Form
     {
         private XmlDocument _reoprtXml = new XmlDocument();
@@ -22,8 +31,8 @@ namespace ResultAnalyzerUtility
         private List<string> bulkReports = null;
         private int repCount = 0;
 
-        private SortedList<int, string> images = new SortedList<int, string>();
-        private int _imageIndex = -1;
+        private LinkedList<ScreenInfo> images = new LinkedList<ScreenInfo>();
+        private LinkedListNode<ScreenInfo> node = null;
 
         public Form1()
         {
@@ -120,21 +129,40 @@ namespace ResultAnalyzerUtility
                 {
                     zipfile.ExtractAll(SCREEN_DIR);
 
-                    // Load the iamges
-                    foreach (var img in Directory.EnumerateFiles(SCREEN_DIR))
+                    // Load the images info
+                    var sp = new Regex(@"^\d+\.bmp$",RegexOptions.IgnoreCase);
+                    var files = Directory.GetFiles(SCREEN_DIR).Where(f => sp.IsMatch(Path.GetFileName(f))).OrderBy(x => int.Parse(Path.GetFileNameWithoutExtension(x)));
+                    foreach (var f in files)
                     {
-                        string index_str = Path.GetFileName(img).Split('.')[0];
-                        int index = int.Parse(index_str);
-                        images.Add(index, img);
+                        ScreenInfo si = new ScreenInfo();
+                        si.rendered_image = f;
+
+                        int seq = int.Parse(Path.GetFileNameWithoutExtension(f));
+
+                        // Check we have the clean image as well
+                        string clean = Path.Combine(SCREEN_DIR, "clean_" + seq + ".bmp");
+                        if (File.Exists(clean)) {
+                            si.clean_image = clean;
+                        }
+
+                        // Check we have xml data about that
+                        string xmldata = Path.Combine(SCREEN_DIR, "" + seq + ".xml");
+                        if (File.Exists(xmldata))
+                        {
+                            XmlSerializer s = new XmlSerializer(typeof(CandidateSet));
+                            using(var fr = File.OpenRead(xmldata))
+                                using (XmlReader r = XmlReader.Create(fr)) {
+                                    si.cs = s.Deserialize(r) as CandidateSet;
+                                }
+                        }
+                        images.AddLast(si);
                     }
                 }
 
                 File.Delete(ZIP_FILE);
                 totScreens.Text = ""+images.Count;
 
-                if (images.Count > 0)
-                    _imageIndex = images.Count - 1;
-
+                node = images.Last;
                 UpdateScreenshot();
 
             }
@@ -144,28 +172,33 @@ namespace ResultAnalyzerUtility
         }
 
         private void UpdateScreenshot() {
-            if (images.Count < 1)
+            if (node == null)
             {
                 screenN.Text = "0";
                 totScreens.Text = "0";
                 pictureBox1.Image = null;
                 return;
             }
-            if (_imageIndex < 0) {
-                screenN.Text = "0";
-                totScreens.Text = "0";
-                pictureBox1.Image = null;
-                return;
-            }
-
+            
             if (pictureBox1.Image != null)
                 pictureBox1.Image.Dispose();
 
-            screenN.Text = "" + (_imageIndex + 1);
-            totScreens.Text = "" + images.Count;
-            pictureBox1.Image = Image.FromFile(images.ElementAt(_imageIndex).Value);
+            int i=-1;
+            var e = images.GetEnumerator();
+            while (e.MoveNext()) {
+                i++;
+                if (e.Current.Equals(node.Value))
+                    break;
+            }
 
-            progressBar1.Value = (int)(((double)(_imageIndex + 1)/(double)(images.Count))*100);
+            var item = images.ElementAt(i);
+
+            screenN.Text = "" + (i + 1);
+            totScreens.Text = "" + images.Count;
+            pictureBox1.SetScreenData(item);
+
+
+            progressBar1.Value = (int)(((double)(i + 1)/(double)(images.Count))*100);
 
         }
 
@@ -179,25 +212,16 @@ namespace ResultAnalyzerUtility
 
         private void PreviousScreen()
         {
-            if (images.Count < 2)
-                return;
-
-            _imageIndex--;
-            if (_imageIndex < 0)
-                _imageIndex = 0;
+            if (node!=null && node.Previous!=null)
+                node = node.Previous;
             UpdateScreenshot();
             
         }
 
         private void NextScreen()
         {
-            if (images.Count < 2)
-                return;
-
-            _imageIndex++;
-            if (_imageIndex >= images.Count)
-                _imageIndex = (images.Count-1);
-
+            if (node!=null && node.Next != null)
+                node = node.Next;
             UpdateScreenshot();
         }
 

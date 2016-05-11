@@ -866,7 +866,7 @@ namespace InstallerAnalyzer1_Guest
             {
                 if (OriginalKeyValues.ContainsKey(new_key_value.Key)) { 
                     // Add it to the list only if the value has changed or if the type has changed
-                    if (new_key_value.Value.ToString() != OriginalKeyValues[new_key_value.Key].ToString())
+                    if (new_key_value.Value!=null && OriginalKeyValues[new_key_value.Key]!=null && new_key_value.Value.ToString() != OriginalKeyValues[new_key_value.Key].ToString())
                     {
                         ModifiedValues.Add(new_key_value.Key, new
                         {

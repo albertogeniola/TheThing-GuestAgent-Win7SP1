@@ -411,6 +411,10 @@ namespace InstallerAnalyzer1_Guest
 
         }
 
+        public void Stop()
+        {
+            _shouldRun = false;
+        }
     }
 
 }

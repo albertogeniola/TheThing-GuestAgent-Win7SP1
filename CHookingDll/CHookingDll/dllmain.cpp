@@ -1750,6 +1750,7 @@ void NotifyRegistryAccess(std::wstring fullPath, const wchar_t* mode) {
 
 void log(pugi::xml_node *element) {
 	
+	/*
 	element->append_attribute(_T("ThreadId")) = to_string(GetCurrentThreadId()).c_str();
 	element->append_attribute(_T("PId")) = to_string(GetCurrentProcessId()).c_str();
 
@@ -1759,6 +1760,7 @@ void log(pugi::xml_node *element) {
 	}
 	catch (int e) {
 	}
+	*/
 }
 
 

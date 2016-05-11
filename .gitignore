@@ -154,3 +154,9 @@ $RECYCLE.BIN/
 
 # Mac desktop service store files
 .DS_Store
+/CHookingDll/CHookingDll/Only Injector/CHookingDll.tlog
+/CHookingDll/CHookingDll/RemoteDebug/CHookingDll.tlog
+/InstallerAnalyzer1.1/inject_dcom/RemoteDebug/inject_dcom.tlog
+/Injector/Injector/Only Injector/Injector.tlog
+/Injector/Injector/RemoteDebug/Injector.tlog
+/InstallerAnalyzer1.1/InstallerAnalyzer1.1.VC.VC.opendb

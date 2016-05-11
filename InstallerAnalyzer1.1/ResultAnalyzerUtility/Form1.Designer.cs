@@ -1,4 +1,6 @@
-﻿namespace ResultAnalyzerUtility
+﻿using ResultAnalyzerUtility;
+
+namespace ResultAnalyzerUtility
 {
     partial class Form1
     {
@@ -32,6 +34,8 @@
             this.fileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.loadReportToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.exitToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.bulkAnalysisToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.setDirectoryToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
             this.fileName = new System.Windows.Forms.Label();
             this.newApps = new System.Windows.Forms.LinkLabel();
@@ -51,7 +55,7 @@
             this.label3 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
             this.label1 = new System.Windows.Forms.Label();
-            this.pictureBox1 = new System.Windows.Forms.PictureBox();
+            this.pictureBox1 = new MyPicturebox();
             this.button1 = new System.Windows.Forms.Button();
             this.button2 = new System.Windows.Forms.Button();
             this.button4 = new System.Windows.Forms.Button();
@@ -63,8 +67,6 @@
             this.progressBar1 = new System.Windows.Forms.ProgressBar();
             this.fileBtn = new System.Windows.Forms.Button();
             this.regBtn = new System.Windows.Forms.Button();
-            this.bulkAnalysisToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.setDirectoryToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.menuStrip1.SuspendLayout();
             this.groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
@@ -93,15 +95,30 @@
             // loadReportToolStripMenuItem
             // 
             this.loadReportToolStripMenuItem.Name = "loadReportToolStripMenuItem";
-            this.loadReportToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
+            this.loadReportToolStripMenuItem.Size = new System.Drawing.Size(144, 22);
             this.loadReportToolStripMenuItem.Text = "Load report...";
             this.loadReportToolStripMenuItem.Click += new System.EventHandler(this.loadReportToolStripMenuItem_Click);
             // 
             // exitToolStripMenuItem
             // 
             this.exitToolStripMenuItem.Name = "exitToolStripMenuItem";
-            this.exitToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
+            this.exitToolStripMenuItem.Size = new System.Drawing.Size(144, 22);
             this.exitToolStripMenuItem.Text = "Exit";
+            // 
+            // bulkAnalysisToolStripMenuItem
+            // 
+            this.bulkAnalysisToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.setDirectoryToolStripMenuItem});
+            this.bulkAnalysisToolStripMenuItem.Name = "bulkAnalysisToolStripMenuItem";
+            this.bulkAnalysisToolStripMenuItem.Size = new System.Drawing.Size(86, 20);
+            this.bulkAnalysisToolStripMenuItem.Text = "Bulk analysis";
+            // 
+            // setDirectoryToolStripMenuItem
+            // 
+            this.setDirectoryToolStripMenuItem.Name = "setDirectoryToolStripMenuItem";
+            this.setDirectoryToolStripMenuItem.Size = new System.Drawing.Size(150, 22);
+            this.setDirectoryToolStripMenuItem.Text = "Set Directory...";
+            this.setDirectoryToolStripMenuItem.Click += new System.EventHandler(this.setDirectoryToolStripMenuItem_Click);
             // 
             // groupBox1
             // 
@@ -308,6 +325,7 @@
             // 
             // pictureBox1
             // 
+            this.pictureBox1.Cursor = System.Windows.Forms.Cursors.Cross;
             this.pictureBox1.Location = new System.Drawing.Point(12, 140);
             this.pictureBox1.Name = "pictureBox1";
             this.pictureBox1.Size = new System.Drawing.Size(800, 577);
@@ -411,21 +429,6 @@
             this.regBtn.Text = "Registry...";
             this.regBtn.UseVisualStyleBackColor = true;
             // 
-            // bulkAnalysisToolStripMenuItem
-            // 
-            this.bulkAnalysisToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.setDirectoryToolStripMenuItem});
-            this.bulkAnalysisToolStripMenuItem.Name = "bulkAnalysisToolStripMenuItem";
-            this.bulkAnalysisToolStripMenuItem.Size = new System.Drawing.Size(86, 20);
-            this.bulkAnalysisToolStripMenuItem.Text = "Bulk analysis";
-            // 
-            // setDirectoryToolStripMenuItem
-            // 
-            this.setDirectoryToolStripMenuItem.Name = "setDirectoryToolStripMenuItem";
-            this.setDirectoryToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
-            this.setDirectoryToolStripMenuItem.Text = "Set Directory...";
-            this.setDirectoryToolStripMenuItem.Click += new System.EventHandler(this.setDirectoryToolStripMenuItem_Click);
-            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -479,7 +482,7 @@
         private System.Windows.Forms.Label uiBot;
         private System.Windows.Forms.Label label7;
         private System.Windows.Forms.Label label4;
-        private System.Windows.Forms.PictureBox pictureBox1;
+        private MyPicturebox pictureBox1;
         private System.Windows.Forms.Button button1;
         private System.Windows.Forms.Button button2;
         private System.Windows.Forms.Button button4;

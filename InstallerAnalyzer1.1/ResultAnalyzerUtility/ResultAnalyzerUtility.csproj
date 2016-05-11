@@ -48,6 +48,7 @@
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
+    <Reference Include="UIAutomationTypes" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AppLister.cs">
@@ -67,6 +68,12 @@
     </Compile>
     <Compile Include="FileView.Designer.cs">
       <DependentUpon>FileView.cs</DependentUpon>
+    </Compile>
+    <Compile Include="MyPicturebox.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="MyPicturebox.Designer.cs">
+      <DependentUpon>MyPicturebox.cs</DependentUpon>
     </Compile>
     <Compile Include="OutputLister.cs">
       <SubType>Form</SubType>
@@ -110,6 +117,12 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\InstallerAnalyzer1.1\InstallerAnalyzer1_Guest.csproj">
+      <Project>{f551a581-1409-41e1-b5cd-d6114fd459ec}</Project>
+      <Name>InstallerAnalyzer1_Guest</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

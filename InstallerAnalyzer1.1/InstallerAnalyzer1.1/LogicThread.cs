@@ -14,16 +14,14 @@ using System.Windows.Automation;
 using System.Windows.Forms;
 using System.Xml;
 using InstallerAnalyzer1_Guest.Properties;
-using System.Windows;
 using System.Net.NetworkInformation;
 using InstallerAnalyzer1_Guest.Protocol;
 using Newtonsoft.Json;
 using InstallerAnalyzer1_Guest.UIAnalysis;
 using InstallerAnalyzer1_Guest.UIAnalysis.RankingPolicy;
 using System.Drawing;
-using System.IO.Compression;
-using System.IO.Packaging;
 using Ionic.Zip;
+using System.Xml.Serialization;
 
 namespace InstallerAnalyzer1_Guest
 {
@@ -641,6 +639,29 @@ namespace InstallerAnalyzer1_Guest
                     if (b == null)
                         return false;
 
+                    // Save the clean image first
+                    string fname = Path.Combine(Settings.Default.INTERACTIONS_SCREEN_PATH, c + ".bmp");
+                    string clean_fname = Path.Combine(Settings.Default.INTERACTIONS_SCREEN_PATH, "clean_"+c + ".bmp");
+                    string windo_details_fname = Path.Combine(Settings.Default.INTERACTIONS_SCREEN_PATH, c + ".xml");
+
+                    // Save the clean image first
+                    b.Save(clean_fname);
+
+                    // Add back the best candidate.
+                    w.Add(candidate);
+                    
+                    // Save info about the current score set.
+                    using (var xmlWriter = XmlWriter.Create(windo_details_fname))
+                    {
+                        // Serialize the object, and close the TextWriter.
+                        XmlSerializer s = new XmlSerializer(typeof(CandidateSet));
+                        s.Serialize(xmlWriter, w);
+                    }
+
+                    // Remove it now
+                    w.Remove(candidate);
+                    
+                    // Now draw overlays on the image. Useful for fast scan
                     using (Graphics g = Graphics.FromImage(b))
                     {
                         string text = "";
@@ -665,9 +686,7 @@ namespace InstallerAnalyzer1_Guest
                         rect = new RectangleF(candidate.PositionWindowRelative.X, candidate.PositionWindowRelative.Y - scoreFont.Height, size.Width, size.Height);
                         g.FillRectangle(whiteBrush, rect);
                         g.DrawString(text, scoreFont, firstChoiceScoreBrush, candidate.PositionWindowRelative.X, candidate.PositionWindowRelative.Y-scoreFont.Height);
-                        
 
-                        string fname = Path.Combine(Settings.Default.INTERACTIONS_SCREEN_PATH, c + ".bmp");
                         b.Save(fname);
                         return true;
                         
@@ -786,6 +805,9 @@ namespace InstallerAnalyzer1_Guest
                     proc.Result = InteractionResult.UnknownError;
                     Console.WriteLine("Exception occurred when ExecutingJob: "+e.Message+"\n"+e.StackTrace);
                 }
+
+                // Stop listening for events
+                NamedPipeServer.Instance.Stop();
 
                 // Kill the Injector process if it's still alive
                 if (!proc.Process.HasExited)

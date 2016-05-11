@@ -71,34 +71,28 @@ int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,LPSTR lpCmdLine,
 			fclose(f);
 		}
 
-		// 3. Name of the window to send message to
-		cwHandle = FindWindow(NULL, GUESTCONTROLLER_WINDOW_NAME);
-		// TODO: uncomment me
-		if (cwHandle == NULL)
-		{
-			LogError("XXXXXXXXXXX INJECTOR ERROR XXXXXXXXXXXXXX: Cannot find the GuestController window to send message. Please check its name is ");
-			return -1;
-		}
-
 		Log("[INJECTOR] Args are ok.");
 
+		
 		// Some processes will use DCOMLAUNCHER in order to spawn processes. If we really want to catch them, we should hook that process too. 
-		if (!HookAndInjectService(DCOM_DLL_PATH, DCOM_LAUNCH_SERVICE_NAME)) {
+		if (!HookAndInjectService(DLLPATH, DCOM_LAUNCH_SERVICE_NAME)) {
 			LogError("XXXXXXXXXX INJECTOR ERROR XXXXXXXXXXXX: Cannot hook DCOMLauncher");
 			// We do not exit btw.
 		}
 		else {
 			Log("[INJECTOR] DCOM Injection performed! :)");
 		}
+		
 
 		// Some processes will use Windows Installer, so we need to hook that service too
-		if (!HookAndInjectService(DCOM_DLL_PATH, WINDOWS_INSTALLER_SERVICE_NAME)) {
+		if (!HookAndInjectService(DLLPATH, WINDOWS_INSTALLER_SERVICE_NAME)) {
 			LogError("XXXXXXXXXX INJECTOR ERROR XXXXXXXXXXXX: Cannot hook WindowsInstaller service");
 			// We do not exit btw.
 		}
 		else {
 			Log("[INJECTOR] WindowsInstaller Injection performed! :)");
 		}
+		
 
 		// We might be asked to start an MSI file. In that case, we need to use MSIEXEC.
 		bool isMsi = isMsiFile(argv[1]);
@@ -546,33 +540,19 @@ BOOL WINAPI MyDetourCreateProcessWithDll(LPCSTR lpApplicationName,
 	if (lpProcessInformation) {
 		CopyMemory(lpProcessInformation, &pi, sizeof(pi));
 	}
-
-	PID_MESSAGE msg;
-	msg.ppid = GetCurrentProcessId();
-	msg.pid = pi.dwProcessId;
-	// Notify the GuestController we have spawned the process
-	notifyNewPid(msg);
+	/*
+	OutputDebugString("Injection performed, you have 30 seconds to attach a debugger");
+	std::string s;
+	s.append("Attach to ");
+	s.append(std::to_string(pi.dwProcessId));
+	OutputDebugString(s.c_str());
+	*/
 
 	if (!(dwCreationFlags & CREATE_SUSPENDED)) {
 		ResumeThread(pi.hThread);
 	}
 	return TRUE;
 }
-
-void notifyNewPid(PID_MESSAGE pm)
-{
-	DWORD res = 0;
-	COPYDATASTRUCT ds;
-
-	ds.dwData = COPYDATA_PROC_SPAWNED;
-	ds.cbData = sizeof(PID_MESSAGE);
-	ds.lpData = (PVOID)&pm;
-
-	// Send message...
-	SendMessage(cwHandle, WM_COPYDATA, 0, (LPARAM)&ds);
-
-}
-
 
 HANDLE RtlCreateUserThread(
 	HANDLE hProcess,
@@ -639,7 +619,7 @@ BOOL StartSampleService(SC_HANDLE schSCManager, const char* serviceName, DWORD* 
 		LogError(strbuff);
 		return FALSE;
 	}
-
+	
 	if (!StartService(
 		schService, // handle to service
 		0, // number of arguments

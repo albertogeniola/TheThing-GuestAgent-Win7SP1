@@ -4,32 +4,78 @@ using System.Drawing;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using System.Windows.Automation;
 using System.Windows.Forms;
+using System.Xml.Serialization;
+
 
 namespace InstallerAnalyzer1_Guest.UIAnalysis
 {
     public class UIControlCandidate
     {
-        public UIControlCandidate() {}
+        public UIControlCandidate() {
+            // Trick: this enables UIAutomation so it gets initialized. 
+            AutomationElement e = AutomationElement.RootElement;
+        }
+        
+        public Rectangle PositionWindowRelative { get; set; }
 
-        public override String ToString() {
-            StringBuilder sb = new StringBuilder();
-            sb.Append("Type: ");
-            if (ControlType != null)
+        public Rectangle PositionScreenRelative { get; set; }
+
+        public string Text { get; set; }
+
+        public bool? IsEnabled { get; set; }
+
+        public bool? HasFocus { get; set; }
+        
+        public int Score { get; set; }
+
+        [XmlIgnore]
+        public AutomationElement AutoElementRef { get; set; }
+
+        [XmlIgnore]
+        private ControlType _ctrlType;
+
+        [XmlIgnore]
+        public ControlType GuessedControlType {
+            get {
+                if (AutoElementRef != null)
+                    return AutoElementRef.Current.ControlType;
+                else
+                    return _ctrlType;
+            }
+
+            set {
+                _ctrlType = value;
+            }
+        }
+        [XmlElement("ControlTypeId")]
+        public int ControlTypeId
+        {
+            get
             {
-                sb.Append(ControlType);
+                if (AutoElementRef != null)
+                {
+                    return GuessedControlType.Id;
+                }
+                else if (this._ctrlType != null)
+                {
+                    return this._ctrlType.Id;
+                }
+                else {
+                    return -1;
+                }
             }
-            else {
-                sb.Append("Unknown");
+            set
+            {
+                if (value == -1)
+                    this.GuessedControlType = null;
+                else
+                {
+                    _ctrlType = ControlType.LookupById(value);
+                }
             }
-
-            if (Text!=null) {
-                sb.Append("Text ");
-                sb.Append(Text);
-            }
-
-            return sb.ToString();
         }
 
         public void Interact()
@@ -40,8 +86,9 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
 
             // If the element we have is from UIAutomation, simply interact with it.
             object objPattern;
-            
-            if (AutoElementRef != null && AutoElementRef.Current.ControlType == System.Windows.Automation.ControlType.Button && AutoElementRef.TryGetCurrentPattern(InvokePattern.Pattern, out objPattern)){
+
+            if (AutoElementRef != null && AutoElementRef.Current.ControlType == System.Windows.Automation.ControlType.Button && AutoElementRef.TryGetCurrentPattern(InvokePattern.Pattern, out objPattern))
+            {
                 // For buttons
                 InvokePattern invPattern = objPattern as InvokePattern;
                 invPattern.Invoke();
@@ -69,48 +116,44 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
                 System.Windows.Forms.Cursor.Position = new Point(x, y);
                 LeftClick();
             }
-            
+
         }
-
-        public Rectangle PositionWindowRelative { get; set; }
-
-        public Rectangle PositionScreenRelative { get; set; }
-
-        public string Text { get; set; }
-
-        public bool? IsEnabled { get; set; }
-
-        public bool? HasFocus { get; set; }
-
-        public AutomationElement AutoElementRef { get; set; }
-
-        public int Score { get; set; }
-        public System.Windows.Automation.ControlType ControlType { get; set; }
 
         private static void LeftClick()
         {
             mouse_event(MOUSEEVENTF_LEFTDOWN, System.Windows.Forms.Control.MousePosition.X, System.Windows.Forms.Control.MousePosition.Y, 0, 0);
+            Thread.Sleep(1000);
             mouse_event(MOUSEEVENTF_LEFTUP, System.Windows.Forms.Control.MousePosition.X, System.Windows.Forms.Control.MousePosition.Y, 0, 0);
+            Thread.Sleep(1000);
         }
 
-        private void DBGMark() {
-            IntPtr desktopPtr = GetDC(IntPtr.Zero);
-            
-            using(Graphics g = Graphics.FromHdc(desktopPtr))
-                using (Pen p = new Pen(Color.Red,10))
-                    g.DrawRectangle(p, PositionScreenRelative);
-
-            ReleaseDC(IntPtr.Zero, desktopPtr);
-        }
-
+        [XmlIgnore]
         private const int MOUSEEVENTF_LEFTDOWN = 0x0002;
+        [XmlIgnore]
         private const int MOUSEEVENTF_LEFTUP = 0x0004;
         [DllImport("user32.dll")]
         static extern void mouse_event(int dwFlags, int dx, int dy, int dwData, int dwExtraInfo);
-        [DllImport("User32.dll")]
-        public static extern IntPtr GetDC(IntPtr hwnd);
-        [DllImport("User32.dll")]
-        public static extern void ReleaseDC(IntPtr hwnd, IntPtr dc);
+        public override String ToString()
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.Append("Type: ");
+            if (GuessedControlType != null)
+            {
+                sb.Append(GuessedControlType);
+            }
+            else
+            {
+                sb.Append("Unknown");
+            }
+
+            if (Text != null)
+            {
+                sb.Append("Text ");
+                sb.Append(Text);
+            }
+
+            return sb.ToString();
+        }
 
     }
 }
