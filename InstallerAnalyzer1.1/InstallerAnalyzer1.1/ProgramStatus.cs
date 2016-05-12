@@ -78,6 +78,7 @@ namespace InstallerAnalyzer1_Guest
         {
             string oldPath = null;
             string newPath = null;
+            FileAccessInfo t = null;
 
             lock (_filesLock)
             {
@@ -99,7 +100,6 @@ namespace InstallerAnalyzer1_Guest
 
                 // TODO: wildcard? Can they appear here?
                 bool knownFile = _fileMap.ContainsKey(oldPath);
-                FileAccessInfo t = null;
 
                 try
                 {
@@ -122,14 +122,15 @@ namespace InstallerAnalyzer1_Guest
                         t.Path = oPath;
                         _fileMap.Add(oldPath, t);
                     }
-
-                    // Let the object register the file access
-                    t.NotifyRenamedTo(newPath);
                 }
                 catch (Exception e) {
                     throw e;
                 }
-            }
+            } // Release the lock on collection
+
+            // Let the object register the file access. This will acquire the lock
+            t.NotifyRenamedTo(newPath);
+            
         }
         
         public void NotifyFileAccess(string ss) {
@@ -137,6 +138,9 @@ namespace InstallerAnalyzer1_Guest
             if (ss.StartsWith(@"\??\"))
                 wild_path = ss.Substring(4);
 
+            var toNotify = new List<FileAccessInfo>();
+
+            // Lock the collection
             lock (_filesLock)
             {
                 string[] files = null;
@@ -161,12 +165,14 @@ namespace InstallerAnalyzer1_Guest
                         files = new String[] { wild_path };
                     }
                 }
-                else { // If the file does not contain any wildcard, just add it.
+                else
+                { // If the file does not contain any wildcard, just add it.
                     files = new String[] { wild_path };
                 }
 
 
-                if (files == null) {
+                if (files == null)
+                {
                     return;
                 }
 
@@ -188,12 +194,17 @@ namespace InstallerAnalyzer1_Guest
                         _fileMap.Add(s, t);
                     }
 
-                    // Let the object register the file access
-                    t.NotifyAccess();
-                }
+                    toNotify.Add(t);
 
-                return;
-            }
+                }
+            } // Release the lock on the collection
+
+            // Let the object register the file access. This will acquire the lock on each file and eventually will require some time
+            foreach(var t in toNotify)
+                t.NotifyAccess();
+
+            return;
+            
         }
 
         public void NotifyRegistryAccess(string regPath) { 
@@ -312,7 +323,8 @@ namespace InstallerAnalyzer1_Guest
             {
                 if (isService && !_servicePids.Contains(pid))
                     _servicePids.Add(pid);
-                else if (!_monitoredPids.Contains(pid))
+
+                if (!isService && !_monitoredPids.Contains(pid))
                     _monitoredPids.Add(pid);
 
                 _hierarchy.AddProcess(ppid, pid);
@@ -493,48 +505,52 @@ namespace InstallerAnalyzer1_Guest
 
         public void NotifyAccess()
         {
-            ProgramStatus.Instance.SetBusy(true);
             try
             {
-                if (_finalized)
-                    // Skip
-                    return;
-
-                // Collect info on a new struct
-                AccessInfo info = new AccessInfo();
-                info.path = Path;
-                info.exists = File.Exists(Path);
-
-                // If the file exists, collect more information about that
-                if (info.exists)
+                ProgramStatus.Instance.SetBusy(true);
+                lock (this)
                 {
-                    FileInfo finfo = new FileInfo(Path);
-                    info.size = finfo.Length;
-                    info.md5_hash = CalculateHash(Path);
-                    info.fuzzyHash = CalculateFuzzyHash(Path);
-                }
+                    if (_finalized)
+                        // Skip
+                        return;
 
-                // Since a new access has been performed, we might want to save this into the history.
-                // A new history line is relevant if something has changed into the file from last version.
-                // So compare the struct with the last one in memory and add it to the track if it is different.
-                if (_info.Count == 0)
-                    // If this is the first time we see the file, it is necessary to add it!
-                    _info.Add(info);
-                else
-                {
-                    var lastinfo = _info.Last();
-                    if (lastinfo.exists != info.exists ||
-                        lastinfo.fuzzyHash != info.fuzzyHash ||
-                        lastinfo.md5_hash != info.md5_hash ||
-                        lastinfo.size != info.size ||
-                        lastinfo.path != info.path)
-                        // Something has changed, add this item to the history chain
+                    // Collect info on a new struct
+                    AccessInfo info = new AccessInfo();
+                    info.path = Path;
+                    info.exists = File.Exists(Path);
+
+                    // If the file exists, collect more information about that
+                    if (info.exists)
+                    {
+                        FileInfo finfo = new FileInfo(Path);
+                        info.size = finfo.Length;
+                        info.md5_hash = CalculateHash(Path);
+                        info.fuzzyHash = CalculateFuzzyHash(Path);
+                    }
+
+                    // Since a new access has been performed, we might want to save this into the history.
+                    // A new history line is relevant if something has changed into the file from last version.
+                    // So compare the struct with the last one in memory and add it to the track if it is different.
+                    if (_info.Count == 0)
+                        // If this is the first time we see the file, it is necessary to add it!
                         _info.Add(info);
+                    else
+                    {
+                        var lastinfo = _info.Last();
+                        if (lastinfo.exists != info.exists ||
+                            lastinfo.fuzzyHash != info.fuzzyHash ||
+                            lastinfo.md5_hash != info.md5_hash ||
+                            lastinfo.size != info.size ||
+                            lastinfo.path != info.path)
+                            // Something has changed, add this item to the history chain
+                            _info.Add(info);
+                    }
                 }
             }
-            finally {
+            finally
+            {
                 ProgramStatus.Instance.SetBusy(false);
-            }
+            }    
         }
 
         public IEnumerable<AccessInfo> CheckoutHistory()

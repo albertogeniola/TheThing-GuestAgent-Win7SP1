@@ -28,7 +28,7 @@ namespace InstallerAnalyzer1_Guest
     class LogicThread
     {
         const int STUCK_THRESHOLD = 10; //TODO: Fixme. This might be increased or decreased. 
-        const int STUCK_NO_CONTROLS_THRESHOLD = 50;
+        const int STUCK_NO_CONTROLS_THRESHOLD = 100;
         const int REACTION_TIMEOUT = 500;
         int IDLE_TIMEOUT = Settings.Default.IDLE_TIMEOUT; // Wait up to 10 minutes for heavy I/O timeout
         const int ACQUIRE_WORK_SLEEP_SECS = 10;
