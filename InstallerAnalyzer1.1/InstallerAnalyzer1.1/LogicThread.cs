@@ -1464,18 +1464,7 @@ namespace InstallerAnalyzer1_Guest
         private IntPtr GetProcUIWindowHandle()
         {
             var mypids = ProgramStatus.Instance.Pids;
-            /*
-            // Check if we have a foreground window owned by anyone of our processes
-            var foreground = NativeMethods.GetForegroundWindow();
-            uint processId = 0;
-            GetWindowThreadProcessId(foreground, out processId);
-            for (int i = 0; i < mypids.Length; i++) {
-                if (processId == mypids[i]) { 
-                    // This is our main window!
-                    return foreground;
-                }
-            }*/
-
+            
             // Proceed using AutomationElement, maybe we find something more.
             AutomationElement winner = null;
             // List all the processes that currently have a non null WindowHandle
@@ -1503,96 +1492,77 @@ namespace InstallerAnalyzer1_Guest
 
 
             // If there is no pid to monitor, we will have no results. So, return now.
-            if (pidsCond.Count == 0)
-                return IntPtr.Zero;
-            else if (pidsCond.Count == 1)
+            if (pidsCond.Count > 0)
             {
-                // The or condition will require 2 conditions to work. Add a False condition to shut its mouth
-                pidsCond.Add(Condition.FalseCondition);
-            }
-
-            // Use UIAtuomation to query the windows available matching all the resutls (belonging to our pids, visibility).
-            var pidsInOr = new OrCondition(pidsCond.ToArray());
-            var windowVisible = new PropertyCondition(AutomationElement.IsOffscreenProperty, false);
-            var cond = new AndCondition(pidsInOr, windowVisible);
-
-            var allae = AutomationElement.RootElement.FindAll(TreeScope.Children, cond);
-
-            // If we have some result, check if there is any focused element or some "golden" one we might prefer...
-            if (allae != null && allae.Count > 0)
-            {
-                StringBuilder test = new StringBuilder();
-                foreach (AutomationElement a in allae)
+                if (pidsCond.Count == 1)
                 {
-                    // Log all the result windows and chose the one with focus.
-                    test.AppendLine(a.Current.ControlType + " : " + a.Current.BoundingRectangle + " : " + a.Current.BoundingRectangle);
-                    if (a.Current.HasKeyboardFocus)
-                    {
-                        winner = a;
-                    }
+                    // The or condition will require 2 conditions to work. Add a False condition to shut its mouth
+                    pidsCond.Add(Condition.FalseCondition);
                 }
 
-                // If none had the focus, grab the first. 
-                // TODO: we might use some heuristic here to get a better window, such as dimensions, colors, etc.
-                if (winner == null)
+                // Use UIAtuomation to query the windows available matching all the resutls (belonging to our pids, visibility).
+                var pidsInOr = new OrCondition(pidsCond.ToArray());
+                var windowVisible = new PropertyCondition(AutomationElement.IsOffscreenProperty, false);
+                var cond = new AndCondition(pidsInOr, windowVisible);
+
+                var allae = AutomationElement.RootElement.FindAll(TreeScope.Children, cond);
+
+                // If we have some result, check if there is any focused element or some "golden" one we might prefer...
+                if (allae != null && allae.Count > 0)
                 {
-                    winner = allae[0];
+                    StringBuilder test = new StringBuilder();
+                    foreach (AutomationElement a in allae)
+                    {
+                        // Log all the result windows and chose the one with focus.
+                        test.AppendLine(a.Current.ControlType + " : " + a.Current.BoundingRectangle + " : " + a.Current.BoundingRectangle);
+                        if (a.Current.HasKeyboardFocus)
+                        {
+                            winner = a;
+                        }
+                    }
+
+                    // If none had the focus, grab the first. 
+                    // TODO: we might use some heuristic here to get a better window, such as dimensions, colors, etc.
+                    if (winner == null)
+                    {
+                        winner = allae[0];
+                    }
+                }
+                else
+                {
+                    // Sometime, it may happen that the UI is just minimized. Why don't we meximize it again?
+                    foreach (var pid in mypids)
+                    {
+                        try
+                        {
+                            var aprocess = Process.GetProcessById((int)pid);
+                            NativeMethods.ShowWindow(aprocess.MainWindowHandle, NativeMethods.ShowWindowCommands.Normal);
+                        }
+                        catch (Exception e)
+                        {
+                            // Tons of things may go wrong here. Just ignore them.
+                        }
+                    }
                 }
             }
-            else
-            {
-                // Sometime, it may happen that the UI is just minimized. Why don't we meximize it again?
-                foreach (var pid in mypids)
-                {
-                    try
-                    {
-                        var aprocess = Process.GetProcessById((int)pid);
-                        NativeMethods.ShowWindow(aprocess.MainWindowHandle, NativeMethods.ShowWindowCommands.Normal);
-                    }
-                    catch (Exception e)
-                    {
-                        // Tons of things may go wrong here. Just ignore them.
-                    }
-                }
-            }
 
-
-
-            // Return the winner if any, otherwise Zero
-            if (winner != null)
+            // If we still have no window, try to get them via the WindowsNativeApi
+            if (winner != null) {
                 return new IntPtr(winner.Current.NativeWindowHandle);
-            else
-                return IntPtr.Zero;
-
-            
-            /*
-            // Get the FocusedWindow and be sure it's owned by one of the current Processes
-            IntPtr res = GetForegroundWindow();
-
-            if (res != IntPtr.Zero)
-            {
-                // If there's a focused window, BE SURE it's owned by the spawn process.
-                // Retrive the process ID of the current FOCUSED WINDOW
-                uint p;
-                GetWindowThreadProcessId(res, out p);
-                // Scan all the processes
-                foreach (int i in mypids)
-                {
-                    if (i == p)
-                        return res;
+            } else {
+                var foreground = NativeMethods.GetForegroundWindow();
+                uint processId = 0;
+                GetWindowThreadProcessId(foreground, out processId);
+                for (int i = 0; i < mypids.Length; i++) {
+                    if (processId == mypids[i]) {
+                        // This is our main window!
+                        return foreground;
+                    }
                 }
-
-                Console.WriteLine("Current window Handle is: "+res);
-                Console.WriteLine("Class is: " + Window.GetClassName(res));
-                Console.WriteLine("Name is " + Window.GetWindowName(res));
-
-                return IntPtr.Zero;
-                
             }
-            else
-                // If There's no window on foreground, return a null POINTER
-                return IntPtr.Zero;
-            */
+
+            // If still no window has been found, return 0
+            return IntPtr.Zero;
         }
 
         private ProcessContainer StartProcessWithInjector(Job j)

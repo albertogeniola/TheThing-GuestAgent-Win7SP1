@@ -479,7 +479,35 @@ namespace InstallerAnalyzer1_Guest
 
         //int fuzzy_compare (const char *sig1, const char *sig2)
         [DllImport(@"ssdeep\fuzzy.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern int fuzzy_compare(string sig1, string sig2); 
+        public static extern int fuzzy_compare(string sig1, string sig2);
+
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool SystemParametersInfo(
+                                                        int uiAction,
+                                                        int uiParam,
+                                                        ref RECT pvParam,
+                                                        int fWinIni);
+
+        private const Int32 SPIF_SENDWININICHANGE = 2;
+        private const Int32 SPIF_UPDATEINIFILE = 1;
+        private const Int32 SPIF_change = SPIF_UPDATEINIFILE | SPIF_SENDWININICHANGE;
+        private const Int32 SPI_SETWORKAREA = 47;
+        private const Int32 SPI_GETWORKAREA = 48;
+
+        public static bool SetWorkspace(RECT rect)
+        {
+            // Since you've declared the P/Invoke function correctly, you don't need to
+            // do the marshaling yourself manually. The .NET FW will take care of it.
+
+            bool result = SystemParametersInfo(SPI_SETWORKAREA,
+                                               0,
+                                               ref rect,
+                                               SPIF_change);
+
+            return result;
+        }
 
     }
 

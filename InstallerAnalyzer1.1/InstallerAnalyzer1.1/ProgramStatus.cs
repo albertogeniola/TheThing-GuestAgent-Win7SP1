@@ -365,13 +365,12 @@ namespace InstallerAnalyzer1_Guest
                 if (_monitoredPids.Contains(pid))
                     _monitoredPids.Remove(pid);
 
-                msg.processPids = _monitoredPids.ToArray();
-                Monitor.Pulse(_pidsLock);
-
+                
                 if (_servicePids.Contains(pid))
                     _servicePids.Remove(pid);
 
-                msg.servicePids = _monitoredPids.ToArray();
+                msg.processPids = _monitoredPids.ToArray();
+                msg.servicePids = _servicePids.ToArray();
                 Monitor.Pulse(_pidsLock);
             }
 

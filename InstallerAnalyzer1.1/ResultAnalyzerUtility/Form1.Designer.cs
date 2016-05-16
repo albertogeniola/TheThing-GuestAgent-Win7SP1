@@ -30,6 +30,8 @@ namespace ResultAnalyzerUtility
         /// </summary>
         private void InitializeComponent()
         {
+            this.components = new System.ComponentModel.Container();
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
             this.menuStrip1 = new System.Windows.Forms.MenuStrip();
             this.fileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.loadReportToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -55,20 +57,26 @@ namespace ResultAnalyzerUtility
             this.label3 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
             this.label1 = new System.Windows.Forms.Label();
-            this.pictureBox1 = new MyPicturebox();
             this.button1 = new System.Windows.Forms.Button();
             this.button2 = new System.Windows.Forms.Button();
             this.button4 = new System.Windows.Forms.Button();
             this.openDialog = new System.Windows.Forms.OpenFileDialog();
+            this.fileBtn = new System.Windows.Forms.Button();
+            this.regBtn = new System.Windows.Forms.Button();
             this.label8 = new System.Windows.Forms.Label();
             this.screenN = new System.Windows.Forms.Label();
             this.label10 = new System.Windows.Forms.Label();
             this.totScreens = new System.Windows.Forms.Label();
             this.progressBar1 = new System.Windows.Forms.ProgressBar();
-            this.fileBtn = new System.Windows.Forms.Button();
-            this.regBtn = new System.Windows.Forms.Button();
+            this.screenPanel = new System.Windows.Forms.Panel();
+            this.installedItemsPanel = new System.Windows.Forms.Panel();
+            this.applist = new System.Windows.Forms.ListView();
+            this.imageList1 = new System.Windows.Forms.ImageList(this.components);
+            this.pictureBox1 = new ResultAnalyzerUtility.MyPicturebox();
             this.menuStrip1.SuspendLayout();
             this.groupBox1.SuspendLayout();
+            this.screenPanel.SuspendLayout();
+            this.installedItemsPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             this.SuspendLayout();
             // 
@@ -79,7 +87,7 @@ namespace ResultAnalyzerUtility
             this.bulkAnalysisToolStripMenuItem});
             this.menuStrip1.Location = new System.Drawing.Point(0, 0);
             this.menuStrip1.Name = "menuStrip1";
-            this.menuStrip1.Size = new System.Drawing.Size(825, 24);
+            this.menuStrip1.Size = new System.Drawing.Size(822, 24);
             this.menuStrip1.TabIndex = 0;
             this.menuStrip1.Text = "menuStrip1";
             // 
@@ -323,15 +331,6 @@ namespace ResultAnalyzerUtility
             this.label1.TabIndex = 0;
             this.label1.Text = "Name:";
             // 
-            // pictureBox1
-            // 
-            this.pictureBox1.Cursor = System.Windows.Forms.Cursors.Cross;
-            this.pictureBox1.Location = new System.Drawing.Point(12, 140);
-            this.pictureBox1.Name = "pictureBox1";
-            this.pictureBox1.Size = new System.Drawing.Size(800, 577);
-            this.pictureBox1.TabIndex = 2;
-            this.pictureBox1.TabStop = false;
-            // 
             // button1
             // 
             this.button1.Location = new System.Drawing.Point(639, 33);
@@ -367,49 +366,6 @@ namespace ResultAnalyzerUtility
             this.openDialog.Filter = "XML Report|report.xml";
             this.openDialog.ShowReadOnly = true;
             // 
-            // label8
-            // 
-            this.label8.AutoSize = true;
-            this.label8.Location = new System.Drawing.Point(13, 124);
-            this.label8.Name = "label8";
-            this.label8.Size = new System.Drawing.Size(47, 13);
-            this.label8.TabIndex = 7;
-            this.label8.Text = "Screen: ";
-            // 
-            // screenN
-            // 
-            this.screenN.AutoSize = true;
-            this.screenN.Location = new System.Drawing.Point(66, 124);
-            this.screenN.Name = "screenN";
-            this.screenN.Size = new System.Drawing.Size(13, 13);
-            this.screenN.TabIndex = 8;
-            this.screenN.Text = "0";
-            // 
-            // label10
-            // 
-            this.label10.AutoSize = true;
-            this.label10.Location = new System.Drawing.Point(86, 124);
-            this.label10.Name = "label10";
-            this.label10.Size = new System.Drawing.Size(12, 13);
-            this.label10.TabIndex = 9;
-            this.label10.Text = "/";
-            // 
-            // totScreens
-            // 
-            this.totScreens.AutoSize = true;
-            this.totScreens.Location = new System.Drawing.Point(105, 124);
-            this.totScreens.Name = "totScreens";
-            this.totScreens.Size = new System.Drawing.Size(13, 13);
-            this.totScreens.TabIndex = 10;
-            this.totScreens.Text = "0";
-            // 
-            // progressBar1
-            // 
-            this.progressBar1.Location = new System.Drawing.Point(125, 123);
-            this.progressBar1.Name = "progressBar1";
-            this.progressBar1.Size = new System.Drawing.Size(687, 14);
-            this.progressBar1.TabIndex = 11;
-            // 
             // fileBtn
             // 
             this.fileBtn.Location = new System.Drawing.Point(639, 62);
@@ -429,22 +385,118 @@ namespace ResultAnalyzerUtility
             this.regBtn.Text = "Registry...";
             this.regBtn.UseVisualStyleBackColor = true;
             // 
+            // label8
+            // 
+            this.label8.AutoSize = true;
+            this.label8.Location = new System.Drawing.Point(3, 4);
+            this.label8.Name = "label8";
+            this.label8.Size = new System.Drawing.Size(47, 13);
+            this.label8.TabIndex = 7;
+            this.label8.Text = "Screen: ";
+            // 
+            // screenN
+            // 
+            this.screenN.AutoSize = true;
+            this.screenN.Location = new System.Drawing.Point(56, 4);
+            this.screenN.Name = "screenN";
+            this.screenN.Size = new System.Drawing.Size(13, 13);
+            this.screenN.TabIndex = 8;
+            this.screenN.Text = "0";
+            // 
+            // label10
+            // 
+            this.label10.AutoSize = true;
+            this.label10.Location = new System.Drawing.Point(76, 4);
+            this.label10.Name = "label10";
+            this.label10.Size = new System.Drawing.Size(12, 13);
+            this.label10.TabIndex = 9;
+            this.label10.Text = "/";
+            // 
+            // totScreens
+            // 
+            this.totScreens.AutoSize = true;
+            this.totScreens.Location = new System.Drawing.Point(95, 4);
+            this.totScreens.Name = "totScreens";
+            this.totScreens.Size = new System.Drawing.Size(13, 13);
+            this.totScreens.TabIndex = 10;
+            this.totScreens.Text = "0";
+            // 
+            // progressBar1
+            // 
+            this.progressBar1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.progressBar1.Location = new System.Drawing.Point(116, 3);
+            this.progressBar1.Name = "progressBar1";
+            this.progressBar1.Size = new System.Drawing.Size(687, 14);
+            this.progressBar1.TabIndex = 11;
+            // 
+            // screenPanel
+            // 
+            this.screenPanel.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.screenPanel.Controls.Add(this.pictureBox1);
+            this.screenPanel.Controls.Add(this.totScreens);
+            this.screenPanel.Controls.Add(this.progressBar1);
+            this.screenPanel.Controls.Add(this.label10);
+            this.screenPanel.Controls.Add(this.label8);
+            this.screenPanel.Controls.Add(this.screenN);
+            this.screenPanel.Location = new System.Drawing.Point(12, 130);
+            this.screenPanel.Name = "screenPanel";
+            this.screenPanel.Size = new System.Drawing.Size(804, 591);
+            this.screenPanel.TabIndex = 14;
+            // 
+            // installedItemsPanel
+            // 
+            this.installedItemsPanel.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.installedItemsPanel.AutoScroll = true;
+            this.installedItemsPanel.Controls.Add(this.applist);
+            this.installedItemsPanel.Location = new System.Drawing.Point(12, 124);
+            this.installedItemsPanel.Name = "installedItemsPanel";
+            this.installedItemsPanel.Size = new System.Drawing.Size(803, 0);
+            this.installedItemsPanel.TabIndex = 15;
+            // 
+            // applist
+            // 
+            this.applist.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.applist.LargeImageList = this.imageList1;
+            this.applist.Location = new System.Drawing.Point(0, 0);
+            this.applist.Name = "applist";
+            this.applist.Size = new System.Drawing.Size(803, 0);
+            this.applist.TabIndex = 0;
+            this.applist.UseCompatibleStateImageBehavior = false;
+            // 
+            // imageList1
+            // 
+            this.imageList1.ImageStream = ((System.Windows.Forms.ImageListStreamer)(resources.GetObject("imageList1.ImageStream")));
+            this.imageList1.TransparentColor = System.Drawing.Color.Transparent;
+            this.imageList1.Images.SetKeyName(0, "installer");
+            // 
+            // pictureBox1
+            // 
+            this.pictureBox1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.pictureBox1.Cursor = System.Windows.Forms.Cursors.Cross;
+            this.pictureBox1.Location = new System.Drawing.Point(3, 28);
+            this.pictureBox1.Name = "pictureBox1";
+            this.pictureBox1.Size = new System.Drawing.Size(800, 560);
+            this.pictureBox1.TabIndex = 2;
+            this.pictureBox1.TabStop = false;
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(825, 729);
+            this.ClientSize = new System.Drawing.Size(822, 842);
+            this.Controls.Add(this.installedItemsPanel);
+            this.Controls.Add(this.screenPanel);
             this.Controls.Add(this.regBtn);
             this.Controls.Add(this.fileBtn);
-            this.Controls.Add(this.progressBar1);
-            this.Controls.Add(this.totScreens);
-            this.Controls.Add(this.label10);
-            this.Controls.Add(this.screenN);
-            this.Controls.Add(this.label8);
             this.Controls.Add(this.button4);
             this.Controls.Add(this.button2);
             this.Controls.Add(this.button1);
-            this.Controls.Add(this.pictureBox1);
             this.Controls.Add(this.groupBox1);
             this.Controls.Add(this.menuStrip1);
             this.MainMenuStrip = this.menuStrip1;
@@ -455,6 +507,9 @@ namespace ResultAnalyzerUtility
             this.menuStrip1.PerformLayout();
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
+            this.screenPanel.ResumeLayout(false);
+            this.screenPanel.PerformLayout();
+            this.installedItemsPanel.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
@@ -482,7 +537,6 @@ namespace ResultAnalyzerUtility
         private System.Windows.Forms.Label uiBot;
         private System.Windows.Forms.Label label7;
         private System.Windows.Forms.Label label4;
-        private MyPicturebox pictureBox1;
         private System.Windows.Forms.Button button1;
         private System.Windows.Forms.Button button2;
         private System.Windows.Forms.Button button4;
@@ -490,16 +544,21 @@ namespace ResultAnalyzerUtility
         private System.Windows.Forms.OpenFileDialog openDialog;
         private System.Windows.Forms.LinkLabel newApps;
         private System.Windows.Forms.Label label9;
-        private System.Windows.Forms.Label label8;
-        private System.Windows.Forms.Label screenN;
-        private System.Windows.Forms.Label label10;
-        private System.Windows.Forms.Label totScreens;
         private System.Windows.Forms.Label fileName;
-        private System.Windows.Forms.ProgressBar progressBar1;
         private System.Windows.Forms.Button fileBtn;
         private System.Windows.Forms.Button regBtn;
         private System.Windows.Forms.ToolStripMenuItem bulkAnalysisToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem setDirectoryToolStripMenuItem;
+        private MyPicturebox pictureBox1;
+        private System.Windows.Forms.Label label8;
+        private System.Windows.Forms.Label screenN;
+        private System.Windows.Forms.Label label10;
+        private System.Windows.Forms.Label totScreens;
+        private System.Windows.Forms.ProgressBar progressBar1;
+        private System.Windows.Forms.Panel screenPanel;
+        private System.Windows.Forms.Panel installedItemsPanel;
+        private System.Windows.Forms.ListView applist;
+        private System.Windows.Forms.ImageList imageList1;
     }
 }
 

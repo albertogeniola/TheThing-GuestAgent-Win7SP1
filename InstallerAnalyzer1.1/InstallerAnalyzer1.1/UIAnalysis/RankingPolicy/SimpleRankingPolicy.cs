@@ -10,6 +10,7 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis.RankingPolicy
 {
     public class SimpleRankingPolicy:IRankingPolicy
     {
+        private readonly char[] TEXT_SEPARATORS = new char[]{ ' ', '\t', '\n', '\r' };
         // Heavly Penalize disabled items
         private const int CONTROL_TYPE_DISABLED_SCORE = -1000;
         
@@ -41,10 +42,11 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis.RankingPolicy
         
         // Penalize already checked cb
         private const int CONTROL_TYPE_CHECKBOX_CHECKED_PENALTY = 100;
-        
+
         // MAKE THEM LOWER CASE!
-        private static string[] WHITE_LIST = new string[] {"i agree", "i accept","next","continue","agree","accept","ok","install","finish","run","done","yes", "accept and install", "next >"};
-        private static string[] BLACK_LIST = new string[] {"disagree", "do not accept", "cancel","abort","exit","back","<","< back","decline","quit", "minimize", "no", "close", "pause"};
+        private static string[] WHITE_LIST = new string[] { "next", "continue", "agree", "accept", "ok", "install", "finish", "run", "done", "yes", "i agree", "i accept", "accept and install", "next >" };
+        private static string[] BLACK_LIST_EXACT_MATCHES = new string[] { "disagree", "cancel", "abort", "exit", "back", "<", "decline", "quit", "minimize", "no", "close", "pause", "x", "_", "do not accept", "< back" };
+        
 
         public int RankElement(UIControlCandidate control)
         {
@@ -64,6 +66,7 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis.RankingPolicy
             int score = 0;
 
             string text = control.Text.ToLower().Trim();
+            string[] words = text.Split(TEXT_SEPARATORS);
 
             // Assign score according to the element text
             foreach (string s in WHITE_LIST)
@@ -71,24 +74,23 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis.RankingPolicy
                 if (text.CompareTo(s) == 0)
                 {
                     score += WORD_EXACT_SCORE;
-                    continue;
+                    return score;
                 }
 
-                if (text.Contains(s))
+                if (words.Contains(s))
                     score += WORD_CONTAINED_SCORE;
             }
 
-            foreach (string s in BLACK_LIST)
+            
+            foreach (string s in BLACK_LIST_EXACT_MATCHES)
             {
                 if (text.CompareTo(s) == 0)
                 {
                     score -= WORD_EXACT_SCORE;
-                    continue;
+                    return score;
                 }
-
-                if (text.Contains(s))
-                    score -= WORD_CONTAINED_SCORE;
             }
+            
 
             return score;
         }

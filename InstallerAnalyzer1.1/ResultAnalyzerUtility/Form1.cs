@@ -110,8 +110,13 @@ namespace ResultAnalyzerUtility
                 var newAppsNode = result.SelectSingleNode("NewApplications");
                 newApps.Text = newAppsNode.Attributes["count"].InnerText;
                 List<String> apps = new List<string>();
+                applist.Clear();
                 foreach (XmlNode node in newAppsNode.SelectNodes("Application")) {
                     apps.Add(node.InnerText);
+                    var lvi = new ListViewItem();
+                    lvi.Text = node.InnerText;
+                    lvi.ImageIndex = 0;
+                    applist.Items.Add(lvi);
                 }
                 newApps.Tag = apps;
 
@@ -304,8 +309,15 @@ namespace ResultAnalyzerUtility
 
         private void showNewApps()
         {
-            AppLister l = new AppLister((List<string>)newApps.Tag);
-            l.ShowDialog();
+            if (installedItemsPanel.Height == 0)
+            {
+                installedItemsPanel.Height = 128;
+            }
+            else {
+                installedItemsPanel.Height = 0;
+            }
+            screenPanel.Location = new Point(screenPanel.Location.X, installedItemsPanel.Location.Y + installedItemsPanel.Height);
+            Invalidate();            
         }
 
         private void Out_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)

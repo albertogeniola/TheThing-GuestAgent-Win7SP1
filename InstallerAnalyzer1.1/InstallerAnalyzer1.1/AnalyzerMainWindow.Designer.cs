@@ -197,6 +197,7 @@
             this.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
             this.Text = "WKWatcher";
             this.TopMost = true;
+            this.Shown += new System.EventHandler(this.AnalyzerMainWindow_Shown_1);
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
