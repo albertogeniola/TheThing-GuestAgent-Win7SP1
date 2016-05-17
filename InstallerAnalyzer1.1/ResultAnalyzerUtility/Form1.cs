@@ -56,13 +56,21 @@ namespace ResultAnalyzerUtility
                     throw new Exception("The file does not exist.");
                 }
 
-                XmlReaderSettings settings = new XmlReaderSettings();
-                settings.CheckCharacters = false;
-                // Load the file contents into the XML document
-                using (var reader = XmlReader.Create(File.OpenRead(xml),settings))
+                try
                 {
-                    
-                    _reoprtXml.Load(reader);
+                    XmlReaderSettings settings = new XmlReaderSettings();
+                    settings.CheckCharacters = false;
+                    // Load the file contents into the XML document
+                    using (var reader = XmlReader.Create(File.OpenRead(xml), settings))
+                    {
+
+                        _reoprtXml.Load(reader);
+                    }
+                }
+                catch (XmlException ex) {
+                    MessageBox.Show("The XML report " + xml + " is corrupted.");
+                    pictureBox1.Image = null;
+                    return;
                 }
 
                 // Populate the UI
@@ -173,6 +181,7 @@ namespace ResultAnalyzerUtility
             }
             catch (Exception e) {
                 MessageBox.Show("Error occurred: "+e.Message);
+                pictureBox1.Image = null;
             }
         }
 
@@ -196,14 +205,17 @@ namespace ResultAnalyzerUtility
                     break;
             }
 
-            var item = images.ElementAt(i);
+            if (i != -1)
+            {
+                var item = images.ElementAt(i);
 
-            screenN.Text = "" + (i + 1);
-            totScreens.Text = "" + images.Count;
-            pictureBox1.SetScreenData(item);
+                screenN.Text = "" + (i + 1);
+                totScreens.Text = "" + images.Count;
+                pictureBox1.SetScreenData(item);
 
 
-            progressBar1.Value = (int)(((double)(i + 1)/(double)(images.Count))*100);
+                progressBar1.Value = (int)(((double)(i + 1) / (double)(images.Count)) * 100);
+            }
 
         }
 
