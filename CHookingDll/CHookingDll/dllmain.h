@@ -266,6 +266,7 @@ const wchar_t* KeyValueInformationClassToString(KEY_VALUE_INFORMATION_CLASS valu
 BOOL GetFileNameFromHandle(HANDLE hFile, std::wstring* w);
 void add_value_name(pugi::xml_node * element, PUNICODE_STRING ValueName);
 void from_unicode_to_wstring(PUNICODE_STRING u, std::wstring* w);
+std::wstring GetKeyPathFromOA(POBJECT_ATTRIBUTES ObjectAttributes);
 
 /* Messages functions */
 HANDLE connectToPipe(DWORD index, char* pipeName);

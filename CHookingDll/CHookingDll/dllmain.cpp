@@ -105,6 +105,9 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
 		_set_abort_behavior(0, _WRITE_ABORT_MSG);
 
+		// The following is needed for performing the lookup of opened query keys
+		realNtQueryKey = (pNtQueryKey)(GetProcAddress(ntdllmod, "NtQueryKey"));
+
 		Hook(&realNtCreateFile, MyNtCreateFile, ntdllmod, "NtCreateFile");
 		Hook(&realNtOpenFile,MyNtOpenFile,ntdllmod, "NtOpenFile");
 		Hook(&realNtDeleteFile,MyNtDeleteFile,ntdllmod, "NtDeleteFile");
@@ -114,7 +117,8 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		Hook(&realNtClose, MyNtClose,ntdllmod, "NtClose");
 		Hook(&realCreateProcessInternalW, MyCreateProcessInternalW,kern32dllmod, "CreateProcessInternalW");
 		Hook(&realExitProcess, MyExitProcess, kern32dllmod, "ExitProcess");
-	
+
+		
 		// Supplementay Hooks
 		//Hook(&realNtOpenDirectoryObject,MyNtOpenDirectoryObject,ntdllmod, "NtOpenDirectoryObject");
 		//Hook(&realNtDeleteKey, MyNtDeleteKey,ntdllmod, "NtDeleteKey");
@@ -858,9 +862,11 @@ NTSTATUS WINAPI MyNtOpenKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJEC
 	// before any operation happens on the key, we give a chance to the GuestController to retrieve the original value of the key before any
 	// change happens. When the process is done, the GuestController will compare original values with the final ones.
 	// For this reason we just need to notify it when we open Keys with write mode.
-	string s = GetFullPathByObjectAttributes(ObjectAttributes);
-	if (IsRequestingRegistryWriteAccess(DesiredAccess))
+	string s = GetKeyPathFromOA(ObjectAttributes);
+	if (IsRequestingRegistryWriteAccess(DesiredAccess)) {
+		OutputDebugStringW(ObjectAttributes->ObjectName->Buffer);
 		NotifyRegistryAccess(s, WK_KEY_OPENED);
+	}
 
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtOpenKey(KeyHandle, DesiredAccess, ObjectAttributes);
@@ -903,20 +909,27 @@ NTSTATUS WINAPI MyNtOpenKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJEC
 
 	return res;
 }
-NTSTATUS WINAPI MyNtCreateKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, ULONG TitleIndex, PUNICODE_STRING Class, ULONG CreateOptions, PULONG Disposition)
+NTSTATUS WINAPI MyNtCreateKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, ULONG TitleIndex, PUNICODE_STRING fullpath, ULONG CreateOptions, PULONG Disposition)
 {
 	if (!shouldIntercept())
-		return realNtCreateKey(KeyHandle, DesiredAccess, ObjectAttributes, TitleIndex, Class, CreateOptions, Disposition);
+		return realNtCreateKey(KeyHandle, DesiredAccess, ObjectAttributes, TitleIndex, fullpath, CreateOptions, Disposition);
 
 	incHookingDepth();
 
 	// Notify the GuestController the process wants to create a key
+	/*
 	string s = GetFullPathByObjectAttributes(ObjectAttributes);
 	if (IsRequestingRegistryWriteAccess(DesiredAccess))
 		NotifyRegistryAccess(s, WK_KEY_CREATED);
+	*/
+	if (IsRequestingRegistryWriteAccess(DesiredAccess)) {
+		std::wstring s;
+		s = GetKeyPathFromOA(ObjectAttributes);
+		NotifyRegistryAccess(s, WK_KEY_CREATED);
+	}
 
 	// Call first because we want to store the result to the call too.
-	NTSTATUS res = realNtCreateKey(KeyHandle, DesiredAccess, ObjectAttributes, TitleIndex, Class, CreateOptions, Disposition);
+	NTSTATUS res = realNtCreateKey(KeyHandle, DesiredAccess, ObjectAttributes, TitleIndex, fullpath, CreateOptions, Disposition);
 	
 	#ifdef SYSCALL_LOG
 	// Use a node object to create the XML string: this will contain all information about the SysCall
@@ -2119,6 +2132,23 @@ bool IsRequestingRegistryWriteAccess(ACCESS_MASK DesiredAccess) {
 
 	return notification;
 }
+
+std::wstring GetKeyPathFromOA(POBJECT_ATTRIBUTES ObjectAttributes) {
+	std::wstring w = std::wstring();
+	if (ObjectAttributes->RootDirectory != nullptr) {
+		// Resolve the root directory handle
+		GetKeyPathFromKKEY(ObjectAttributes->RootDirectory, &w);
+		w.append(L"\\");
+	}
+
+	// Populate the rest of the path.
+	std::wstring s = std::wstring();
+	from_unicode_to_wstring(ObjectAttributes->ObjectName, &s);
+	w.append(s);
+
+	return w;
+}
+
 
 std::wstring GetFullPathByObjectAttributes(POBJECT_ATTRIBUTES ObjectAttributes) {
 	// Time to build the filepath. As stated here https://msdn.microsoft.com/en-us/library/windows/hardware/ff557749(v=vs.85).aspx, the ObjectAttribute
