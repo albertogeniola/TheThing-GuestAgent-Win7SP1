@@ -1140,8 +1140,12 @@ namespace InstallerAnalyzer1_Guest
                     path.InnerText = record.path;
                     erec.AppendChild(path);
 
+                    var sha1_hash = log.OwnerDocument.CreateElement("Sha1Hash");
+                    sha1_hash.InnerText = record.hashes.sha1;
+                    erec.AppendChild(sha1_hash);
+
                     var md5_hash = log.OwnerDocument.CreateElement("Md5Hash");
-                    md5_hash.InnerText = record.md5_hash;
+                    md5_hash.InnerText = record.hashes.md5;
                     erec.AppendChild(md5_hash);
 
                     var fuzzyHash = log.OwnerDocument.CreateElement("FuzzyHash");
