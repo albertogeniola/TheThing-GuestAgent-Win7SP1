@@ -1180,6 +1180,8 @@ namespace InstallerAnalyzer1_Guest
                     stringAnalysis.SetAttribute("MinLength", Settings.Default.STRINGS_MIN_LEN.ToString());
                     using (var r = strings.StandardOutput)
                     {
+                        // Use an hashset to remove duplicate values
+                        HashSet<string> string_set = new HashSet<string>();
                         while (!r.EndOfStream)
                         {
                             // Truncate to 400 chars each string.
@@ -1187,8 +1189,14 @@ namespace InstallerAnalyzer1_Guest
                             str = r.ReadLine();
                             if (str.Length > 400)
                                 str = str.Substring(0, 400);
+                            string_set.Add(str);
+                        }
+
+                        // Add the strings into the document
+                        foreach (var s in string_set)
+                        {
                             var estr = log.OwnerDocument.CreateElement("String");
-                            estr.InnerText = str;
+                            estr.InnerText = s;
                             stringAnalysis.AppendChild(estr);
                         }
                     }
