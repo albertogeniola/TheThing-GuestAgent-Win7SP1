@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -14,6 +15,12 @@ namespace InstallerAnalyzer1_Guest
         private readonly string _localPath;
         public string LocalFullPath { get { return _localPath; } }
 
+        public FileVersionInfo FileVersionInfo {
+            get {
+                return FileVersionInfo.GetVersionInfo(LocalFullPath);
+            }
+        }
+        
         public DateTime StartTime { get; set; }
         public DateTime EndTime { get; set; }
 

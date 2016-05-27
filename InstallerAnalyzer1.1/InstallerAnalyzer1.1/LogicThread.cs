@@ -927,6 +927,18 @@ namespace InstallerAnalyzer1_Guest
             return res;
         }
 
+
+        private void DummySerialize(object o, XmlElement parent) {
+            XmlSerializer serializer = new XmlSerializer(o.GetType());
+            string str_obj = null;
+            using (TextWriter writer = new StringWriter())
+            {
+                serializer.Serialize(writer, o);
+                str_obj = writer.ToString();
+                parent.InnerXml = str_obj;
+            }
+        }
+
         private string PrepareReport(ProcessContainer p, string outfile)
         {
             var log = Program.GetInstallerLog();
@@ -935,7 +947,11 @@ namespace InstallerAnalyzer1_Guest
             var experiment = log.OwnerDocument.CreateElement("Experiment");
             var installerName = log.OwnerDocument.CreateElement("InstallerName");
             installerName.InnerText = p.Job.LocalFullPath;
+            var installerDetails = log.OwnerDocument.CreateElement("InstallerDetails");
+            var info = p.Job.FileVersionInfo;
+            DummySerialize(info, installerDetails);
             experiment.AppendChild(installerName);
+            experiment.AppendChild(installerDetails);
             var jobId = log.OwnerDocument.CreateElement("JobId");
             jobId.InnerText = p.Job.Id.ToString();
             experiment.AppendChild(jobId);
