@@ -31,7 +31,7 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis.RankingPolicy
         
         // Also consider checkboxes. If unchecked they are relevant!
         private const int CONTROL_TYPE_CHECKBOX_SCORE = 15;
-        private const int CONTROL_TYPE_CHECKBOX_UNCHECKED_SCORE = 20;
+        private const int CONTROL_TYPE_CHECKBOX_UNCHECKED_SCORE = 50;
 
         // Do not forget about radios
         private const int CONTROL_TYPE_RADIO_SCORE = 15;
