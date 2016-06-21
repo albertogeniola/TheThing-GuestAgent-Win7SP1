@@ -89,9 +89,19 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
 
             if (AutoElementRef != null && AutoElementRef.Current.ControlType == System.Windows.Automation.ControlType.Button && AutoElementRef.TryGetCurrentPattern(InvokePattern.Pattern, out objPattern))
             {
-                // For buttons
-                InvokePattern invPattern = objPattern as InvokePattern;
-                invPattern.Invoke();
+                System.Windows.Point pt = new System.Windows.Point();
+                if (AutoElementRef.TryGetClickablePoint(out pt))
+                {
+                    System.Windows.Forms.Cursor.Position = new Point((int)pt.X+1, (int)pt.Y+1);
+                    LeftClick();
+                }
+                else {
+                    // NOTE! The following approach won't work for some strange UIs (probably bugged). We use the classic way of sendkeys to solve this problem once for all
+                    // For buttons
+                    InvokePattern invPattern = objPattern as InvokePattern;
+                    invPattern.Invoke();
+                }
+
             }
             else if (AutoElementRef != null && AutoElementRef.Current.ControlType == System.Windows.Automation.ControlType.RadioButton && AutoElementRef.TryGetCurrentPattern(SelectionItemPatternIdentifiers.Pattern, out objPattern))
             {

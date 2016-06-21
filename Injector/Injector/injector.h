@@ -1,4 +1,5 @@
 #include <Windows.h>
+#include <Tlhelp32.h>
 #include <sstream>
 #include <string>
 #include <detours.h>
@@ -37,3 +38,5 @@ bool isMsiFile(char* filepath);
 std::string getMsiexecPath();
 
 BOOL StartSampleService(SC_HANDLE schSCManager, const char* serviceName, DWORD* processId);
+
+BOOL HookAndInjectServicesExe(const char* dllPath);

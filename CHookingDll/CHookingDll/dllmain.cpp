@@ -607,7 +607,7 @@ NTSTATUS WINAPI MyNtCreateFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, PO
 	if (!shouldIntercept())
 		return realNtCreateFile(FileHandle, DesiredAccess, ObjectAttributes, IoStatusBlock, AllocationSize, FileAttributes, ShareAccess, CreateDisposition, CreateOptions, EaBuffer, EaLength);
 
-	incHookingDepth();
+	//incHookingDepth();
 
 	// If the handle has write access, it is a good idea to calculate the hash before the attached thread changes the file itself.
 	// To do so, we send a message to the GuestController everytime we see an NtOpenFile with write access. The Guest controller
@@ -681,7 +681,7 @@ NTSTATUS WINAPI MyNtCreateFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, PO
 	log(&element);
 	#endif
 
-	decHookingDepth();
+	//decHookingDepth();
 
 	return res;
 	
@@ -691,7 +691,7 @@ NTSTATUS WINAPI MyNtOpenFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJ
 	if (!shouldIntercept())
 		return realNtOpenFile(FileHandle, DesiredAccess, ObjectAttributes, IoStatusBlock, ShareAccess, OpenOptions);
 
-	incHookingDepth();
+	//incHookingDepth();
 
 	// If the handle has write access, it is a good idea to calculate the hash before the attached thread changes the file itself.
 	// To do so, we send a message to the GuestController everytime we see an NtOpenFile with write access. The Guest controller
@@ -750,7 +750,7 @@ NTSTATUS WINAPI MyNtOpenFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJ
 
 	#endif
 
-	decHookingDepth();
+	//decHookingDepth();
 
 	return res;
 }
@@ -759,7 +759,7 @@ NTSTATUS WINAPI MyNtDeleteFile(POBJECT_ATTRIBUTES ObjectAttributes)
 	if (!shouldIntercept())
 		return realNtDeleteFile(ObjectAttributes);
 
-	incHookingDepth();
+	//incHookingDepth();
 
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtDeleteFile(ObjectAttributes);
@@ -797,7 +797,7 @@ NTSTATUS WINAPI MyNtDeleteFile(POBJECT_ATTRIBUTES ObjectAttributes)
 	log(&element);
 	#endif
 
-	decHookingDepth();
+	//decHookingDepth();
 
 	return res;
 
@@ -807,7 +807,7 @@ NTSTATUS WINAPI MyNtOpenDirectoryObject(PHANDLE DirectoryObject, ACCESS_MASK Des
 	if (!shouldIntercept())
 		return realNtOpenDirectoryObject(DirectoryObject, DesiredAccess, ObjectAttributes);
 
-	incHookingDepth();
+	//incHookingDepth();
 
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtOpenDirectoryObject(DirectoryObject, DesiredAccess, ObjectAttributes);
@@ -847,7 +847,7 @@ NTSTATUS WINAPI MyNtOpenDirectoryObject(PHANDLE DirectoryObject, ACCESS_MASK Des
 	log(&element);
 	#endif
 
-	decHookingDepth();
+	//decHookingDepth();
 
 	return res;
 }
@@ -856,7 +856,7 @@ NTSTATUS WINAPI MyNtOpenKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJEC
 	if (!shouldIntercept())
 		return realNtOpenKey(KeyHandle, DesiredAccess, ObjectAttributes);
 
-	incHookingDepth();
+	//incHookingDepth();
 
 	// We need to notify the GuestController that this process is going to manipulate, somehow, this key. By sending a synch. notification
 	// before any operation happens on the key, we give a chance to the GuestController to retrieve the original value of the key before any
@@ -864,7 +864,7 @@ NTSTATUS WINAPI MyNtOpenKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJEC
 	// For this reason we just need to notify it when we open Keys with write mode.
 	string s = GetKeyPathFromOA(ObjectAttributes);
 	if (IsRequestingRegistryWriteAccess(DesiredAccess)) {
-		OutputDebugStringW(ObjectAttributes->ObjectName->Buffer);
+		//OutputDebugStringW(ObjectAttributes->ObjectName->Buffer);
 		NotifyRegistryAccess(s, WK_KEY_OPENED);
 	}
 
@@ -905,16 +905,16 @@ NTSTATUS WINAPI MyNtOpenKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJEC
 	log(&element);
 	#endif
 
-	decHookingDepth();
+	//decHookingDepth();
 
 	return res;
 }
 NTSTATUS WINAPI MyNtCreateKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, ULONG TitleIndex, PUNICODE_STRING fullpath, ULONG CreateOptions, PULONG Disposition)
 {
-	if (!shouldIntercept())
-		return realNtCreateKey(KeyHandle, DesiredAccess, ObjectAttributes, TitleIndex, fullpath, CreateOptions, Disposition);
+	//if (!shouldIntercept())
+		//return realNtCreateKey(KeyHandle, DesiredAccess, ObjectAttributes, TitleIndex, fullpath, CreateOptions, Disposition);
 
-	incHookingDepth();
+	//incHookingDepth();
 
 	// Notify the GuestController the process wants to create a key
 	/*
@@ -987,7 +987,7 @@ NTSTATUS WINAPI MyNtCreateKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJ
 	
 	#endif
 
-	decHookingDepth();
+	//decHookingDepth();
 
 	return res;	
 }
@@ -996,7 +996,7 @@ NTSTATUS WINAPI MyNtQueryKey(HANDLE KeyHandle, KEY_INFORMATION_CLASS KeyInformat
 	if (!shouldIntercept())
 		return realNtQueryKey(KeyHandle, KeyInformationClass, KeyInformation, Length, ResultLength);
 
-	incHookingDepth();
+	//incHookingDepth();
 
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtQueryKey(KeyHandle,KeyInformationClass,KeyInformation,Length,ResultLength);
@@ -1031,7 +1031,7 @@ NTSTATUS WINAPI MyNtQueryKey(HANDLE KeyHandle, KEY_INFORMATION_CLASS KeyInformat
 	log(&element);
 	#endif
 
-	decHookingDepth();
+	//decHookingDepth();
 
 	return res;
 
@@ -1041,7 +1041,7 @@ NTSTATUS WINAPI MyNtDeleteKey(HANDLE KeyHandle)
 	if (!shouldIntercept())
 		return realNtDeleteKey(KeyHandle);
 
-	incHookingDepth();
+	//incHookingDepth();
 
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtDeleteKey(KeyHandle);
@@ -1073,7 +1073,7 @@ NTSTATUS WINAPI MyNtDeleteKey(HANDLE KeyHandle)
 
 	#endif
 
-	decHookingDepth();
+	//decHookingDepth();
 
 	return res;
 }
@@ -1082,7 +1082,7 @@ NTSTATUS WINAPI MyNtDeleteValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName){
 	if (!shouldIntercept())
 		return realNtDeleteValueKey(KeyHandle, ValueName);
 
-	incHookingDepth();
+	//incHookingDepth();
 
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtDeleteValueKey(KeyHandle, ValueName);
@@ -1118,7 +1118,7 @@ NTSTATUS WINAPI MyNtDeleteValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName){
 
 	#endif
 
-	decHookingDepth();
+	//decHookingDepth();
 
 	return res;
 }
@@ -1127,7 +1127,7 @@ NTSTATUS WINAPI MyNtEnumerateKey(HANDLE KeyHandle, ULONG Index, KEY_INFORMATION_
 	if (!shouldIntercept())
 		return realNtEnumerateKey(KeyHandle, Index, KeyInformationClass, KeyInformation, Length, ResultLength);
 
-	incHookingDepth();
+	//incHookingDepth();
 
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtEnumerateKey(KeyHandle,Index,KeyInformationClass,KeyInformation,Length,ResultLength);
@@ -1161,7 +1161,7 @@ NTSTATUS WINAPI MyNtEnumerateKey(HANDLE KeyHandle, ULONG Index, KEY_INFORMATION_
 
 	#endif
 
-	decHookingDepth();
+	//decHookingDepth();
 
 	return res;
 }
@@ -1170,7 +1170,7 @@ NTSTATUS WINAPI MyNtEnumerateValueKey(HANDLE KeyHandle, ULONG Index, KEY_VALUE_I
 	if (!shouldIntercept())
 		return realNtEnumerateValueKey(KeyHandle, Index, KeyValueInformationClass, KeyValueInformation, Length, ResultLength);
 
-	incHookingDepth();
+	//incHookingDepth();
 
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtEnumerateValueKey(KeyHandle, Index, KeyValueInformationClass, KeyValueInformation, Length, ResultLength);
@@ -1206,7 +1206,7 @@ NTSTATUS WINAPI MyNtEnumerateValueKey(HANDLE KeyHandle, ULONG Index, KEY_VALUE_I
 	log(&element);
 	#endif
 
-	decHookingDepth();
+	//decHookingDepth();
 
 	return res;
 }
@@ -1215,7 +1215,7 @@ NTSTATUS WINAPI MyNtLockFile(HANDLE FileHandle, HANDLE Event, PIO_APC_ROUTINE Ap
 	if (!shouldIntercept())
 		return realNtLockFile(FileHandle, Event, ApcRoutine, ApcContext, IoStatusBlock, ByteOffset, Length, Key, FailImmediately, ExclusiveLock);
 
-	incHookingDepth();
+	//incHookingDepth();
 
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtLockFile(FileHandle,Event,ApcRoutine,ApcContext,IoStatusBlock,ByteOffset,Length,Key,FailImmediately,ExclusiveLock);
@@ -1268,7 +1268,7 @@ NTSTATUS WINAPI MyNtLockFile(HANDLE FileHandle, HANDLE Event, PIO_APC_ROUTINE Ap
 
 	#endif
 
-	decHookingDepth();
+	//decHookingDepth();
 
 	return res;
 }
@@ -1316,7 +1316,7 @@ NTSTATUS WINAPI MyNtQueryDirectoryFile(HANDLE FileHandle, HANDLE Event, PIO_APC_
 {
 	if (!shouldIntercept())
 		return realNtQueryDirectoryFile(FileHandle, Event, ApcRoutine, ApcContext, IoStatusBlock, FileInformation, Length, FileInformationClass, ReturnSingleEntry, FileName, RestartScan);
-	incHookingDepth();
+	//incHookingDepth();
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtQueryDirectoryFile(FileHandle,Event,ApcRoutine, ApcContext, IoStatusBlock, FileInformation, Length,FileInformationClass,ReturnSingleEntry,FileName,RestartScan);
 
@@ -1352,14 +1352,14 @@ NTSTATUS WINAPI MyNtQueryDirectoryFile(HANDLE FileHandle, HANDLE Event, PIO_APC_
 	log(&element);
 	#endif
 
-	decHookingDepth();
+	//decHookingDepth();
 	return res;
 }
 NTSTATUS WINAPI MyNtQueryFullAttributesFile(POBJECT_ATTRIBUTES ObjectAttributes, PFILE_NETWORK_OPEN_INFORMATION FileInformation)
 {
 	if (!shouldIntercept())
 		return realNtQueryFullAttributesFile(ObjectAttributes, FileInformation);
-	incHookingDepth();
+	//incHookingDepth();
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtQueryFullAttributesFile(ObjectAttributes, FileInformation);
 
@@ -1392,14 +1392,14 @@ NTSTATUS WINAPI MyNtQueryFullAttributesFile(POBJECT_ATTRIBUTES ObjectAttributes,
 
 	#endif
 
-	decHookingDepth();
+	//decHookingDepth();
 	return res;
 }
 NTSTATUS WINAPI MyNtQueryValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName, KEY_VALUE_INFORMATION_CLASS KeyValueInformationClass, PVOID KeyValueInformation, ULONG Length, PULONG ResultLength)
 {
 	if (!shouldIntercept())
 		return realNtQueryValueKey(KeyHandle, ValueName, KeyValueInformationClass, KeyValueInformation, Length, ResultLength);
-	incHookingDepth();
+	//incHookingDepth();
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtQueryValueKey(KeyHandle, ValueName, KeyValueInformationClass, KeyValueInformation, Length, ResultLength);
 	
@@ -1439,14 +1439,14 @@ NTSTATUS WINAPI MyNtQueryValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName, K
 
 	#endif
 
-	decHookingDepth();
+	//decHookingDepth();
 	return res;
 }
 NTSTATUS WINAPI MyNtSetInformationFile(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock, PVOID FileInformation, ULONG Length, FILE_INFORMATION_CLASS FileInformationClass)
 {
 	if (!shouldIntercept())
 		return realNtSetInformationFile(FileHandle, IoStatusBlock, FileInformation, Length, FileInformationClass);
-	incHookingDepth();
+	//incHookingDepth();
 	// _FILE_INFORMATION_CLASS::FileRenameInformation = 10 /*0xA*/
 	// FILE_INFORMATION_CLASS::FileRenameInformationBypassAccessCheck => only valid in kernel mode and for Windows 8. So we do not care about this right now.
 	bool isRename = (FileInformationClass == 0xA);
@@ -1528,14 +1528,14 @@ NTSTATUS WINAPI MyNtSetInformationFile(HANDLE FileHandle, PIO_STATUS_BLOCK IoSta
 
 	#endif
 
-	decHookingDepth();
+	//decHookingDepth();
 	return res;
 }
 NTSTATUS WINAPI MyNtSetValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName, ULONG TitleIndex, ULONG Type, PVOID Data, ULONG DataSize)
 {
 	if (!shouldIntercept())
 		return realNtSetValueKey(KeyHandle, ValueName, TitleIndex, Type, Data, DataSize);
-	incHookingDepth();
+	//incHookingDepth();
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtSetValueKey(KeyHandle,ValueName,TitleIndex,Type,Data,DataSize);
 
@@ -1576,14 +1576,14 @@ NTSTATUS WINAPI MyNtSetValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName, ULO
 
 	#endif
 
-	decHookingDepth();
+	//decHookingDepth();
 	return res;
 }
 NTSTATUS WINAPI MyNtTerminateProcess(HANDLE ProcessHandle, NTSTATUS ExitStatus)
 {
 	if (!shouldIntercept())
 		return realNtTerminateProcess(ProcessHandle, ExitStatus);
-	incHookingDepth();
+	//incHookingDepth();
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtTerminateProcess(ProcessHandle,ExitStatus);
 
@@ -1614,14 +1614,14 @@ NTSTATUS WINAPI MyNtTerminateProcess(HANDLE ProcessHandle, NTSTATUS ExitStatus)
 
 	#endif
 
-	decHookingDepth();
+	//decHookingDepth();
 	return res;
 }
 NTSTATUS WINAPI MyNtClose(HANDLE Handle)
 {
 	if (!shouldIntercept())
 		return realNtClose(Handle);
-	incHookingDepth();
+	//incHookingDepth();
 	// Call first because we want to store the result to the call too.
 	NTSTATUS res = realNtClose(Handle);
 	
@@ -1660,7 +1660,7 @@ NTSTATUS WINAPI MyNtClose(HANDLE Handle)
 
 	#endif
 
-	decHookingDepth();
+	//decHookingDepth();
 	return res;
 }
 
@@ -1770,7 +1770,7 @@ BOOL WINAPI MyCreateProcessInternalW(HANDLE hToken,
 {
 	if (!shouldIntercept())
 		return realCreateProcessInternalW(hToken, lpApplicationName, lpCommandLine, lpProcessAttributes, lpThreadAttributes, bInheritHandles, dwCreationFlags, lpEnvironment, lpCurrentDirectory, lpStartupInfo, lpProcessInformation, hNewToken);
-	incHookingDepth();
+	//incHookingDepth();
 	// This is the API that gets eventually called by all the others. Ansi params get converted into wide characters, so the A version is useless.
 	CHAR   DllPath[MAX_PATH] = { 0 };
 	OutputDebugString(_T("MyCreateProcessInternalW"));
@@ -1838,7 +1838,7 @@ BOOL WINAPI MyCreateProcessInternalW(HANDLE hToken,
 
 	#endif
 
-	decHookingDepth();
+	//decHookingDepth();
 	return processCreated;
 	
 }
@@ -1848,12 +1848,12 @@ VOID WINAPI MyExitProcess(UINT uExitCode)
 {
 	if (!shouldIntercept())
 		return realExitProcess(uExitCode);
-	incHookingDepth();
+	//incHookingDepth();
 	
 	// We hook this to let the GuestController know about our intention to terminate
 	notifyRemovedPid(cwHandle, GetCurrentProcessId());
 	
-	decHookingDepth();
+	//decHookingDepth();
 	realExitProcess(uExitCode);
 }
 
@@ -2038,6 +2038,9 @@ void sendToLogPipe(pugi::xml_node* node){
 	bool done = false;
 	int attempts = 0;
 
+	// Disable recursion
+	incHookingDepth();
+
 	// We use a wchart_t type for buffer
 	std::wostringstream ss;
 	node->print(ss, _T(""), pugi::format_raw, pugi::xml_encoding::encoding_utf16_le);
@@ -2068,12 +2071,18 @@ void sendToLogPipe(pugi::xml_node* node){
 		sprintf_s(buff, "[CHOOKING DLL] Sending message on LOG EVENT FAILED after %d attempts.", attempts);
 		OutputDebugStringA(buff);
 	}
+
+	// Enable logging again
+	decHookingDepth();
 }
 
 void sendToEventPipe(pugi::xml_node* node) {
 	bool done = false;
 	HANDLE pipe;
 	int attempts = 0;
+
+	// Suspend recursive logging...
+	incHookingDepth();
 
 	// We use a wchart_t type for buffer
 	std::wostringstream ss;
@@ -2107,6 +2116,9 @@ void sendToEventPipe(pugi::xml_node* node) {
 		sprintf_s(buff, "[CHOOKING DLL] Sending message on LOG EVENT FAILED after %d attempts.", attempts);
 		OutputDebugStringA(buff);
 	}
+
+	// Re-Enable logging
+	decHookingDepth();
 }
 
 bool IsRequestingWriteAccess(ACCESS_MASK DesiredAccess) {

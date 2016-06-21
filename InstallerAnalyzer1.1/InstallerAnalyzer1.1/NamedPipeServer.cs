@@ -142,17 +142,34 @@ namespace InstallerAnalyzer1_Guest
 
         private void LoggerSrv() {
             // Allocate the named pipe endpoint
-            var srv = new NamedPipeServerStream(LOG_PIPE, PipeDirection.InOut, -1, PipeTransmissionMode.Message, PipeOptions.None, INBUFFSIZE, OUTBUFFSIZE, _pipeSa);
-
+            NamedPipeServerStream srv = null;
+            
             while (_shouldRun)
             {
                 try
                 {
+                    if (srv == null)
+                        srv = new NamedPipeServerStream(LOG_PIPE, PipeDirection.InOut, -1, PipeTransmissionMode.Message, PipeOptions.None, INBUFFSIZE, OUTBUFFSIZE, _pipeSa);
+
                     // Wait for a client to connect
                     srv.WaitForConnection();
                     ProcessLogging(srv);
                 }
-                catch (Exception e) {
+                catch (IOException e)
+                {
+                    // Pipe may be broken. Need to restablish it.
+                    srv = null;
+                    try
+                    {
+                        srv.Close();
+                    }
+                    catch (Exception e1)
+                    {
+                        //GIVE UP!
+                    }
+                }
+                catch (Exception e)
+                {
                     Console.WriteLine("Exception in pipe logger: " + e.Message + "\n " + e.StackTrace);
                     continue;
                 }
@@ -162,14 +179,26 @@ namespace InstallerAnalyzer1_Guest
 
         private void EventSrv()
         {
-            var srv = new NamedPipeServerStream(EVENT_PIPE, PipeDirection.InOut, -1, PipeTransmissionMode.Message, PipeOptions.None, INBUFFSIZE, OUTBUFFSIZE, _pipeSa);
+            NamedPipeServerStream srv = null;
 
             while (_shouldRun)
             {
                 try
                 {
+                    if (srv==null)
+                        srv = new NamedPipeServerStream(EVENT_PIPE, PipeDirection.InOut, -1, PipeTransmissionMode.Message, PipeOptions.None, INBUFFSIZE, OUTBUFFSIZE, _pipeSa);
                     srv.WaitForConnection();
                     ProcessEvent(srv);
+                }
+                catch (IOException e) {
+                    // Pipe may be broken. Need to restablish it.
+                    srv = null;
+                    try {
+                        srv.Close();
+                    }
+                    catch (Exception e1) {
+                        //GIVE UP!
+                    }
                 }
                 catch (Exception e)
                 {

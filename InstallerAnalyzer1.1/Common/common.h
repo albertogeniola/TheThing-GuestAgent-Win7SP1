@@ -16,6 +16,7 @@
 #define EVENT_PIPE "\\\\.\\pipe\\wk_event_pipe"
 #define LOG_PIPE "\\\\.\\pipe\\wk_log_pipe"
 
+#define DLL_SERVICES_PATH "C:\\GuestController\\serviceHooker.dll"
 #define DLLPATH "C:\\GuestController\\CHookingDll.dll"
 #define DCOM_LAUNCH_SERVICE_NAME "DcomLaunch"
 #define WINDOWS_INSTALLER_SERVICE_NAME "msiserver"

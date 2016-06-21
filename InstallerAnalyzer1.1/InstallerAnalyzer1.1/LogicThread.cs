@@ -27,7 +27,7 @@ namespace InstallerAnalyzer1_Guest
 {
     class LogicThread
     {
-        const int STUCK_THRESHOLD = 10; //TODO: Fixme. This might be increased or decreased. 
+        const int STUCK_THRESHOLD = 20; //TODO: Fixme. This might be increased or decreased. 
         const int STUCK_NO_CONTROLS_THRESHOLD = 100;
         const int REACTION_TIMEOUT = 500;
         int IDLE_TIMEOUT = Settings.Default.IDLE_TIMEOUT; // Wait up to 10 minutes for heavy I/O timeout
@@ -407,6 +407,7 @@ namespace InstallerAnalyzer1_Guest
 
                             // Save a screenshot with interaction information for debugging and reporting
                             SaveInteractionScreen(waitingWindnow, w, candidate, c);
+
                             candidate.Interact();
                             c++;
 
@@ -927,15 +928,20 @@ namespace InstallerAnalyzer1_Guest
             return res;
         }
 
-
+        /// <summary>
+        /// Will only serialize object properties properties.
+        /// </summary>
+        /// <param name="o"></param>
+        /// <param name="parent"></param>
         private void DummySerialize(object o, XmlElement parent) {
-            XmlSerializer serializer = new XmlSerializer(o.GetType());
-            string str_obj = null;
-            using (TextWriter writer = new StringWriter())
-            {
-                serializer.Serialize(writer, o);
-                str_obj = writer.ToString();
-                parent.InnerXml = str_obj;
+
+            // The stupid C# default XMLSerializer won't work without parameterless constructor. We need to implement
+            // our Serializer using reflection
+            var props = o.GetType().GetProperties();
+            foreach (var p in props) {
+                XmlElement e = parent.OwnerDocument.CreateElement(p.Name);
+                e.InnerText = p.GetValue(o,null).ToString();
+                parent.AppendChild(e);
             }
         }
 

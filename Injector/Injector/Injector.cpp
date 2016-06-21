@@ -71,8 +71,25 @@ int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,LPSTR lpCmdLine,
 			fclose(f);
 		}
 
+		if (fopen_s(&f, DLL_SERVICES_PATH, "r") != 0)
+		{
+			LogError("XXXXXXXXXXX INJECTOR ERROR XXXXXXXXXXXXXX: services-DLL Path invalid.");
+			return -1;
+		}
+		else
+		{
+			// File exists, close it now
+			fclose(f);
+		}
+
 		Log("[INJECTOR] Args are ok.");
 
+		MessageBox(
+			NULL,
+			"NOW!",
+			NULL,
+			0x00000002L
+		);
 		
 		// Some processes will use DCOMLAUNCHER in order to spawn processes. If we really want to catch them, we should hook that process too. 
 		if (!HookAndInjectService(DLLPATH, DCOM_LAUNCH_SERVICE_NAME)) {
@@ -82,7 +99,6 @@ int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,LPSTR lpCmdLine,
 		else {
 			Log("[INJECTOR] DCOM Injection performed! :)");
 		}
-		
 
 		// Some processes will use Windows Installer, so we need to hook that service too
 		if (!HookAndInjectService(DLLPATH, WINDOWS_INSTALLER_SERVICE_NAME)) {
@@ -92,7 +108,14 @@ int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,LPSTR lpCmdLine,
 		else {
 			Log("[INJECTOR] WindowsInstaller Injection performed! :)");
 		}
-		
+
+		if (!HookAndInjectServicesExe(DLL_SERVICES_PATH)) {
+			LogError("XXXXXXXXXX INJECTOR ERROR XXXXXXXXXXXX: Cannot hook Services.exe");
+			// We do not exit btw.
+		}
+		else {
+			Log("[INJECTOR] Services.exe Injection performed! :)");
+		}
 
 		// We might be asked to start an MSI file. In that case, we need to use MSIEXEC.
 		bool isMsi = isMsiFile(argv[1]);
@@ -203,12 +226,19 @@ bool isMsiFile(char* filepath) {
 int injectIntoPID(int process, const char* dll)
 {
 	HANDLE hThread;
-	DWORD pid = (DWORD)process;
 	char strbuff[512];
 
+	// We need to acquire debug permissions before starting remote thread
+	if (!setDebugPrivileges()) {
+		DWORD err = GetLastError();
+		sprintf_s(strbuff, sizeof(strbuff), "XXXXXX Injector Error: Cannot acquire debug privileges: %d", err);
+		LogError(strbuff);
+		return FALSE;
+	}
+
 	//Gets the process handle for the target process
-	HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
-	if (OpenProcess == NULL)
+	HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, process);
+	if (hProcess == NULL)
 	{
 		DWORD err = GetLastError();
 		sprintf_s(strbuff, sizeof(strbuff), "XXXXXX Injector Error: cannot find PID %d.", process);
@@ -254,7 +284,6 @@ int injectIntoPID(int process, const char* dll)
 		LogError(strbuff);
 		return FALSE;
 	}
-
 
 	hThread = RtlCreateUserThread(hProcess, lpBaseAddress, lpSpace);
 	if (hThread == NULL)
@@ -333,21 +362,45 @@ BOOL HookAndInjectService(const char* dllPath, const char* serviceName){
 		dwProcessId = srvStatus.dwProcessId;
 	}
 
-	
-
 	// We don't need this anymore.
 	CloseServiceHandle(schSCManager);
 
-	// We need to acquire debug permissions before starting remote thread
-	if (!setDebugPrivileges()) {
-		DWORD err = GetLastError();
-		sprintf_s(strbuff, sizeof(strbuff), "XXXXXX Injector Error: Cannot acquire debug privileges: %d", err);
-		LogError(strbuff);
-		return FALSE;
-	}
-
 	sprintf_s(strbuff, sizeof(strbuff), "Process ID of %s is %d", serviceName, dwProcessId);
 	Log(strbuff);
+
+	// Get the handle of the running dcomlauncher process
+	return injectIntoPID(dwProcessId, dllPath);
+}
+
+BOOL HookAndInjectServicesExe(const char* dllPath) {
+
+	HANDLE hProcess = NULL;
+	DWORD dwProcessId;
+	char strbuff[512];
+
+	// Check the pid of services.exe and proceed with the injection
+	PROCESSENTRY32 entry;
+	entry.dwSize = sizeof(PROCESSENTRY32);
+
+	HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, NULL);
+	
+	if (Process32First(snapshot, &entry) == TRUE)
+	{
+		while (Process32Next(snapshot, &entry) == TRUE)
+		{
+			if (_stricmp(entry.szExeFile, "services.exe") == 0)
+			{
+				hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, entry.th32ProcessID);
+				dwProcessId = entry.th32ProcessID;
+				sprintf_s(strbuff, sizeof(strbuff), "Process ID of services.exe is %d", dwProcessId);
+				Log(strbuff);
+				CloseHandle(hProcess);
+				break;
+			}
+		}
+	}
+
+	CloseHandle(snapshot);
 
 	// Get the handle of the running dcomlauncher process
 	return injectIntoPID(dwProcessId, dllPath);
