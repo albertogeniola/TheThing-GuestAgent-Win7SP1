@@ -934,13 +934,23 @@ namespace InstallerAnalyzer1_Guest
         /// <param name="o"></param>
         /// <param name="parent"></param>
         private void DummySerialize(object o, XmlElement parent) {
+            if (o == null || parent == null)
+                return;
 
             // The stupid C# default XMLSerializer won't work without parameterless constructor. We need to implement
             // our Serializer using reflection
             var props = o.GetType().GetProperties();
+            if (props == null)
+                return;
+
             foreach (var p in props) {
                 XmlElement e = parent.OwnerDocument.CreateElement(p.Name);
-                e.InnerText = p.GetValue(o,null).ToString();
+                object val = p.GetValue(o, null);
+                if (val != null)
+                    e.InnerText = val.ToString();
+                else
+                    e.InnerText = "";
+
                 parent.AppendChild(e);
             }
         }

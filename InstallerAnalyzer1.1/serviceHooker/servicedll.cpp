@@ -108,10 +108,7 @@ BOOL WINAPI MyCreateProcessInternalW(HANDLE hToken,
 	PHANDLE hNewToken)
 {
 
-	// This is the API that gets eventually called by all the others. Ansi params get converted into wide characters, so the A version is useless.
-	CHAR   DllPath[MAX_PATH] = { 0 };
 	OutputDebugString(_T("SERVICES: MyCreateProcessInternalW"));
-	GetModuleFileNameA((HINSTANCE)&__ImageBase, DllPath, _countof(DllPath));
 	BOOL processCreated;
 
 	// Save the previous value of the creation flags and make sure we add the create suspended BIT
@@ -120,10 +117,10 @@ BOOL WINAPI MyCreateProcessInternalW(HANDLE hToken,
 	processCreated = realCreateProcessInternalW(hToken, lpApplicationName, lpCommandLine, lpProcessAttributes, lpThreadAttributes, bInheritHandles, dwCreationFlags, lpEnvironment, lpCurrentDirectory, lpStartupInfo, lpProcessInformation, hNewToken);
 	if (processCreated) {
 		// Allocate enough memory on the new process
-		LPVOID baseAddress = (LPVOID)VirtualAllocEx(lpProcessInformation->hProcess, NULL, strlen(DllPath) + 1, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+		LPVOID baseAddress = (LPVOID)VirtualAllocEx(lpProcessInformation->hProcess, NULL, strlen(DLLPATH) + 1, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 
 		// Copy the code to be injected
-		WriteProcessMemory(lpProcessInformation->hProcess, baseAddress, DllPath, strlen(DllPath), NULL);
+		WriteProcessMemory(lpProcessInformation->hProcess, baseAddress, DLLPATH, strlen(DLLPATH), NULL);
 
 		OutputDebugStringA("-----> SERVICES: DLL copied into host process memory space");
 

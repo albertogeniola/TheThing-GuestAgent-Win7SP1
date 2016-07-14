@@ -5,6 +5,7 @@
 #include <windows.h>
 #include <detours.h>
 #pragma comment(lib, "detours.lib")	// Nedded for DTOURS
+#include "../../InstallerAnalyzer1.1/Common/common.h"
 
 typedef BOOL(WINAPI * pCreateProcessInternalW)(HANDLE hToken,
 	LPCWSTR lpApplicationName,

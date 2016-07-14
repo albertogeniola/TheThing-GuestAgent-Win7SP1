@@ -84,12 +84,13 @@ int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,LPSTR lpCmdLine,
 
 		Log("[INJECTOR] Args are ok.");
 
+		/*
 		MessageBox(
 			NULL,
 			"NOW!",
 			NULL,
 			0x00000002L
-		);
+		);*/
 		
 		// Some processes will use DCOMLAUNCHER in order to spawn processes. If we really want to catch them, we should hook that process too. 
 		if (!HookAndInjectService(DLLPATH, DCOM_LAUNCH_SERVICE_NAME)) {

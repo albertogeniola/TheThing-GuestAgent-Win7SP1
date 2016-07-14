@@ -26,6 +26,8 @@ namespace InstallerAnalyzer1_Guest
         {
             try
             {
+                Microsoft.Win32.SystemEvents.SessionEnding += new Microsoft.Win32.SessionEndingEventHandler(SystemEvents_SessionEnded);
+
                 Console.WriteLine("Bootstrap: Starting.");
                 IPAddress _remoteIp;
                 int _remotePort;
@@ -153,5 +155,14 @@ namespace InstallerAnalyzer1_Guest
         {
             mw.SetTimeoutExpired();
         }
+
+        static void SystemEvents_SessionEnded(object sender, SessionEndingEventArgs e)
+        {
+            // Abort shutdown.
+            e.Cancel = true;
+            Console.WriteLine("Detected Shutdown request. Ignored.");
+        }
+
+        
     }
 }
