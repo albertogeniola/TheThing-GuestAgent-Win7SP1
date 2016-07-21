@@ -84,7 +84,7 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
         }
 
         //TODO //FIXME
-        public static string CalculateHash(Bitmap original)
+        public static string CalculateHash(Bitmap original, string save_filtered_to=null)
         {
             // Hash calculation is very discriminating. If a pixel changes in color, the whole hash will be different.
             // For us this is too rigid: we might support some "noise" or "error", manly because of animation of buttons.
@@ -114,7 +114,13 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
                 {
                     sb.Append(hash[i].ToString("X2"));
                 }
-                return sb.ToString();
+
+                string strhash = sb.ToString();
+
+                if (save_filtered_to != null)
+                    bmp.Save(string.Format(save_filtered_to, strhash + "_filtered"));
+
+                return strhash;
             }
         }
 
@@ -201,6 +207,17 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
                     Invert invert = new Invert();
                     invert.ApplyInPlace(bmp);
                 }
+
+                // Apply fill hole
+                FillHoles filter = new FillHoles();
+                filter.MaxHoleHeight = 10;
+                filter.MaxHoleWidth = 10;
+                filter.CoupledSizeFiltering = false;
+                filter.ApplyInPlace(bmp);
+
+                Dilatation dialtation = new Dilatation();
+                // apply the filter
+                dialtation.Apply(bmp);
 
                 // Setup the Blob counter
                 BlobCounter blobCounter = new BlobCounter();

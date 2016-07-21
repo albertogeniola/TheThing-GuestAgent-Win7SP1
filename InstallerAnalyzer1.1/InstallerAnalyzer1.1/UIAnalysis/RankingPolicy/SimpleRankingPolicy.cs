@@ -45,7 +45,7 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis.RankingPolicy
 
         // MAKE THEM LOWER CASE!
         private static string[] WHITE_LIST = new string[] { "next", "continue", "agree", "accept", "ok", "install", "finish", "run", "done", "yes", "i agree", "i accept", "accept and install", "next >" };
-        private static string[] BLACK_LIST_EXACT_MATCHES = new string[] { "forward by small amount", "back by small amount", "back by large amount", "forward by large amount", "disagree", "cancel", "abort", "exit", "back", "<", "decline", "quit", "minimize", "no", "close", "pause", "x", "_", "do not accept", "< back" };
+        private static string[] BLACK_LIST = new string[] { "forward by small amount", "back by small amount", "back by large amount", "forward by large amount", "disagree", "cancel", "abort", "exit", "back", "<", "decline", "quit", "minimize", "no", "close", "pause", "x", "_", "do not accept", "< back" };
         
 
         public int RankElement(UIControlCandidate control)
@@ -82,7 +82,7 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis.RankingPolicy
             }
 
             
-            foreach (string s in BLACK_LIST_EXACT_MATCHES)
+            foreach (string s in BLACK_LIST)
             {
                 if (text.CompareTo(s) == 0)
                 {

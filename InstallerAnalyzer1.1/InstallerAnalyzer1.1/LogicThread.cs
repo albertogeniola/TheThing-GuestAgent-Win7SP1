@@ -358,7 +358,7 @@ namespace InstallerAnalyzer1_Guest
                     // Otherwise we have a window on the foreground. 
                     Console.WriteLine("UI Bot: Stable hWND " + waitingWindnow.Handle.ToString("X") + ", loc: " + waitingWindnow.WindowLocation.ToString());
                     
-                    //SaveStableScreen(waitingWindnow, c);
+                    SaveStableScreen(waitingWindnow, c);
 
                     // Analyze the window and build the controls rank.
                     Console.WriteLine("UI Bot: Analyze Window (PID: " + proc.Process.Id + ", HWND: " + waitingWindnow.Handle + ", TITLE: " + waitingWindnow.Title + ") " + "Interaction: " + c);
@@ -615,8 +615,9 @@ namespace InstallerAnalyzer1_Guest
                 {
                     if (b == null)
                         return false;
-
-                    string fname = Path.Combine(Settings.Default.STABLE_SCREEN_PATH, c + "_" + UIAnalysis.NativeAndVisualRanker.CalculateHash(b) + ".bmp");
+                    string fname = Path.Combine(Settings.Default.STABLE_SCREEN_PATH, c + "_" + "{0}" + ".bmp");
+                    string hash = UIAnalysis.NativeAndVisualRanker.CalculateHash(b, fname);
+                    fname = string.Format(fname, hash);
                     b.Save(fname);
                     return true;
                 }
