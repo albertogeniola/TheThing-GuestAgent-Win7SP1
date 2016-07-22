@@ -25,13 +25,13 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
         private bool disposed = false;
         private TesseractEngine _engine;
         private AndCondition _cond;
-        private int _min_width = 15;
-        private int _min_height = 15;
+        private int _min_width = 0;
+        private int _min_height = 0;
 
         /// <summary>
         /// Constructor. Instantiates the OCR Engine. Must use Dispose when done to ensure memory save.
         /// </summary>
-        public NativeAndVisualRanker(int min_width=15, int min_height=15) {
+        public NativeAndVisualRanker(int min_width=14, int min_height=14) {
             _engine = new TesseractEngine("tessdata", "eng", EngineMode.Default);
             Condition bc = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button);
             Condition cc = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.CheckBox);

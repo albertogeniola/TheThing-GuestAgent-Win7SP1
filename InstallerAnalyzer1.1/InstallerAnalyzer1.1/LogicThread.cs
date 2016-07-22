@@ -946,9 +946,34 @@ namespace InstallerAnalyzer1_Guest
 
             foreach (var p in props) {
                 XmlElement e = parent.OwnerDocument.CreateElement(p.Name);
-                object val = p.GetValue(o, null);
-                if (val != null)
-                    e.InnerText = val.ToString();
+                object val = null;
+                try
+                {
+                    val = p.GetValue(o, null);
+                }
+                catch (Exception ex) {
+                    val = null;
+                }
+
+                if (val != null) {
+                    // Check if this object is an instance of a primitive type. If not, apply recursion.
+                    if (val.GetType().IsPrimitive || val.GetType() == typeof(string))
+                    {
+                        e.InnerText = val.ToString();
+                    }
+                    // Check if this is a collection of items
+                    else if (val is System.Collections.IEnumerable) {
+                        foreach (var el in val as System.Collections.IEnumerable) {
+                            XmlElement litem = parent.OwnerDocument.CreateElement(p.Name+"_Item");
+                            DummySerialize(el, litem);
+                            e.AppendChild(litem);
+                        }
+                    }
+                    // Otherwise apply recursion
+                    else {
+                        DummySerialize(val, e);
+                    }
+                }
                 else
                     e.InnerText = "";
 
@@ -982,8 +1007,35 @@ namespace InstallerAnalyzer1_Guest
             var duration = log.OwnerDocument.CreateElement("Duration");
             duration.InnerText = (p.Job.EndTime - p.Job.StartTime).ToString();
             experiment.AppendChild(duration);
-
             log.PrependChild(experiment);
+
+            // Add information about the specific GuestController configuration
+            var guestconf = log.OwnerDocument.CreateElement("GuestConfiguration");
+            var jobtimeout = log.OwnerDocument.CreateElement("JobTimeout");
+            jobtimeout.InnerText = ""+Settings.Default.EXECUTE_JOB_TIMEOUT;
+            guestconf.AppendChild(jobtimeout);
+            var hostcontrollerip = log.OwnerDocument.CreateElement("HostControllerIp");
+            hostcontrollerip.InnerText = "" + Settings.Default.HOST_CONTROLLER_IP;
+            guestconf.AppendChild(hostcontrollerip);
+            var hostcontrollerport = log.OwnerDocument.CreateElement("HostControllerPort");
+            hostcontrollerport.InnerText = "" + Settings.Default.HOST_CONTROLLER_PORT;
+            guestconf.AppendChild(hostcontrollerport);
+            var macaddr = log.OwnerDocument.CreateElement("Mac");
+            macaddr.InnerText = GetMACAddr();
+            var ipaddrs = log.OwnerDocument.CreateElement("GuestIPs");
+            foreach (var ip in GetNetworkInfo().GetIPProperties().UnicastAddresses) {
+                var ipaddr = log.OwnerDocument.CreateElement("IP");
+                ipaddr.InnerText = ip.Address.ToString();
+                if (ip.Address.AddressFamily == AddressFamily.InterNetwork) {
+                    ipaddr.SetAttribute("netmask", ip.IPv4Mask.ToString());
+                }
+                ipaddrs.AppendChild(ipaddr);
+            }
+            guestconf.AppendChild(ipaddrs);
+            var networkinfo = log.OwnerDocument.CreateElement("NetworkInfo");
+            DummySerialize(GetNetworkInfo().GetIPProperties(), networkinfo);
+            guestconf.AppendChild(networkinfo);
+            log.AppendChild(guestconf);
 
             var result = log.OwnerDocument.CreateElement("Result"); // Main element containing all the result info
             log.AppendChild(result);
@@ -1320,12 +1372,7 @@ namespace InstallerAnalyzer1_Guest
 
         private string GetMACAddr() {
 
-            string macAddr =
-                (
-                    from nic in NetworkInterface.GetAllNetworkInterfaces()
-                    where nic.OperationalStatus == OperationalStatus.Up
-                    select nic.GetPhysicalAddress().ToString()
-                ).FirstOrDefault();
+            string macAddr = GetNetworkInfo().GetPhysicalAddress().ToString();
 
             // Add separators to the mac
             StringBuilder builder = new StringBuilder();
@@ -1337,6 +1384,16 @@ namespace InstallerAnalyzer1_Guest
 
             return builder.ToString();
         
+        }
+
+        private NetworkInterface GetNetworkInfo()
+        {
+            return
+                (
+                    from nic in NetworkInterface.GetAllNetworkInterfaces()
+                    where nic.OperationalStatus == OperationalStatus.Up
+                    select nic
+                ).FirstOrDefault();
         }
 
         private Window WaitForInputRequested()
