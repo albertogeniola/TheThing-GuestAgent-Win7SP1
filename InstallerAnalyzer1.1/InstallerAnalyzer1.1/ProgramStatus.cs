@@ -449,12 +449,56 @@ namespace InstallerAnalyzer1_Guest
             }
         }
 
-        public void WaitUntilNotBusy() {
-            lock (_busyLock) {
-                while (_busy) {
-                    Monitor.Wait(_busyLock);
+        /// <summary>
+        /// Blocks until there is a low logging rate and a no activity on background for at least STABILITY_DELAY seconds, or until
+        /// timeout is hit. The return value indicates if the window is stable or not. In case timeout is reached while waiting for stability,
+        /// false is returned.
+        /// </summary>
+        /// <param name="log_per_sec_threeshold"></param>
+        /// <param name="timeout"></param>
+        /// <returns>A boolean value indicating if the window is stable.</returns>
+        public bool WaitUntilNotBusy(int log_per_sec_threeshold, int stability_delay, int timeout) {
+            DateTime t = DateTime.Now;
+
+            TimeSpan t1 = new TimeSpan(stability_delay * 10 * 1000 * 1000);
+            DateTime stability_to = t.Add(t1);
+
+            TimeSpan timer = new TimeSpan(timeout * 10 * 1000 * 1000);
+            DateTime to_deadline = t.Add(timer);
+            
+            // We should ensure that both busy and log_per_sec remain low for enough time. 
+            // We'll use a polling-approach and gain a lock at a time, avoiding possible deadlocks
+            bool stable = false;
+            while (true) {
+                // Check if we got the timeout. In that case, break.
+                DateTime now = DateTime.Now;
+                if (now > to_deadline)
+                    break;
+
+                // Check stability current status. This operation acquires 2 locks, but 1 at a time, separately. There are chances
+                // busy comes true while waiting the other flag, but that race condition is fine for us.
+                bool busy = IsBusy() || LogsPerSec>log_per_sec_threeshold;
+
+                // Now update timers.
+                if (!busy) {
+                    // System seems stable.  Update the flag and 
+                    stable = true;
+
+                    // If we have been stable for stability delay, it is time to break!
+                    if (now > stability_to)
+                        break;
+
+                } else {
+                    // We got a busy flag, reset the delay timer and put stability to false.
+                    stable = false;
+                    stability_to = now.Add(t1);
                 }
+
+                // Sleep for a while
+                Thread.Sleep(50);
             }
+
+            return stable;
         }
 
         public bool IsBusy() {

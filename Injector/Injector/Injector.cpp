@@ -133,7 +133,7 @@ int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,LPSTR lpCmdLine,
 
 		processCreated = false;
 		if (isMsi){
-			std::string args("/passive /norestart /package ");
+			std::string args("/norestart /package ");
 			args.append("\"");
 			args.append(argv[1]);
 			args.append("\"");

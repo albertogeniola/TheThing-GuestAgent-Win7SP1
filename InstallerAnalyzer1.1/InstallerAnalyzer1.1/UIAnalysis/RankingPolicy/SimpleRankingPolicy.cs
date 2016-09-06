@@ -18,8 +18,9 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis.RankingPolicy
         private const int CONTROL_TYPE_FCUSED_SCORE = 50;
         
         // High precedence to items with text exactly matching one of the whitelisted words
-        private const int WORD_EXACT_SCORE = 280;
-        
+        private const int WORD_WHITE_EXACT_SCORE = 280;
+        private const int WORD_BLACK_EXACT_SCORE = 290;
+
         // Prefer buttons!
         private const int CONTROL_TYPE_BUTTON_SCORE = 50;
         
@@ -27,8 +28,9 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis.RankingPolicy
         private const int CONTROL_NO_TEXT_SCORE = -30;
 
         // Some points are earned even if the items does not match exactly our word list but a combination of them
-        private const int WORD_CONTAINED_SCORE = 30;
-        
+        private const int WORD_WHITE_CONTAINED_SCORE = 25;
+        private const int WORD_BLACK_CONTAINED_SCORE = 30;
+
         // Also consider checkboxes. If unchecked they are relevant!
         private const int CONTROL_TYPE_CHECKBOX_SCORE = 15;
         private const int CONTROL_TYPE_CHECKBOX_UNCHECKED_SCORE = 50;
@@ -73,12 +75,12 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis.RankingPolicy
             {
                 if (text.CompareTo(s) == 0)
                 {
-                    score += WORD_EXACT_SCORE;
+                    score += WORD_WHITE_EXACT_SCORE;
                     return score;
                 }
 
                 if (words.Contains(s))
-                    score += WORD_CONTAINED_SCORE;
+                    score += WORD_WHITE_CONTAINED_SCORE;
             }
 
             
@@ -86,12 +88,12 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis.RankingPolicy
             {
                 if (text.CompareTo(s) == 0)
                 {
-                    score -= WORD_EXACT_SCORE;
+                    score -= WORD_BLACK_EXACT_SCORE;
                     return score;
                 }
 
                 if (words.Contains(s.ToLower()))
-                    score -= WORD_CONTAINED_SCORE;
+                    score -= WORD_BLACK_CONTAINED_SCORE;
 
             }
             

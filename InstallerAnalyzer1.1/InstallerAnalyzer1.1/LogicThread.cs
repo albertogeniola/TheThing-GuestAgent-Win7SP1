@@ -368,17 +368,10 @@ namespace InstallerAnalyzer1_Guest
                     bool uiHasChanged = false;
                     do
                     {
-                        // Waiting if there is any high consuming operation running
-                        ProgramStatus.Instance.WaitUntilNotBusy();
-
-                        // We shall wait until the process lograte is low enough. That means the window is "waiting for us"
-                        if (ProgramStatus.Instance.LogsPerSec > LOG_PER_SEC_IDLE_THRESHOLD)
-                        {
-                            // Give some time before repeating the analysis!
-                            Thread.Sleep(3000);
-                            continue;
-                        }
-
+                        // Waiting if there is any high consuming operation running.
+                        // Wait until we get 2 seconds stability or we hit 30 seconds timeout.
+                        ProgramStatus.Instance.WaitUntilNotBusy(LOG_PER_SEC_IDLE_THRESHOLD,2,30);
+                        
                         // Interact with the best control according to the rank assinged by the Interaction Policy
                         var candidate = w.PopTopCandidate();
 

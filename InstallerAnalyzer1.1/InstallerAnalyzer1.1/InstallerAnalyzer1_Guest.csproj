@@ -105,7 +105,7 @@
     <CodeAnalysisRuleSet>ManagedMinimumRules.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'RemoteDebug|x86'">
-    <OutputPath>..\..\..\..\..\..\..\VMs\GuestController\</OutputPath>
+    <OutputPath>..\..\..\..\..\..\..\VMs\ProductionOutputDir\GuestController\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <Optimize>false</Optimize>
     <DebugType>pdbonly</DebugType>
