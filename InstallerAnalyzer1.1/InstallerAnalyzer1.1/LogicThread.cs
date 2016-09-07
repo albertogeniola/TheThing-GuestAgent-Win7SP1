@@ -627,7 +627,7 @@ namespace InstallerAnalyzer1_Guest
         private static readonly Pen secondChoicePen = new Pen(Color.Blue, 3);
         private static readonly Pen markerPen = new Pen(Color.Red, 5);
         private static readonly Brush firstChoiceScoreBrush = new SolidBrush(Color.Red);
-        private bool SaveInteractionScreen(Window waitingWindnow, CandidateSet w, UIControlCandidate candidate, int c)
+        private bool SaveInteractionScreen(Window waitingWindnow, CandidateSet w, UIControlCandidate best, int c)
         {
             try
             {
@@ -644,19 +644,16 @@ namespace InstallerAnalyzer1_Guest
                     // Save the clean image first
                     b.Save(clean_fname);
 
-                    // Add back the best candidate.
-                    w.Add(candidate);
-                    
                     // Save info about the current score set.
                     using (var xmlWriter = XmlWriter.Create(windo_details_fname))
                     {
+                        best.IsBest = true;
+                        w.Add(best);
                         // Serialize the object, and close the TextWriter.
                         XmlSerializer s = new XmlSerializer(typeof(CandidateSet));
                         s.Serialize(xmlWriter, w);
+                        w.Remove(best);
                     }
-
-                    // Remove it now
-                    w.Remove(candidate);
                     
                     // Now draw overlays on the image. Useful for fast scan
                     using (Graphics g = Graphics.FromImage(b))
@@ -676,13 +673,13 @@ namespace InstallerAnalyzer1_Guest
                         }
                             
                         // Darw the selected one
-                        g.DrawRectangle(markerPen, candidate.PositionWindowRelative);
-                        text ="" + candidate.Score;
-                        g.DrawRectangle(secondChoicePen, candidate.PositionWindowRelative);
+                        g.DrawRectangle(markerPen, best.PositionWindowRelative);
+                        text ="" + best.Score;
+                        g.DrawRectangle(secondChoicePen, best.PositionWindowRelative);
                         size = g.MeasureString(text, scoreFont);
-                        rect = new RectangleF(candidate.PositionWindowRelative.X, candidate.PositionWindowRelative.Y - scoreFont.Height, size.Width, size.Height);
+                        rect = new RectangleF(best.PositionWindowRelative.X, best.PositionWindowRelative.Y - scoreFont.Height, size.Width, size.Height);
                         g.FillRectangle(whiteBrush, rect);
-                        g.DrawString(text, scoreFont, firstChoiceScoreBrush, candidate.PositionWindowRelative.X, candidate.PositionWindowRelative.Y-scoreFont.Height);
+                        g.DrawString(text, scoreFont, firstChoiceScoreBrush, best.PositionWindowRelative.X, best.PositionWindowRelative.Y-scoreFont.Height);
 
                         b.Save(fname);
                         return true;

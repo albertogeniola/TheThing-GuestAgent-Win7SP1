@@ -137,6 +137,8 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
             Thread.Sleep(1000);
         }
 
+        public bool IsBest { get; set; }
+
         [XmlIgnore]
         private const int MOUSEEVENTF_LEFTDOWN = 0x0002;
         [XmlIgnore]
@@ -164,6 +166,5 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
 
             return sb.ToString();
         }
-
     }
 }
