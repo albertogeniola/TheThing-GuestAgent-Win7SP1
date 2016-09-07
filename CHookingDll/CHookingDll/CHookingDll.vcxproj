@@ -102,7 +102,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RemoteDebug|Win32'">
     <CustomBuildAfterTargets />
     <TargetName>$(ProjectName)</TargetName>
-    <OutDir>C:\VMs\GuestController\</OutDir>
+    <OutDir>C:\VMs\ProductionOutputDir\GuestController\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Only Injector|Win32'">
     <LinkIncremental>false</LinkIncremental>
