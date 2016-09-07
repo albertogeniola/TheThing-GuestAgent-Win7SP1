@@ -15,7 +15,7 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis.RankingPolicy
         private const int CONTROL_TYPE_DISABLED_SCORE = -1000;
         
         // Give some bonus to the focused item
-        private const int CONTROL_TYPE_FCUSED_SCORE = 50;
+        private const int CONTROL_TYPE_FCUSED_SCORE = 30;
         
         // High precedence to items with text exactly matching one of the whitelisted words
         private const int WORD_WHITE_EXACT_SCORE = 280;
