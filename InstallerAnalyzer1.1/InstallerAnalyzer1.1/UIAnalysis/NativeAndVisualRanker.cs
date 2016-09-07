@@ -31,7 +31,7 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
         /// <summary>
         /// Constructor. Instantiates the OCR Engine. Must use Dispose when done to ensure memory save.
         /// </summary>
-        public NativeAndVisualRanker(int min_width=14, int min_height=14) {
+        public NativeAndVisualRanker(int min_width=30, int min_height=20) {
             _engine = new TesseractEngine("tessdata", "eng", EngineMode.TesseractAndCube);
             Condition bc = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button);
             Condition cc = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.CheckBox);

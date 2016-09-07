@@ -12,14 +12,14 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis.RankingPolicy
     {
         private readonly char[] TEXT_SEPARATORS = new char[]{ ' ', '\t', '\n', '\r' };
         // Heavly Penalize disabled items
-        private const int CONTROL_TYPE_DISABLED_SCORE = -1000;
-        
+        private const int CONTROL_TYPE_DISABLED_SCORE = -10000;
+
         // Give some bonus to the focused item
-        private const int CONTROL_TYPE_FCUSED_SCORE = 30;
+        private const int CONTROL_TYPE_FCUSED_SCORE = 50;
         
         // High precedence to items with text exactly matching one of the whitelisted words
-        private const int WORD_WHITE_EXACT_SCORE = 280;
-        private const int WORD_BLACK_EXACT_SCORE = 290;
+        private const int WORD_WHITE_EXACT_SCORE = 300;
+        private const int WORD_BLACK_EXACT_SCORE = 310;
 
         // Prefer buttons!
         private const int CONTROL_TYPE_BUTTON_SCORE = 50;
@@ -28,8 +28,8 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis.RankingPolicy
         private const int CONTROL_NO_TEXT_SCORE = -30;
 
         // Some points are earned even if the items does not match exactly our word list but a combination of them
-        private const int WORD_WHITE_CONTAINED_SCORE = 25;
-        private const int WORD_BLACK_CONTAINED_SCORE = 30;
+        private const int WORD_WHITE_CONTAINED_SCORE = 55;
+        private const int WORD_BLACK_CONTAINED_SCORE = 60;
 
         // Also consider checkboxes. If unchecked they are relevant!
         private const int CONTROL_TYPE_CHECKBOX_SCORE = 15;
