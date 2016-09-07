@@ -994,9 +994,9 @@ namespace InstallerAnalyzer1_Guest
             DummySerialize(info, installerDetails);
             experiment.AppendChild(installerName);
             experiment.AppendChild(installerDetails);
-            var jobId = log.OwnerDocument.CreateElement("JobId");
-            jobId.InnerText = p.Job.Id.ToString();
-            experiment.AppendChild(jobId);
+            //var jobId = log.OwnerDocument.CreateElement("JobId");
+            //jobId.InnerText = p.Job.Id.ToString();
+            //experiment.AppendChild(jobId);
             // Time info: start, stop, elapsed
             var startTime = log.OwnerDocument.CreateElement("StartedOn");
             startTime.InnerText = p.Job.StartTime.ToLongTimeString();

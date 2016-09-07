@@ -192,112 +192,139 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
         /// <param name="minWidth">Minimum width of patterns to recognize</param>
         /// <param name="minHeight">Minimum height of patterns to recognize</param>
         /// <returns>void</returns>
-        private void ScanWithVisualRecognition(ref CandidateSet res, Bitmap bitmap, bool shouldInvert, int minWidth, int minHeight,Window w, IRankingPolicy policy)
-        { 
-            // Keep the original bitmap and create e b/w bitmap from that
-            using (Bitmap bmp = Grayscale.CommonAlgorithms.BT709.Apply(bitmap))
-            {
-                // Apply the Threshold
-                var threshold = new SISThreshold();
-                threshold.ApplyInPlace(bmp);
+        private void ScanWithVisualRecognition(ref CandidateSet res, Bitmap original, bool shouldInvert, int minWidth, int minHeight,Window w, IRankingPolicy policy)
+        {
+            // Setup the Blob counter
+            BlobCounter blobCounter = new BlobCounter();
+            blobCounter.BackgroundThreshold = Color.FromArgb(10, 10, 10);
+            blobCounter.FilterBlobs = true;
+            blobCounter.CoupledSizeFiltering = false;
+            blobCounter.MinHeight = minHeight;
+            blobCounter.MinWidth = minWidth;
 
+            List<Blob> blobs = new List<Blob>();
+
+            // Button scanning
+            // Apply the grayscale. This is needed for AForge's filters
+            using (Bitmap grey_scaled = Grayscale.CommonAlgorithms.BT709.Apply(original))
+            {
                 // Invert the image if requested
                 if (shouldInvert)
                 {
                     Invert invert = new Invert();
-                    invert.ApplyInPlace(bmp);
+                    invert.ApplyInPlace(grey_scaled);
                 }
 
-                // Apply fill hole
-                FillHoles filter = new FillHoles();
-                filter.MaxHoleHeight = 10;
-                filter.MaxHoleWidth = 10;
-                filter.CoupledSizeFiltering = false;
-                filter.ApplyInPlace(bmp);
+                //grey_scaled.Save("C:\\users\\alberto geniola\\desktop\\dbg\\gray_scaled_" + toinvert + ".bmp");
 
-                Dilatation dialtation = new Dilatation();
-                // apply the filter
-                dialtation.Apply(bmp);
-
-                // Setup the Blob counter
-                BlobCounter blobCounter = new BlobCounter();
-                blobCounter.BackgroundThreshold = Color.FromArgb(10, 10, 10);
-                blobCounter.FilterBlobs = true;
-                blobCounter.CoupledSizeFiltering = false;
-                blobCounter.MinHeight = minHeight;
-                blobCounter.MinWidth = minWidth;
-
-                // We need to copy the buffer into another bitmap because the grayscale changed its original format
-                // and the blob counter does not like it
-                using (var tmp = new Bitmap(bmp.Width, bmp.Height))
+                using (Bitmap t1 = new Threshold(64).Apply(grey_scaled))
                 {
-                    using (Graphics g = Graphics.FromImage(tmp))
+                    using (var tmp = new Bitmap(t1.Width, t1.Height))
                     {
-                        g.DrawImage(bmp, 0, 0);
-                    }
-
-                    // The blob counter will analyze the bitmap looking for shapes
-                    blobCounter.ProcessImage(tmp);
-                    Blob[] blobs = blobCounter.GetObjectsInformation();
-
-                    // Let's analyze every single shape
-                    for (int i = 0, n = blobs.Length; i < n; i++)
-                    {
-                        List<IntPoint> edgePoints = blobCounter.GetBlobsEdgePoints(blobs[i]);
-                        if (edgePoints.Count > 1)
+                        using (Graphics g = Graphics.FromImage(tmp))
                         {
-                            IntPoint p0, p1;
-                            PointsCloud.GetBoundingRectangle(edgePoints, out p0, out p1);
-                            var r = new Rectangle(p0.X, p0.Y, p1.X - p0.X, p1.Y - p0.Y);
+                            g.DrawImage(t1, 0, 0);
+                        }
 
-                            // Skip any shape representing the border of the whole window ( +10px padding)
-                            if (r.Width >= (bitmap.Width - 10))
-                                continue;
+                        // The blob counter will analyze the bitmap looking for shapes
+                        blobCounter.ProcessImage(tmp);
+                        var tmparr = blobCounter.GetObjectsInformation();
+                        blobs.AddRange(tmparr);
+                    }
+                }
 
-                            // This is most-likely a button!
-                            // Crop the image and pass it to the OCR engine for text recognition
-                            using (Bitmap button = new Bitmap(r.Width, r.Height))
+                using (Bitmap t2 = new SISThreshold().Apply(grey_scaled))
+                {
+                    using (var tmp = new Bitmap(t2.Width, t2.Height))
+                    {
+                        using (Graphics g = Graphics.FromImage(tmp))
+                        {
+                            g.DrawImage(t2, 0, 0);
+                        }
+                        //tmp.Save("C:\\users\\alberto geniola\\desktop\\dbg\\t2_" + toinvert + ".bmp");
+                        // The blob counter will analyze the bitmap looking for shapes
+                        blobCounter.ProcessImage(tmp);
+                        var tmparr = blobCounter.GetObjectsInformation();
+                        blobs.AddRange(tmparr);
+                    }
+                }
+            }
+            
+            // Let's analyze every single shape
+            for (int i = 0, n = blobs.Count; i < n; i++)
+            {
+                List<IntPoint> edgePoints = blobCounter.GetBlobsEdgePoints(blobs[i]);
+                if (edgePoints.Count > 1)
+                {
+                    IntPoint p0, p1;
+                    PointsCloud.GetBoundingRectangle(edgePoints, out p0, out p1);
+                    var r = new Rectangle(p0.X, p0.Y, p1.X - p0.X, p1.Y - p0.Y);
+
+                    // Skip any shape representing the border of the whole window ( +10px padding)
+                    if (r.Width >= (original.Width - 10))
+                        continue;
+                    
+                    // This is most-likely a button!
+                    // Crop the image and pass it to the OCR engine for text recognition
+                    using (Bitmap button = new Bitmap(r.Width, r.Height))
+                    {
+                        // Scan the original shape
+                        String txt = null;
+                        using (var g1 = Graphics.FromImage(button))
+                        {
+                            g1.DrawImage(original, 0, 0, r, GraphicsUnit.Pixel);
+                        }
+
+                        // Process OCR on that image
+                        txt = scanButton(button);
+
+                        if (String.IsNullOrEmpty(txt))
+                        {
+                            using (Bitmap tmp = Grayscale.CommonAlgorithms.BT709.Apply(button))
                             {
-                                using (var g1 = Graphics.FromImage(button))
-                                {
-                                    g1.DrawImage(bitmap, 0, 0, r, GraphicsUnit.Pixel);
-                                }
+                                if (shouldInvert)
+                                    new Invert().ApplyInPlace(tmp);
 
-                                // Process OCR on that image
-                                var txt = scanButton(button);
-                                if (String.IsNullOrEmpty(txt))
-                                {
-                                    // If nothing is found, repeat the analysis with the original portion of the same area (no filter applied)
-                                    using (var g1 = Graphics.FromImage(button))
-                                    {
-                                        g1.DrawImage(tmp, 0, 0, r, GraphicsUnit.Pixel);
-                                    }
-                                    txt = scanButton(button);
-                                }
-
-                                // At this point we should have a result. Add it to list if it does not overlap any UIAutomated element
-                                UIControlCandidate t = new UIControlCandidate();
-                                t.PositionWindowRelative = r;
-                                var winLoc = w.WindowLocation;
-                                t.PositionScreenRelative = new Rectangle(r.X+winLoc.X,r.Y+winLoc.Y,r.Width,r.Height);
-                                t.Text = txt;
-                                t.Score = policy.RankElement(t);
-
-                                // If the item falls into the same area of a UI element, ignore it.
-                                bool overlaps = false;
-                                foreach (var el in res)
-                                {
-                                    if (el.AutoElementRef != null && el.PositionScreenRelative.IntersectsWith(t.PositionScreenRelative)) {
-                                        overlaps = true;
-                                        break;
-                                    }
-                                }
-                                if (!overlaps)
-                                    res.Add(t);
+                                new SISThreshold().ApplyInPlace(tmp);
+                                txt = scanButton(tmp);
                             }
                         }
+
+                        // If still nothing is found, repeat the analysis with the second version of the filter
+                        if (String.IsNullOrEmpty(txt))
+                        {
+                            using (Bitmap tmp = Grayscale.CommonAlgorithms.BT709.Apply(button))
+                            {
+                                if (shouldInvert)
+                                    new Invert().ApplyInPlace(tmp);
+                                new Threshold(64).ApplyInPlace(tmp);
+                                txt = scanButton(tmp);
+                            }
+                        }
+                        
+                        // At this point we should have a result. Add it to list if it does not overlap any UIAutomated element
+                        UIControlCandidate t = new UIControlCandidate();
+                        t.PositionWindowRelative = r;
+                        var winLoc = w.WindowLocation;
+                        t.PositionScreenRelative = new Rectangle(r.X + winLoc.X, r.Y + winLoc.Y, r.Width, r.Height);
+                        t.Text = txt;
+                        t.Score = policy.RankElement(t);
+                                
+                        // If the item falls into the same area of a UI element, ignore it.
+                        bool overlaps = false;
+                        foreach (var el in res)
+                        {
+                            if (el.AutoElementRef != null && el.PositionScreenRelative.IntersectsWith(t.PositionScreenRelative))
+                            {
+                                overlaps = true;
+                                break;
+                            }
+                        }
+                        if (!overlaps)
+                            res.Add(t);
                     }
                 }
+
             }
         }
 
