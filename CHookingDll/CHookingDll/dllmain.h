@@ -84,6 +84,10 @@ typedef ULONG(WINAPI * pNtOpenKey)(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess,
 NTSTATUS WINAPI MyNtOpenKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes);
 static pNtOpenKey realNtOpenKey;
 
+typedef ULONG(WINAPI * pNtOpenKeyEx)(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, ULONG OpenOptions);
+NTSTATUS WINAPI MyNtOpenKeyEx(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, ULONG OpenOptions);
+static pNtOpenKeyEx realNtOpenKeyEx;
+
 /* >>>>>>>>>>>>>> NtDeleteValueKey <<<<<<<<<<<<<<< */
 typedef ULONG(WINAPI * pNtDeleteValueKey)(HANDLE KeyHandle,PUNICODE_STRING ValueName);
 NTSTATUS WINAPI MyNtDeleteValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName);

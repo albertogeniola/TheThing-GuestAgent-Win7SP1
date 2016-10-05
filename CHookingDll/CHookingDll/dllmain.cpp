@@ -113,10 +113,12 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		Hook(&realNtDeleteFile,MyNtDeleteFile,ntdllmod, "NtDeleteFile");
 		Hook(&realNtCreateKey, MyNtCreateKey,ntdllmod, "NtCreateKey");
 		Hook(&realNtOpenKey, MyNtOpenKey,ntdllmod, "NtOpenKey");
+		Hook(&realNtOpenKeyEx, MyNtOpenKeyEx, ntdllmod, "NtOpenKeyEx");
 		Hook(&realNtSetInformationFile, MyNtSetInformationFile,ntdllmod, "NtSetInformationFile");
 		Hook(&realNtClose, MyNtClose,ntdllmod, "NtClose");
 		Hook(&realCreateProcessInternalW, MyCreateProcessInternalW,kern32dllmod, "CreateProcessInternalW");
 		Hook(&realExitProcess, MyExitProcess, kern32dllmod, "ExitProcess");
+		
 
 		
 		// Supplementay Hooks
@@ -373,6 +375,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		UnHook(&realNtDeleteFile, MyNtDeleteFile, "NtDeleteFile");
 		UnHook(&realNtCreateKey, MyNtCreateKey,  "NtCreateKey");
 		UnHook(&realNtOpenKey, MyNtOpenKey,  "NtOpenKey");
+		UnHook(&realNtOpenKeyEx, MyNtOpenKeyEx, "NtOpenKeyEx");
 		UnHook(&realNtSetInformationFile, MyNtSetInformationFile, "NtSetInformationFile");
 		UnHook(&realNtClose, MyNtClose, "NtClose");
 		UnHook(&realCreateProcessInternalW, MyCreateProcessInternalW, "CreateProcessInternalW");
@@ -862,9 +865,9 @@ NTSTATUS WINAPI MyNtOpenKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJEC
 	// before any operation happens on the key, we give a chance to the GuestController to retrieve the original value of the key before any
 	// change happens. When the process is done, the GuestController will compare original values with the final ones.
 	// For this reason we just need to notify it when we open Keys with write mode.
-	string s = GetKeyPathFromOA(ObjectAttributes);
 	if (IsRequestingRegistryWriteAccess(DesiredAccess)) {
-		//OutputDebugStringW(ObjectAttributes->ObjectName->Buffer);
+		std::wstring s;
+		s = GetKeyPathFromOA(ObjectAttributes);
 		NotifyRegistryAccess(s, WK_KEY_OPENED);
 	}
 
@@ -909,6 +912,69 @@ NTSTATUS WINAPI MyNtOpenKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJEC
 
 	return res;
 }
+
+NTSTATUS WINAPI MyNtOpenKeyEx(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, ULONG OpenOptions)
+{
+	if (!shouldIntercept())
+		return realNtOpenKey(KeyHandle, DesiredAccess, ObjectAttributes);
+
+	//incHookingDepth();
+
+	// We need to notify the GuestController that this process is going to manipulate, somehow, this key. By sending a synch. notification
+	// before any operation happens on the key, we give a chance to the GuestController to retrieve the original value of the key before any
+	// change happens. When the process is done, the GuestController will compare original values with the final ones.
+	// For this reason we just need to notify it when we open Keys with write mode.
+	if (IsRequestingRegistryWriteAccess(DesiredAccess)) {
+		std::wstring s;
+		s = GetKeyPathFromOA(ObjectAttributes);
+		NotifyRegistryAccess(s, WK_KEY_OPENED);
+	}
+
+	// Call first because we want to store the result to the call too.
+	NTSTATUS res = realNtOpenKey(KeyHandle, DesiredAccess, ObjectAttributes);
+
+#ifdef SYSCALL_LOG
+	// Use a node object to create the XML string: this will contain all information about the SysCall
+	pugi::xml_document doc; pugi::xml_node element = doc.append_child(_T("NtOpenKeyEx"));
+	string w = string();
+
+	// >>>>>>>>>>>>>>> Key Path <<<<<<<<<<<<<<<
+	w.clear();
+	from_unicode_to_wstring(ObjectAttributes->ObjectName, &w);
+	element.addAttribute(_T("Path"), w.c_str());
+
+	// >>>>>>>>>>>>>>> Access Mask <<<<<<<<<<<<<<<
+	/*
+	w.clear();
+	KeyAccessMaskToString(DesiredAccess, &w);
+	element.addAttribute(_T("DesiredAccess"), w.c_str());
+	*/
+	element.addAttribute(_T("DesiredAccess"), StandardAccessMaskToString(DesiredAccess).c_str());
+
+	// >>>>>>>>>>>>>>> OpenOptions <<<<<<<<<<<<<<<
+	element.addAttribute(_T("OpenOptions"), to_string(OpenOptions));
+
+	// >>>>>>>>>>>>>>> Result <<<<<<<<<<<<<<<
+	w.clear();
+	NtStatusToString(res, &w);
+	element.addAttribute(_T("Result"), w.c_str());
+
+
+	if (NT_SUCCESS(res))
+	{
+		wchar_t buff[32];
+		wsprintf(buff, _T("0x%p"), *KeyHandle);
+		element.addAttribute(_T("Handle"), buff);
+	}
+
+	log(&element);
+#endif
+
+	//decHookingDepth();
+
+	return res;
+}
+
 NTSTATUS WINAPI MyNtCreateKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, ULONG TitleIndex, PUNICODE_STRING fullpath, ULONG CreateOptions, PULONG Disposition)
 {
 	//if (!shouldIntercept())
