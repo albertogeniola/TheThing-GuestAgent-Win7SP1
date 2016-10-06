@@ -112,6 +112,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		Hook(&realNtOpenFile,MyNtOpenFile,ntdllmod, "NtOpenFile");
 		Hook(&realNtDeleteFile,MyNtDeleteFile,ntdllmod, "NtDeleteFile");
 		Hook(&realNtCreateKey, MyNtCreateKey,ntdllmod, "NtCreateKey");
+		Hook(&realNtCreateKeyTransacted, MyNtCreateKeyTransacted, ntdllmod, "NtCreateKeyTransacted");
 		Hook(&realNtOpenKey, MyNtOpenKey,ntdllmod, "NtOpenKey");
 		Hook(&realNtOpenKeyEx, MyNtOpenKeyEx, ntdllmod, "NtOpenKeyEx");
 		Hook(&realNtSetInformationFile, MyNtSetInformationFile,ntdllmod, "NtSetInformationFile");
@@ -374,6 +375,7 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		UnHook(&realNtOpenFile, MyNtOpenFile, "NtOpenFile");
 		UnHook(&realNtDeleteFile, MyNtDeleteFile, "NtDeleteFile");
 		UnHook(&realNtCreateKey, MyNtCreateKey,  "NtCreateKey");
+		UnHook(&realNtCreateKeyTransacted, MyNtCreateKeyTransacted, "NtCreateKeyTransacted");
 		UnHook(&realNtOpenKey, MyNtOpenKey,  "NtOpenKey");
 		UnHook(&realNtOpenKeyEx, MyNtOpenKeyEx, "NtOpenKeyEx");
 		UnHook(&realNtSetInformationFile, MyNtSetInformationFile, "NtSetInformationFile");
@@ -805,6 +807,8 @@ NTSTATUS WINAPI MyNtDeleteFile(POBJECT_ATTRIBUTES ObjectAttributes)
 	return res;
 
 }
+
+
 NTSTATUS WINAPI MyNtOpenDirectoryObject(PHANDLE DirectoryObject, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes)
 {
 	if (!shouldIntercept())
@@ -854,6 +858,7 @@ NTSTATUS WINAPI MyNtOpenDirectoryObject(PHANDLE DirectoryObject, ACCESS_MASK Des
 
 	return res;
 }
+
 NTSTATUS WINAPI MyNtOpenKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes)
 {
 	if (!shouldIntercept())
@@ -1056,6 +1061,78 @@ NTSTATUS WINAPI MyNtCreateKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJ
 	//decHookingDepth();
 
 	return res;	
+}
+NTSTATUS WINAPI MyNtCreateKeyTransacted(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, ULONG TitleIndex, PUNICODE_STRING Class, ULONG CreateOptions, HANDLE TransactionHandle, PULONG Disposition)
+{
+	// Notify the GuestController the process wants to create a key
+	if (IsRequestingRegistryWriteAccess(DesiredAccess)) {
+		std::wstring s;
+		s = GetKeyPathFromOA(ObjectAttributes);
+		NotifyRegistryAccess(s, WK_KEY_CREATED);
+	}
+
+	// Call first because we want to store the result to the call too.
+	NTSTATUS res = realNtCreateKeyTransacted(KeyHandle, DesiredAccess, ObjectAttributes, TitleIndex, Class, CreateOptions, TransactionHandle, Disposition);
+
+#ifdef SYSCALL_LOG
+	// Use a node object to create the XML string: this will contain all information about the SysCall
+	pugi::xml_document doc; pugi::xml_node element = doc.append_child(_T("NtCreateKeyTransacted"));
+	string w = string();
+
+	// >>>>>>>>>>>>>>> Key Path <<<<<<<<<<<<<<<
+	from_unicode_to_wstring(ObjectAttributes->ObjectName, &w);
+	element.addAttribute(_T("Path"), w.c_str());
+
+	// >>>>>>>>>>>>>>> Access Mask <<<<<<<<<<<<<<<
+	/*
+	w.clear();
+	KeyAccessMaskToString(DesiredAccess, &w);
+	element.addAttribute(_T("DesiredAccess"), w.c_str());
+	*/
+	element.addAttribute(_T("DesiredAccess"), StandardAccessMaskToString(DesiredAccess).c_str());
+
+	// >>>>>>>>>>>>>>> Class <<<<<<<<<<<<<<<
+	if (Class != NULL)
+	{
+		from_unicode_to_wstring(Class, &w);
+		element.addAttribute(_T("Class"), w.c_str());
+	}
+
+
+	// >>>>>>>>>>>>>>> Create Options <<<<<<<<<<<<<<<
+	w.clear();
+	KeyCreateOptionsToString(CreateOptions, &w);
+	element.addAttribute(_T("CreateOptions"), w.c_str());
+
+	// >>>>>>>>>>>>>>> Disposition <<<<<<<<<<<<<<<
+	if (Disposition != NULL)
+	{
+		if (*Disposition == REG_CREATED_NEW_KEY)
+			element.addAttribute(_T("Disposition"), _T("REG_CREATED_NEW_KEY"));
+		else if (*Disposition == REG_OPENED_EXISTING_KEY)
+			element.addAttribute(_T("Disposition"), _T("REG_OPENED_EXISTING_KEY"));
+	}
+	else
+		element.addAttribute(_T("Disposition"), _T("N/A"));
+	// >>>>>>>>>>>>>>> Result <<<<<<<<<<<<<<<
+	w.clear();
+	NtStatusToString(res, &w);
+	element.addAttribute(_T("Result"), w.c_str());
+
+	if (NT_SUCCESS(res))
+	{
+		wchar_t buff[32];
+		wsprintf(buff, _T("0x%p"), *KeyHandle);
+		element.addAttribute(_T("Handle"), buff);
+	}
+
+	log(&element);
+
+#endif
+
+	//decHookingDepth();
+
+	return res;
 }
 NTSTATUS WINAPI MyNtQueryKey(HANDLE KeyHandle, KEY_INFORMATION_CLASS KeyInformationClass, PVOID KeyInformation, ULONG Length, PULONG ResultLength)
 {

@@ -58,6 +58,11 @@ typedef ULONG(WINAPI * pNtCreateKey)(PHANDLE KeyHandle,ACCESS_MASK DesiredAccess
 NTSTATUS WINAPI MyNtCreateKey(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, ULONG TitleIndex, PUNICODE_STRING Class, ULONG CreateOptions, PULONG Disposition);
 static pNtCreateKey realNtCreateKey;
 
+/* >>>>>>>>>>>>>> NtreateKeyTransacted <<<<<<<<<<<<<<< */
+typedef ULONG(WINAPI * pNCtreateKeyTransacted)(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, ULONG TitleIndex, PUNICODE_STRING Class, ULONG CreateOptions, HANDLE TransactionHandle, PULONG Disposition);
+NTSTATUS WINAPI MyNtCreateKeyTransacted(PHANDLE KeyHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, ULONG TitleIndex, PUNICODE_STRING Class, ULONG CreateOptions, HANDLE TransactionHandle, PULONG Disposition);
+static pNCtreateKeyTransacted realNtCreateKeyTransacted;
+
 /* >>>>>>>>>>>>>> NtDeleteKey <<<<<<<<<<<<<<< */
 typedef ULONG(WINAPI * pNtDeleteKey)(HANDLE KeyHandle);
 NTSTATUS WINAPI MyNtDeleteKey(HANDLE KeyHandle);
