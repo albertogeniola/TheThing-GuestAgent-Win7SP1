@@ -69,15 +69,16 @@ namespace ResultAnalyzerUtility
             this.totScreens = new System.Windows.Forms.Label();
             this.progressBar1 = new System.Windows.Forms.ProgressBar();
             this.screenPanel = new System.Windows.Forms.Panel();
+            this.pictureBox1 = new ResultAnalyzerUtility.MyPicturebox();
             this.installedItemsPanel = new System.Windows.Forms.Panel();
             this.applist = new System.Windows.Forms.ListView();
             this.imageList1 = new System.Windows.Forms.ImageList(this.components);
-            this.pictureBox1 = new ResultAnalyzerUtility.MyPicturebox();
+            this.fromFoldersToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.menuStrip1.SuspendLayout();
             this.groupBox1.SuspendLayout();
             this.screenPanel.SuspendLayout();
-            this.installedItemsPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
+            this.installedItemsPanel.SuspendLayout();
             this.SuspendLayout();
             // 
             // menuStrip1
@@ -103,20 +104,21 @@ namespace ResultAnalyzerUtility
             // loadReportToolStripMenuItem
             // 
             this.loadReportToolStripMenuItem.Name = "loadReportToolStripMenuItem";
-            this.loadReportToolStripMenuItem.Size = new System.Drawing.Size(144, 22);
+            this.loadReportToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
             this.loadReportToolStripMenuItem.Text = "Load report...";
             this.loadReportToolStripMenuItem.Click += new System.EventHandler(this.loadReportToolStripMenuItem_Click);
             // 
             // exitToolStripMenuItem
             // 
             this.exitToolStripMenuItem.Name = "exitToolStripMenuItem";
-            this.exitToolStripMenuItem.Size = new System.Drawing.Size(144, 22);
+            this.exitToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
             this.exitToolStripMenuItem.Text = "Exit";
             // 
             // bulkAnalysisToolStripMenuItem
             // 
             this.bulkAnalysisToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.setDirectoryToolStripMenuItem});
+            this.setDirectoryToolStripMenuItem,
+            this.fromFoldersToolStripMenuItem});
             this.bulkAnalysisToolStripMenuItem.Name = "bulkAnalysisToolStripMenuItem";
             this.bulkAnalysisToolStripMenuItem.Size = new System.Drawing.Size(86, 20);
             this.bulkAnalysisToolStripMenuItem.Text = "Bulk analysis";
@@ -124,7 +126,7 @@ namespace ResultAnalyzerUtility
             // setDirectoryToolStripMenuItem
             // 
             this.setDirectoryToolStripMenuItem.Name = "setDirectoryToolStripMenuItem";
-            this.setDirectoryToolStripMenuItem.Size = new System.Drawing.Size(150, 22);
+            this.setDirectoryToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
             this.setDirectoryToolStripMenuItem.Text = "Set Directory...";
             this.setDirectoryToolStripMenuItem.Click += new System.EventHandler(this.setDirectoryToolStripMenuItem_Click);
             // 
@@ -446,6 +448,18 @@ namespace ResultAnalyzerUtility
             this.screenPanel.Size = new System.Drawing.Size(804, 591);
             this.screenPanel.TabIndex = 14;
             // 
+            // pictureBox1
+            // 
+            this.pictureBox1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.pictureBox1.Cursor = System.Windows.Forms.Cursors.Cross;
+            this.pictureBox1.Location = new System.Drawing.Point(3, 28);
+            this.pictureBox1.Name = "pictureBox1";
+            this.pictureBox1.Size = new System.Drawing.Size(800, 560);
+            this.pictureBox1.TabIndex = 2;
+            this.pictureBox1.TabStop = false;
+            // 
             // installedItemsPanel
             // 
             this.installedItemsPanel.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
@@ -473,17 +487,12 @@ namespace ResultAnalyzerUtility
             this.imageList1.TransparentColor = System.Drawing.Color.Transparent;
             this.imageList1.Images.SetKeyName(0, "installer");
             // 
-            // pictureBox1
+            // fromFoldersToolStripMenuItem
             // 
-            this.pictureBox1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.pictureBox1.Cursor = System.Windows.Forms.Cursors.Cross;
-            this.pictureBox1.Location = new System.Drawing.Point(3, 28);
-            this.pictureBox1.Name = "pictureBox1";
-            this.pictureBox1.Size = new System.Drawing.Size(800, 560);
-            this.pictureBox1.TabIndex = 2;
-            this.pictureBox1.TabStop = false;
+            this.fromFoldersToolStripMenuItem.Name = "fromFoldersToolStripMenuItem";
+            this.fromFoldersToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
+            this.fromFoldersToolStripMenuItem.Text = "From folders...";
+            this.fromFoldersToolStripMenuItem.Click += new System.EventHandler(this.fromFoldersToolStripMenuItem_Click);
             // 
             // Form1
             // 
@@ -509,8 +518,8 @@ namespace ResultAnalyzerUtility
             this.groupBox1.PerformLayout();
             this.screenPanel.ResumeLayout(false);
             this.screenPanel.PerformLayout();
-            this.installedItemsPanel.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).EndInit();
+            this.installedItemsPanel.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -559,6 +568,7 @@ namespace ResultAnalyzerUtility
         private System.Windows.Forms.Panel installedItemsPanel;
         private System.Windows.Forms.ListView applist;
         private System.Windows.Forms.ImageList imageList1;
+        private System.Windows.Forms.ToolStripMenuItem fromFoldersToolStripMenuItem;
     }
 }
 

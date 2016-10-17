@@ -85,7 +85,7 @@ namespace ResultAnalyzerUtility
                 fileBtn.Tag = fileAccess;
 
                 fileName.Text = Path.GetFileName(experiment.SelectSingleNode("InstallerName").InnerText);
-                jobId.Text = experiment.SelectSingleNode("JobId").InnerText;
+                //jobId.Text = experiment.SelectSingleNode("JobId").InnerText;
                 duration.Text = experiment.SelectSingleNode("Duration").InnerText;
                 vmResult.Text = "TODO";
                 
@@ -394,6 +394,37 @@ namespace ResultAnalyzerUtility
                 if (bulkReports.Count>0)
                     loadReport(bulkReports[repCount]);
             }
+        }
+
+        private void fromFoldersToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+
+            FolderBrowserDialog fbd = new FolderBrowserDialog();
+            DialogResult result = fbd.ShowDialog();
+
+            if (!string.IsNullOrWhiteSpace(fbd.SelectedPath))
+            {
+
+                IdsForm f = new IdsForm();
+                var res = f.ShowDialog();
+                if (res == DialogResult.OK)
+                {
+                    var reps = new List<string>();
+                    // Only add directories that contain the REPORT file inside
+
+                    foreach (string s in f.get_result())
+                    {
+                        string rep = Path.Combine(fbd.SelectedPath, s, "report.xml");
+                        if (File.Exists(rep))
+                            reps.Add(rep);
+                    }
+                    repCount = 0;
+                    bulkReports = reps;
+                    if (bulkReports.Count > 0)
+                        loadReport(bulkReports[repCount]);
+                }
+            }
+            
         }
     }
     

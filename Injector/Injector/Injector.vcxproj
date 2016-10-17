@@ -98,7 +98,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RemoteDebug|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <PostBuildEventUseInBuild>true</PostBuildEventUseInBuild>
-    <OutDir>C:\VMs\ProductionOutputDir\GuestController\</OutDir>
+    <OutDir>D:\ProductionOutputDir\GuestController\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Only Injector|Win32'">
     <LinkIncremental>false</LinkIncremental>
