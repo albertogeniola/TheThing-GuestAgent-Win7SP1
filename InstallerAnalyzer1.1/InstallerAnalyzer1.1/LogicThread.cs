@@ -320,7 +320,7 @@ namespace InstallerAnalyzer1_Guest
             }
 
             // Before entering the check, give some time to the UI to spawn
-            Thread.Sleep(10000);
+            Thread.Sleep(5000);
 
             // Keep interacting until we hit the timeout or the process exits normally.
             while (!_timeout)
@@ -363,6 +363,12 @@ namespace InstallerAnalyzer1_Guest
                     // Analyze the window and build the controls rank.
                     Console.WriteLine("UI Bot: Analyze Window (PID: " + proc.Process.Id + ", HWND: " + waitingWindnow.Handle + ", TITLE: " + waitingWindnow.Title + ") " + "Interaction: " + c);
                     CandidateSet w = ranker.Rank(policy, waitingWindnow);
+
+                    // Make sure there is no scrollbar...
+                    if (w.HasIncompleteProgressBar()) {
+                        Console.WriteLine("UI Bot: Scrollbar Detected! Skipping...");
+                        continue;
+                    }
 
                     // Now let the interaction happen. The RankingPolicy decides which UIControl should we use to continue installation
                     bool uiHasChanged = false;

@@ -333,7 +333,7 @@ namespace InstallerAnalyzer1_Guest
             }
             */
 
-            void ProcessLogging(NamedPipeServerStream logPipeServer) {
+        void ProcessLogging(NamedPipeServerStream logPipeServer) {
 
             //NamedPipeServerStream logPipeServer = o as NamedPipeServerStream;
 

@@ -34,11 +34,12 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
         public NativeAndVisualRanker(int min_width=30, int min_height=20) {
             _engine = new TesseractEngine("tessdata", "eng", EngineMode.TesseractAndCube);
             Condition bc = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button);
+            Condition sb = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ProgressBar);
             Condition cc = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.CheckBox);
             Condition rc = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.RadioButton);
             Condition hc = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Hyperlink);
             Condition enCond = new PropertyCondition(AutomationElement.IsEnabledProperty, true);
-            OrCondition orc = new OrCondition(bc, cc, rc, hc);
+            OrCondition orc = new OrCondition(bc, cc, rc, hc, sb);
             _cond = new AndCondition(orc, enCond);
 
             _min_width = min_width;

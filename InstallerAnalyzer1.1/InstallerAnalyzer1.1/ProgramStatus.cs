@@ -441,11 +441,19 @@ namespace InstallerAnalyzer1_Guest
         #endregion
 
         private static object _busyLock = new object();
-        private bool _busy = false;
-        public void SetBusy(bool busy) {
+        private int _busy = 0;
+        public void IncBusy() {
             lock (_busyLock) {
-                _busy = busy;
-                Monitor.PulseAll(_busyLock);
+                _busy++;
+            }
+        }
+
+        public void DecBusy()
+        {
+            lock (_busyLock)
+            {
+                if (_busy>0)
+                    _busy--;
             }
         }
 
@@ -495,7 +503,7 @@ namespace InstallerAnalyzer1_Guest
                 }
 
                 // Sleep for a while
-                Thread.Sleep(50);
+                Thread.Sleep(100);
             }
 
             return stable;
@@ -503,7 +511,7 @@ namespace InstallerAnalyzer1_Guest
 
         public bool IsBusy() {
             lock (_busyLock) {
-                return _busy;
+                return _busy>0;
             }
         }
     }
@@ -532,7 +540,7 @@ namespace InstallerAnalyzer1_Guest
         {
             try
             {
-                ProgramStatus.Instance.SetBusy(true);
+                ProgramStatus.Instance.IncBusy();
                 lock (this)
                 {
                     if (_finalized)
@@ -575,7 +583,7 @@ namespace InstallerAnalyzer1_Guest
             }
             finally
             {
-                ProgramStatus.Instance.SetBusy(false);
+                ProgramStatus.Instance.DecBusy();
             }    
         }
 

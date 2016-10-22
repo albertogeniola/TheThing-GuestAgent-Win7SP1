@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Windows.Automation;
 using System.Xml;
 using System.Xml.Schema;
 using System.Xml.Serialization;
@@ -39,6 +40,22 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
                 else
                     return this.ElementAt(index);
             }
+        }
+
+        public bool HasIncompleteProgressBar() {
+            foreach (var c in this) {
+                if (c.GuessedControlType == ControlType.ProgressBar && c.AutoElementRef!=null) {
+                    object obj = null;
+                    c.AutoElementRef.TryGetCurrentPattern(ValuePattern.Pattern,out obj);
+                    string val = (obj as ValuePattern).Current.Value;
+                    float perc = float.Parse(val);
+
+                    return perc < 100;
+
+                }
+            }
+
+            return false;
         }
 
         public string Hash { get; set; }

@@ -45,10 +45,13 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis.RankingPolicy
         // Penalize already checked cb
         private const int CONTROL_TYPE_CHECKBOX_CHECKED_PENALTY = 100;
 
+        // Penalize scrollbar
+        private const int CONTROL_TYPE_SCROLLBAR_PENALTY = 300;
+
         // MAKE THEM LOWER CASE!
         private static string[] WHITE_LIST = new string[] { "next", "continue", "agree", "accept", "ok", "install", "finish", "run", "done", "yes", "i agree", "i accept", "accept and install", "next >" };
-        private static string[] BLACK_LIST = new string[] { "forward by small amount", "back by small amount", "back by large amount", "forward by large amount", "disagree", "cancel", "abort", "exit", "back", "<", "decline", "quit", "minimize", "no", "close", "pause", "x", "_", "do not accept", "< back" };
-        
+        private static string[] BLACK_LIST = new string[] { "forward by small amount", "back by small amount", "back by large amount", "forward by large amount", "disagree", "cancel", "abort", "exit", "back", "<", "decline", "quit", "minimize", "no", "close", "pause", "x", "_", "do not accept", "< back", "i do not accept" };
+        private static string[] BLACK_LIST_START_WITH = new string[] { "i do not accept", "i do not agree" };
 
         public int RankElement(UIControlCandidate control)
         {
@@ -96,7 +99,16 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis.RankingPolicy
                     score -= WORD_BLACK_CONTAINED_SCORE;
 
             }
-            
+
+            foreach (string s in BLACK_LIST_START_WITH)
+            {
+                if (text.StartsWith(s))
+                {
+                    score -= WORD_BLACK_EXACT_SCORE;
+                }
+
+            }
+
 
             return score;
         }
@@ -116,6 +128,10 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis.RankingPolicy
         private int RankControlType(UIControlCandidate control) {
             if (control.GuessedControlType == null)
                 return 0;
+
+            if (control.GuessedControlType == ControlType.ScrollBar) {
+                return -CONTROL_TYPE_SCROLLBAR_PENALTY;
+            }
 
             if (control.GuessedControlType == ControlType.Button)
                 return CONTROL_TYPE_BUTTON_SCORE;
