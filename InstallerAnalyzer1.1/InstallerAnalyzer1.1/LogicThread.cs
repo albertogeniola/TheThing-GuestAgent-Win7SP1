@@ -298,8 +298,9 @@ namespace InstallerAnalyzer1_Guest
         }
 
         private bool _timeout;
+        private int _c = 0;
         private ProcessContainer ExecuteJob(Job j, IUIRanker ranker, IRankingPolicy policy) {
-            int c=0;
+            _c=0;
             int stuckCounter = 0;
             int stuckWaitingForControlsCounter = 0;
             PrepareScreenFolders();
@@ -333,7 +334,7 @@ namespace InstallerAnalyzer1_Guest
 
                     // Wait until the window is considered stable
                     Window waitingWindnow = null;
-                    Console.WriteLine("UI Bot: WAIT WINDOW STABLE (PID: " + proc.Process.Id + ") " + "Interaction: " + c);
+                    Console.WriteLine("UI Bot: WAIT WINDOW STABLE (PID: " + proc.Process.Id + ") " + "Interaction: " + _c);
                     waitingWindnow = WaitForInputRequested();
 
                     if (waitingWindnow == null)
@@ -358,10 +359,10 @@ namespace InstallerAnalyzer1_Guest
                     // Otherwise we have a window on the foreground. 
                     Console.WriteLine("UI Bot: Stable hWND " + waitingWindnow.Handle.ToString("X") + ", loc: " + waitingWindnow.WindowLocation.ToString());
                     
-                    SaveStableScreen(waitingWindnow, c);
+                    SaveStableScreen(waitingWindnow, _c);
 
                     // Analyze the window and build the controls rank.
-                    Console.WriteLine("UI Bot: Analyze Window (PID: " + proc.Process.Id + ", HWND: " + waitingWindnow.Handle + ", TITLE: " + waitingWindnow.Title + ") " + "Interaction: " + c);
+                    Console.WriteLine("UI Bot: Analyze Window (PID: " + proc.Process.Id + ", HWND: " + waitingWindnow.Handle + ", TITLE: " + waitingWindnow.Title + ") " + "Interaction: " + _c);
                     CandidateSet w = ranker.Rank(policy, waitingWindnow);
 
                     // Make sure there is no scrollbar...
@@ -405,10 +406,10 @@ namespace InstallerAnalyzer1_Guest
                             }
 
                             // Save a screenshot with interaction information for debugging and reporting
-                            SaveInteractionScreen(waitingWindnow, w, candidate, c);
+                            SaveInteractionScreen(waitingWindnow, w, candidate, _c);
 
                             candidate.Interact();
-                            c++;
+                            _c++;
 
                             // Wait for something to happen
                             Console.WriteLine("UI Bot: Waiting for UI reaction.");
@@ -570,6 +571,21 @@ namespace InstallerAnalyzer1_Guest
             // -> An unhandled error occurs: Unknown
             // However timeout check is performed within the while evaluation, so we need to check it separately and 
             // act accordingly. If the timeout was hit, we have to kill everything and return the control to the caller.
+
+            // Save one entire screenshot
+            using (Bitmap bmpScreenCapture = new Bitmap(Screen.PrimaryScreen.Bounds.Width,
+                                            Screen.PrimaryScreen.Bounds.Height))
+            {
+                using (Graphics g = Graphics.FromImage(bmpScreenCapture))
+                {
+                    g.CopyFromScreen(Screen.PrimaryScreen.Bounds.X,
+                                     Screen.PrimaryScreen.Bounds.Y,
+                                     0, 0,
+                                     bmpScreenCapture.Size,
+                                     CopyPixelOperation.SourceCopy);
+                }
+                bmpScreenCapture.Save(Path.Combine(Settings.Default.INTERACTIONS_SCREEN_PATH, _c+".bmp"));
+            }
 
             // Make sure everything is terminated before continuing
             if (!proc.Process.HasExited)
@@ -1323,7 +1339,7 @@ namespace InstallerAnalyzer1_Guest
             var appLog = log.OwnerDocument.CreateElement("AppLog");
             appLog.InnerText = File.ReadAllText(ProgramLogger.Instance.GetLogFile());
             log.AppendChild(appLog);
-
+            /*
             // Also collect the last screenshot of the entire desktop. This represents the final state of the machine.
             using (Bitmap bmpScreenCapture = new Bitmap(Screen.PrimaryScreen.Bounds.Width,
                                             Screen.PrimaryScreen.Bounds.Height))
@@ -1337,7 +1353,7 @@ namespace InstallerAnalyzer1_Guest
                                      CopyPixelOperation.SourceCopy);
                 }
                 bmpScreenCapture.Save(Path.Combine(Settings.Default.INTERACTIONS_SCREEN_PATH, "last.png"));
-            }
+            }*/
 
             string f = ZipScreens();
             // Add the zip file to the report
