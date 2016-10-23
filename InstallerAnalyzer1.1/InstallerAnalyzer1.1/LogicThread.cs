@@ -1249,6 +1249,7 @@ namespace InstallerAnalyzer1_Guest
                 //TODO: intercept intermidiate file strings...
                 if (file.LeftOver())
                 {
+                    /*
                     // Calculate the strings for that file
                     Process strings = new Process();
                     strings.StartInfo.FileName = "strings/strings.exe";
@@ -1286,6 +1287,7 @@ namespace InstallerAnalyzer1_Guest
                     // In case the string command failed, remove the nodes.
                     if (strings.ExitCode != 0)
                         stringAnalysis.RemoveAll();
+                    */
                     newFiles.AppendChild(fl);
                 }
                 else if (deletedfile)
@@ -1321,6 +1323,21 @@ namespace InstallerAnalyzer1_Guest
             var appLog = log.OwnerDocument.CreateElement("AppLog");
             appLog.InnerText = File.ReadAllText(ProgramLogger.Instance.GetLogFile());
             log.AppendChild(appLog);
+
+            // Also collect the last screenshot of the entire desktop. This represents the final state of the machine.
+            using (Bitmap bmpScreenCapture = new Bitmap(Screen.PrimaryScreen.Bounds.Width,
+                                            Screen.PrimaryScreen.Bounds.Height))
+            {
+                using (Graphics g = Graphics.FromImage(bmpScreenCapture))
+                {
+                    g.CopyFromScreen(Screen.PrimaryScreen.Bounds.X,
+                                     Screen.PrimaryScreen.Bounds.Y,
+                                     0, 0,
+                                     bmpScreenCapture.Size,
+                                     CopyPixelOperation.SourceCopy);
+                }
+                bmpScreenCapture.Save(Path.Combine(Settings.Default.INTERACTIONS_SCREEN_PATH, "last.png"));
+            }
 
             string f = ZipScreens();
             // Add the zip file to the report

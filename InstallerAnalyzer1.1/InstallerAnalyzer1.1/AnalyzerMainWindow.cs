@@ -61,13 +61,17 @@ namespace InstallerAnalyzer1_Guest
                 Invoke(new Action(()=>{
                     elapsedTime.Text = elapse;
                     logRateBox.Text = ""+ProgramStatus.Instance.LogsPerSec;
-                    busy.Text = ProgramStatus.Instance.IsBusy() ? "Busy" : "";
+                    fileAccessCounter.Text = ""+ProgramStatus.Instance.FileAccessCounter;
+                    regAccessCounter.Text = ""+ProgramStatus.Instance.RegAccessCounter;
+                    busy.Text = ProgramStatus.Instance.IsBusy() ? "!!!" : "";
                 }));
             }
             else {
                 elapsedTime.Text = elapse;
                 logRateBox.Text = "" + ProgramStatus.Instance.LogsPerSec;
-                busy.Text = ProgramStatus.Instance.IsBusy() ? "Busy" : "";
+                fileAccessCounter.Text = "" + ProgramStatus.Instance.FileAccessCounter;
+                regAccessCounter.Text = "" + ProgramStatus.Instance.RegAccessCounter;
+                busy.Text = ProgramStatus.Instance.IsBusy() ? "!!!" : "";
             }
         }
 

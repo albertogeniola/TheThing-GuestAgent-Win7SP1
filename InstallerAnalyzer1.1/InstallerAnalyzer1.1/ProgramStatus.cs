@@ -58,6 +58,7 @@ namespace InstallerAnalyzer1_Guest
         
         public void NotifyFileRename(string oPath, string nPath)
         {
+            ProgramStatus.Instance.IncFileAccessRate();
             string oldPath = null;
             string newPath = null;
             FileAccessInfo t = null;
@@ -116,6 +117,7 @@ namespace InstallerAnalyzer1_Guest
         }
         
         public void NotifyFileAccess(string ss) {
+            ProgramStatus.Instance.IncFileAccessRate();
             string wild_path = "";
             if (ss.StartsWith(@"\??\"))
                 wild_path = ss.Substring(4);
@@ -188,8 +190,9 @@ namespace InstallerAnalyzer1_Guest
             return;
             
         }
-
-        public void NotifyRegistryAccess(string regPath) { 
+        
+        public void NotifyRegistryAccess(string regPath) {
+            ProgramStatus.Instance.IncRegAccessRate();
             lock (_regLock)
             {
                 var path = regPath.ToLower();
@@ -261,7 +264,7 @@ namespace InstallerAnalyzer1_Guest
         private static object _pidsLock = new object();
         private List<uint> _monitoredPids;
         private List<uint> _servicePids;
-        private long _logRate, _logRateVal;
+        private int _logRate, _logRateVal;
         private bool _firstDone;
         private Thread _timer = null;
         private ProcessHierarchy _hierarchy;
@@ -379,33 +382,55 @@ namespace InstallerAnalyzer1_Guest
             {
                 // Run every second and update the lograte
                 Thread.Sleep(1000);
-                lock (_pidsLock)
-                {
-                    _logRateVal = _logRate;
-                    _logRate = 0;
-                }
+                _logRateVal = Interlocked.Exchange(ref _logRate, 0);
+                _fileAccessAvg = Interlocked.Exchange(ref _fileAccessCounter,0);
+                _regAccessAvg = Interlocked.Exchange(ref _regAccessCounter, 0);
+
             }
         }
         
         public void IncLogRate()
         {
-            lock (_pidsLock)
-            {
-                _logRate++;
-            }
+            Interlocked.Increment(ref _logRate);
         }
 
-        public long LogsPerSec
+        float _fileAccessAvg = 0;
+        int _fileAccessCounter = 0;
+        private void IncFileAccessRate()
+        {
+            Interlocked.Increment(ref _fileAccessCounter);
+        }
+
+        float _regAccessAvg = 0;
+        int _regAccessCounter = 0;
+        private void IncRegAccessRate()
+        {
+            Interlocked.Increment(ref _regAccessCounter);
+        }
+
+        public int LogsPerSec
         {
             get
             {
-                lock (_pidsLock)
-                {
-                    return _logRateVal;
-                }
+                return _logRateVal;    
             }
         }
-        
+
+        public float FileAccessCounter
+        {
+            get
+            {
+                return _fileAccessAvg;
+            }
+        }
+
+        public float RegAccessCounter
+        {
+            get {
+                return _regAccessAvg;
+            }
+        }
+
         /// <summary>
         /// This method holds until the Installer is supposed to be IDLE. If timeout is reached, false is returned. Otherwise if we detect the 
         /// IDLE state before the timeout, true is returned.
@@ -454,6 +479,7 @@ namespace InstallerAnalyzer1_Guest
             {
                 if (_busy>0)
                     _busy--;
+                Monitor.PulseAll(_busyLock);
             }
         }
 

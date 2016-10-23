@@ -24,7 +24,7 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
         public const int POLLING_INTERVAL = 5000;
         private bool disposed = false;
         private TesseractEngine _engine;
-        private AndCondition _cond;
+        private Condition _cond;
         private int _min_width = 0;
         private int _min_height = 0;
 
@@ -34,13 +34,15 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
         public NativeAndVisualRanker(int min_width=30, int min_height=20) {
             _engine = new TesseractEngine("tessdata", "eng", EngineMode.TesseractAndCube);
             Condition bc = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button);
-            Condition sb = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ProgressBar);
             Condition cc = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.CheckBox);
             Condition rc = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.RadioButton);
             Condition hc = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Hyperlink);
             Condition enCond = new PropertyCondition(AutomationElement.IsEnabledProperty, true);
-            OrCondition orc = new OrCondition(bc, cc, rc, hc, sb);
-            _cond = new AndCondition(orc, enCond);
+            OrCondition orc = new OrCondition(bc, cc, rc, hc);
+            AndCondition andcond = new AndCondition(orc, enCond);
+
+            Condition pb = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ProgressBar);
+            _cond = new OrCondition(andcond, pb);
 
             _min_width = min_width;
             _min_height = min_height;

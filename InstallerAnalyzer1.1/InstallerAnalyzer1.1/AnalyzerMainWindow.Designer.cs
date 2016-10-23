@@ -43,6 +43,10 @@
             this.servicePids = new System.Windows.Forms.Label();
             this.logRateBox = new System.Windows.Forms.Label();
             this.busy = new System.Windows.Forms.Label();
+            this.label5 = new System.Windows.Forms.Label();
+            this.fileAccessCounter = new System.Windows.Forms.Label();
+            this.label7 = new System.Windows.Forms.Label();
+            this.regAccessCounter = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             this.SuspendLayout();
             // 
@@ -101,7 +105,7 @@
             this.monitoredPids.ForeColor = System.Drawing.Color.Yellow;
             this.monitoredPids.Location = new System.Drawing.Point(484, 57);
             this.monitoredPids.Name = "monitoredPids";
-            this.monitoredPids.Size = new System.Drawing.Size(363, 22);
+            this.monitoredPids.Size = new System.Drawing.Size(272, 22);
             this.monitoredPids.TabIndex = 6;
             this.monitoredPids.Text = "...";
             this.monitoredPids.Click += new System.EventHandler(this.monitoredPids_Click);
@@ -147,7 +151,7 @@
             this.servicePids.ForeColor = System.Drawing.Color.Yellow;
             this.servicePids.Location = new System.Drawing.Point(484, 34);
             this.servicePids.Name = "servicePids";
-            this.servicePids.Size = new System.Drawing.Size(363, 22);
+            this.servicePids.Size = new System.Drawing.Size(272, 22);
             this.servicePids.TabIndex = 11;
             this.servicePids.Text = "...";
             this.servicePids.Click += new System.EventHandler(this.servicePids_Click);
@@ -165,10 +169,49 @@
             // 
             this.busy.Font = new System.Drawing.Font("Consolas", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.busy.ForeColor = System.Drawing.Color.Red;
-            this.busy.Location = new System.Drawing.Point(761, 34);
+            this.busy.Location = new System.Drawing.Point(987, 51);
             this.busy.Name = "busy";
-            this.busy.Size = new System.Drawing.Size(138, 22);
+            this.busy.Size = new System.Drawing.Size(36, 22);
             this.busy.TabIndex = 13;
+            this.busy.Text = "!!!";
+            // 
+            // label5
+            // 
+            this.label5.AutoSize = true;
+            this.label5.ForeColor = System.Drawing.Color.White;
+            this.label5.Location = new System.Drawing.Point(761, 34);
+            this.label5.Name = "label5";
+            this.label5.Size = new System.Drawing.Size(85, 13);
+            this.label5.TabIndex = 14;
+            this.label5.Text = "File Accesses/s:";
+            // 
+            // fileAccessCounter
+            // 
+            this.fileAccessCounter.ForeColor = System.Drawing.Color.Yellow;
+            this.fileAccessCounter.Location = new System.Drawing.Point(853, 33);
+            this.fileAccessCounter.Name = "fileAccessCounter";
+            this.fileAccessCounter.Size = new System.Drawing.Size(113, 14);
+            this.fileAccessCounter.TabIndex = 15;
+            this.fileAccessCounter.Text = "...";
+            // 
+            // label7
+            // 
+            this.label7.AutoSize = true;
+            this.label7.ForeColor = System.Drawing.Color.White;
+            this.label7.Location = new System.Drawing.Point(762, 57);
+            this.label7.Name = "label7";
+            this.label7.Size = new System.Drawing.Size(89, 13);
+            this.label7.TabIndex = 16;
+            this.label7.Text = "Reg Accesses/s:";
+            // 
+            // regAccessCounter
+            // 
+            this.regAccessCounter.ForeColor = System.Drawing.Color.Yellow;
+            this.regAccessCounter.Location = new System.Drawing.Point(853, 59);
+            this.regAccessCounter.Name = "regAccessCounter";
+            this.regAccessCounter.Size = new System.Drawing.Size(113, 14);
+            this.regAccessCounter.TabIndex = 17;
+            this.regAccessCounter.Text = "...";
             // 
             // AnalyzerMainWindow
             // 
@@ -177,6 +220,10 @@
             this.BackColor = System.Drawing.Color.Black;
             this.ClientSize = new System.Drawing.Size(1035, 82);
             this.ControlBox = false;
+            this.Controls.Add(this.regAccessCounter);
+            this.Controls.Add(this.label7);
+            this.Controls.Add(this.fileAccessCounter);
+            this.Controls.Add(this.label5);
             this.Controls.Add(this.busy);
             this.Controls.Add(this.logRateBox);
             this.Controls.Add(this.servicePids);
@@ -218,5 +265,9 @@
         private System.Windows.Forms.Label servicePids;
         private System.Windows.Forms.Label logRateBox;
         private System.Windows.Forms.Label busy;
+        private System.Windows.Forms.Label label5;
+        private System.Windows.Forms.Label fileAccessCounter;
+        private System.Windows.Forms.Label label7;
+        private System.Windows.Forms.Label regAccessCounter;
     }
 }

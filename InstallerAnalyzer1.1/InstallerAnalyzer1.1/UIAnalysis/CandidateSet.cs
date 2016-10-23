@@ -45,12 +45,12 @@ namespace InstallerAnalyzer1_Guest.UIAnalysis
         public bool HasIncompleteProgressBar() {
             foreach (var c in this) {
                 if (c.GuessedControlType == ControlType.ProgressBar && c.AutoElementRef!=null) {
-                    object obj = null;
-                    c.AutoElementRef.TryGetCurrentPattern(ValuePattern.Pattern,out obj);
-                    string val = (obj as ValuePattern).Current.Value;
-                    float perc = float.Parse(val);
 
-                    return perc < 100;
+                    double min = (double)c.AutoElementRef.GetCurrentPropertyValue(RangeValuePatternIdentifiers.MinimumProperty);
+                    double max = (double)c.AutoElementRef.GetCurrentPropertyValue(RangeValuePatternIdentifiers.MaximumProperty);
+                    double val = (double)c.AutoElementRef.GetCurrentPropertyValue(RangeValuePatternIdentifiers.ValueProperty);
+
+                    return val < max;
 
                 }
             }
