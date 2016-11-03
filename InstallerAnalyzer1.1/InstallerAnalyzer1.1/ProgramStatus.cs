@@ -547,7 +547,7 @@ namespace InstallerAnalyzer1_Guest
     {
         public bool exists;
         public long size;
-        public Hashes hashes;
+        public Utils.Hashes hashes;
         public string fuzzyHash;
         public string path;
     }
@@ -583,7 +583,7 @@ namespace InstallerAnalyzer1_Guest
                     {
                         FileInfo finfo = new FileInfo(Path);
                         info.size = finfo.Length;
-                        info.hashes = CalculateHash(Path);
+                        info.hashes = Utils.CalculateHash(Path);
                         info.fuzzyHash = CalculateFuzzyHash(Path);
                     }
 
@@ -660,48 +660,7 @@ namespace InstallerAnalyzer1_Guest
             }
             return res;
         }
-        private static Hashes CalculateHash(string filePath)
-        {
-            Hashes res = new Hashes() { sha1 = null, md5 = null };
-            try
-            {
-                /*
-                using(var sha1 = SHA1.Create())
-                using (var md5 = MD5.Create())
-                using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-                {
-                    md5.
-                    hash = BitConverter.ToString(md5.ComputeHash(stream)).Replace("-", string.Empty);
-                }*/
-
-                using (var md5 = MD5Cng.Create()) // Or MD5Cng.Create
-                using (var sha1 = SHA1Cng.Create()) // Or SHA1Cng.Create
-                using (var input = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-                {
-                    byte[] buffer = new byte[8192];
-                    int bytesRead;
-                    while ((bytesRead = input.Read(buffer, 0, buffer.Length)) > 0)
-                    {
-                        md5.TransformBlock(buffer, 0, bytesRead, buffer, 0);
-                        sha1.TransformBlock(buffer, 0, bytesRead, buffer, 0);
-                    }
-                    // We have to call TransformFinalBlock, but we don't have any
-                    // more data - just provide 0 bytes.
-                    md5.TransformFinalBlock(buffer, 0, 0);
-                    sha1.TransformFinalBlock(buffer, 0, 0);
-
-                    res.md5 = BitConverter.ToString(md5.Hash).Replace("-", string.Empty);
-                    res.sha1 = BitConverter.ToString(sha1.Hash).Replace("-", string.Empty);
-                }
-
-            }
-            catch (Exception e)
-            {
-                // This should never happen at this time, but we don't want to stuck the process if it happens.
-            }
-            return res;
-        }
-
+        
         /// <summary>
         /// Returns true if the file existed originally on the FS and if it is no more on it.
         /// </summary>
@@ -733,12 +692,7 @@ namespace InstallerAnalyzer1_Guest
             NotifyAccess();
         }
     }
-
-    public struct Hashes {
-        public string sha1;
-        public string md5;
-    }
-
+    
     public class RegAccessInfo
     {
         private string _fullName;

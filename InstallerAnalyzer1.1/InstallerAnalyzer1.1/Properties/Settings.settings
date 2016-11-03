@@ -20,14 +20,17 @@
     <Setting Name="STRINGS_MIN_LEN" Type="System.Int32" Scope="Application">
       <Value Profile="(Default)">10</Value>
     </Setting>
-    <Setting Name="IDLE_TIMEOUT" Type="System.Int32" Scope="User">
+    <Setting Name="IDLE_TIMEOUT" Type="System.Int32" Scope="Application">
       <Value Profile="(Default)">600000</Value>
     </Setting>
-    <Setting Name="HOST_CONTROLLER_IP" Type="System.String" Scope="User">
+    <Setting Name="HOST_CONTROLLER_IP" Type="System.String" Scope="Application">
       <Value Profile="(Default)">192.168.56.1</Value>
     </Setting>
-    <Setting Name="HOST_CONTROLLER_PORT" Type="System.String" Scope="User">
+    <Setting Name="HOST_CONTROLLER_PORT" Type="System.String" Scope="Application">
       <Value Profile="(Default)">9000</Value>
+    </Setting>
+    <Setting Name="PERFORM_STRING_ANALYSIS" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">False</Value>
     </Setting>
   </Settings>
 </SettingsFile>

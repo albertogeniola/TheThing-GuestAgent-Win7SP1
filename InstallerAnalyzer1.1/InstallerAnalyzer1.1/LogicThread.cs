@@ -76,7 +76,8 @@ namespace InstallerAnalyzer1_Guest
             return _tcpEndpoint;
 
         }
-        private void __send(NetworkStream ns, byte[] data) {
+        private void __send(NetworkStream ns, byte[] data)
+        {
             ns.Write(data, 0, data.Length);
         }
         private void __recv(NetworkStream ns, ref byte[] buf)
@@ -88,8 +89,9 @@ namespace InstallerAnalyzer1_Guest
             byte[] buff = new byte[8192];
             int tot = 0;
 
-            while (tot < dim) {
-                int toread = ((dim - tot) > buff.Length ) ? buff.Length : (dim - tot);
+            while (tot < dim)
+            {
+                int toread = ((dim - tot) > buff.Length) ? buff.Length : (dim - tot);
                 int r = ns.Read(buff, 0, toread);
                 fs.Write(buff, 0, r);
                 tot += r;
@@ -106,7 +108,8 @@ namespace InstallerAnalyzer1_Guest
                 written += read;
             }
         }
-        private void _send_message(NetworkStream ns, string msg) { 
+        private void _send_message(NetworkStream ns, string msg)
+        {
             // Encode the string and get its byte length
             var utf8 = Encoding.UTF8;
             byte[] utfBytes = utf8.GetBytes(msg);
@@ -115,10 +118,10 @@ namespace InstallerAnalyzer1_Guest
             int len = IPAddress.HostToNetworkOrder(utfBytes.Length);
 
             // now send the len
-            __send(ns,BitConverter.GetBytes(len));
+            __send(ns, BitConverter.GetBytes(len));
 
             // finally send binary data
-            __send(ns,utfBytes);
+            __send(ns, utfBytes);
 
         }
         private string _recv_message(NetworkStream ns)
@@ -129,7 +132,7 @@ namespace InstallerAnalyzer1_Guest
 
             UInt32 nlen = BitConverter.ToUInt32(i, 0);
             int len = IPAddress.NetworkToHostOrder((int)nlen);
-            
+
             // Now read the rest of message
             byte[] raw = new byte[len];
             __recv(ns, ref raw);
@@ -143,7 +146,7 @@ namespace InstallerAnalyzer1_Guest
         {
             RequestGetWork req = new RequestGetWork();
             req.Mac = _mac;
-            _send_message(ns,JsonConvert.SerializeObject(req));
+            _send_message(ns, JsonConvert.SerializeObject(req));
             return JsonConvert.DeserializeObject<ResponseGetWork>(_recv_message(ns));
         }
 
@@ -196,7 +199,8 @@ namespace InstallerAnalyzer1_Guest
 
                 // Done!
             }
-            catch (Exception e) {
+            catch (Exception e)
+            {
                 Console.WriteLine("Error occurred while reporting work: " + e.Message + ". Trace: " + e.StackTrace);
                 throw e;
             }
@@ -280,14 +284,18 @@ namespace InstallerAnalyzer1_Guest
         }
         #endregion
 
-        private bool AreProcsFinished() {
-            foreach (uint p in ProgramStatus.Instance.Pids) {
-                try { 
+        private bool AreProcsFinished()
+        {
+            foreach (uint p in ProgramStatus.Instance.Pids)
+            {
+                try
+                {
                     Process proc = Process.GetProcessById((int)p);
                     if (!proc.HasExited)
                         return false;
                 }
-                catch (ArgumentException e) { 
+                catch (ArgumentException e)
+                {
                     // The process is dead. Remove it from the list of monitored ones.
                     Console.WriteLine("AreProcsFinished: Process " + ((int)p) + " may be dead. Skipping.");
                     ProgramStatus.Instance.RemovePid(p);
@@ -299,8 +307,9 @@ namespace InstallerAnalyzer1_Guest
 
         private bool _timeout;
         private int _c = 0;
-        private ProcessContainer ExecuteJob(Job j, IUIRanker ranker, IRankingPolicy policy) {
-            _c=0;
+        private ProcessContainer ExecuteJob(Job j, IUIRanker ranker, IRankingPolicy policy)
+        {
+            _c = 0;
             int stuckCounter = 0;
             int stuckWaitingForControlsCounter = 0;
             PrepareScreenFolders();
@@ -308,12 +317,12 @@ namespace InstallerAnalyzer1_Guest
             // Start the process to analyze
             Console.WriteLine("UI Bot: START");
             var proc = StartProcessWithInjector(j);
-            Console.WriteLine("UI Bot: Process started, pid "+proc.Process.Id);
+            Console.WriteLine("UI Bot: Process started, pid " + proc.Process.Id);
             j.StartTime = DateTime.Now;
 
             // Wait 2 seconds and check if the injector failed. If so, 
             proc.Process.WaitForExit(2000);
-            if (proc.Process.HasExited && proc.Process.ExitCode!=0)
+            if (proc.Process.HasExited && proc.Process.ExitCode != 0)
             {
                 Console.WriteLine("UI Bot: Process has died just after it was spawned. This is usually happens with non-executable files or unsupported files.");
                 proc.Result = InteractionResult.UnknownError;
@@ -358,7 +367,7 @@ namespace InstallerAnalyzer1_Guest
 
                     // Otherwise we have a window on the foreground. 
                     Console.WriteLine("UI Bot: Stable hWND " + waitingWindnow.Handle.ToString("X") + ", loc: " + waitingWindnow.WindowLocation.ToString());
-                    
+
                     SaveStableScreen(waitingWindnow, _c);
 
                     // Analyze the window and build the controls rank.
@@ -366,7 +375,8 @@ namespace InstallerAnalyzer1_Guest
                     CandidateSet w = ranker.Rank(policy, waitingWindnow);
 
                     // Make sure there is no scrollbar...
-                    if (w.HasIncompleteProgressBar()) {
+                    if (w.HasIncompleteProgressBar())
+                    {
                         Console.WriteLine("UI Bot: Scrollbar Detected! Skipping...");
                         continue;
                     }
@@ -377,8 +387,8 @@ namespace InstallerAnalyzer1_Guest
                     {
                         // Waiting if there is any high consuming operation running.
                         // Wait until we get 2 seconds stability or we hit 30 seconds timeout.
-                        ProgramStatus.Instance.WaitUntilNotBusy(LOG_PER_SEC_IDLE_THRESHOLD,2,30);
-                        
+                        ProgramStatus.Instance.WaitUntilNotBusy(LOG_PER_SEC_IDLE_THRESHOLD, 2, 30);
+
                         // Interact with the best control according to the rank assinged by the Interaction Policy
                         var candidate = w.PopTopCandidate();
 
@@ -432,8 +442,8 @@ namespace InstallerAnalyzer1_Guest
                                 }
                             }
                         }
-                        else { 
-                            Console.WriteLine(String.Format("UI Bot: candidate {1} had negative score of {0}. Not interacting with it.",candidate.Score,candidate.ToString()));
+                        else {
+                            Console.WriteLine(String.Format("UI Bot: candidate {1} had negative score of {0}. Not interacting with it.", candidate.Score, candidate.ToString()));
                             // Simulate interaction even if we didn't interact
                             Thread.Sleep(3000);
                         }
@@ -501,7 +511,8 @@ namespace InstallerAnalyzer1_Guest
                         break;
                     }
                 }
-                catch (UILoopException e) { 
+                catch (UILoopException e)
+                {
                     // We ended up into a loop among same UI interfaces. This may happer for some reasons, like "Abort->Cancel->Abort->Cancel..."
                     // or id the UI requires some particular interacion we can't emulate. We can choose several approaches to this situation:
                     // -> Simply report failure: our UI interaction policy was not able to finish the installation process
@@ -513,7 +524,8 @@ namespace InstallerAnalyzer1_Guest
                     Console.WriteLine("UIBot: There are still " + pids + " running, transmitting " + lograte + " msg/s.");
 
                     var delta = CheckNewPrograms();
-                    if (delta.Count > 0) {
+                    if (delta.Count > 0)
+                    {
                         Console.WriteLine("UIBot: There are new programs on the system. Assuming the installation was successful.");
                         proc.Result = InteractionResult.PartiallyFinished;
                         // Something happened on the system! We can assume the installation process had some effect.
@@ -522,7 +534,8 @@ namespace InstallerAnalyzer1_Guest
 
                     Console.WriteLine("UIBot: There are no new programs on the system.");
 
-                    if (ProgramStatus.Instance.LogsPerSec > LOG_PER_SEC_IDLE_THRESHOLD) {
+                    if (ProgramStatus.Instance.LogsPerSec > LOG_PER_SEC_IDLE_THRESHOLD)
+                    {
                         Console.WriteLine("UIBot: The background processes are still working. Wait until the message rate becomes <50 (or timeout is reached) and loop again.");
                         if (!ProgramStatus.Instance.WaitUntilIdle(IDLE_TIMEOUT))
                         {
@@ -538,7 +551,7 @@ namespace InstallerAnalyzer1_Guest
                             _visitedVindows.Clear();
                             continue;
                         }
-                        
+
                     }
 
                     // Report failure. We were unable to recover from this loop.
@@ -560,7 +573,7 @@ namespace InstallerAnalyzer1_Guest
                     proc.Result = InteractionResult.UnknownError;
                     break;
                 }
-            
+
                 // At this point we reiterate again, until the pocess runs.
             } // End of the interaction Loop
 
@@ -584,7 +597,7 @@ namespace InstallerAnalyzer1_Guest
                                      bmpScreenCapture.Size,
                                      CopyPixelOperation.SourceCopy);
                 }
-                bmpScreenCapture.Save(Path.Combine(Settings.Default.INTERACTIONS_SCREEN_PATH, _c+".bmp"));
+                bmpScreenCapture.Save(Path.Combine(Settings.Default.INTERACTIONS_SCREEN_PATH, _c + ".bmp"));
             }
 
             // Make sure everything is terminated before continuing
@@ -596,7 +609,7 @@ namespace InstallerAnalyzer1_Guest
             {
                 proc.Result = InteractionResult.TimeOut;
             }
-            
+
             j.EndTime = DateTime.Now;
 
             // Return the result to the parent.
@@ -637,7 +650,8 @@ namespace InstallerAnalyzer1_Guest
                     return true;
                 }
             }
-            catch (Exception e) {
+            catch (Exception e)
+            {
                 return false;
             }
         }
@@ -660,7 +674,7 @@ namespace InstallerAnalyzer1_Guest
 
                     // Save the clean image first
                     string fname = Path.Combine(Settings.Default.INTERACTIONS_SCREEN_PATH, c + ".bmp");
-                    string clean_fname = Path.Combine(Settings.Default.INTERACTIONS_SCREEN_PATH, "clean_"+c + ".bmp");
+                    string clean_fname = Path.Combine(Settings.Default.INTERACTIONS_SCREEN_PATH, "clean_" + c + ".bmp");
                     string windo_details_fname = Path.Combine(Settings.Default.INTERACTIONS_SCREEN_PATH, c + ".xml");
 
                     // Save the clean image first
@@ -676,7 +690,7 @@ namespace InstallerAnalyzer1_Guest
                         s.Serialize(xmlWriter, w);
                         w.Remove(best);
                     }
-                    
+
                     // Now draw overlays on the image. Useful for fast scan
                     using (Graphics g = Graphics.FromImage(b))
                     {
@@ -691,21 +705,21 @@ namespace InstallerAnalyzer1_Guest
                             size = g.MeasureString(text, scoreFont);
                             rect = new RectangleF(item.PositionWindowRelative.X, item.PositionWindowRelative.Y - scoreFont.Height, size.Width, size.Height);
                             g.FillRectangle(whiteBrush, rect);
-                            g.DrawString(text, scoreFont, secondChoiceScoreBrush, item.PositionWindowRelative.X, item.PositionWindowRelative.Y-scoreFont.Height);
+                            g.DrawString(text, scoreFont, secondChoiceScoreBrush, item.PositionWindowRelative.X, item.PositionWindowRelative.Y - scoreFont.Height);
                         }
-                            
+
                         // Darw the selected one
                         g.DrawRectangle(markerPen, best.PositionWindowRelative);
-                        text ="" + best.Score;
+                        text = "" + best.Score;
                         g.DrawRectangle(secondChoicePen, best.PositionWindowRelative);
                         size = g.MeasureString(text, scoreFont);
                         rect = new RectangleF(best.PositionWindowRelative.X, best.PositionWindowRelative.Y - scoreFont.Height, size.Width, size.Height);
                         g.FillRectangle(whiteBrush, rect);
-                        g.DrawString(text, scoreFont, firstChoiceScoreBrush, best.PositionWindowRelative.X, best.PositionWindowRelative.Y-scoreFont.Height);
+                        g.DrawString(text, scoreFont, firstChoiceScoreBrush, best.PositionWindowRelative.X, best.PositionWindowRelative.Y - scoreFont.Height);
 
                         b.Save(fname);
                         return true;
-                        
+
                     }
                 }
             }
@@ -731,13 +745,15 @@ namespace InstallerAnalyzer1_Guest
         {
             // Check if there is any stuck window. If so, kill the owning process
             var pids = ProgramStatus.Instance.Pids;
-            foreach (var p in pids) {
+            foreach (var p in pids)
+            {
                 try
                 {
                     Process proc = Process.GetProcessById((int)p);
                     UIntPtr r;
                     IntPtr res = NativeMethods.SendMessageTimeout(proc.MainWindowHandle, (uint)0, UIntPtr.Zero, IntPtr.Zero, NativeMethods.SendMessageTimeoutFlags.SMTO_ABORTIFHUNG | NativeMethods.SendMessageTimeoutFlags.SMTO_BLOCK, 5000, out r);
-                    if (res == IntPtr.Zero) {
+                    if (res == IntPtr.Zero)
+                    {
                         int err = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
                         if (err == 1460L)
                         {
@@ -746,15 +762,15 @@ namespace InstallerAnalyzer1_Guest
                             proc.Kill();
                         }
                     }
-                    
+
                 }
                 catch (Exception ex)
-                { 
+                {
                     // Ignore everything. This is not crucial.
                 }
             }
         }
-        
+
         public void Start()
         {
             Thread t = new Thread(new ThreadStart(work));
@@ -774,7 +790,7 @@ namespace InstallerAnalyzer1_Guest
             _originalList = Program.ListInstalledPrograms();
 
             bool keepRunning = true;
-            
+
             while (keepRunning)
             {
                 Job j = null;
@@ -782,15 +798,18 @@ namespace InstallerAnalyzer1_Guest
 
                 // Acquire the job from the server.
                 // This may return null in case the server has nothing to do.
-                try {
+                try
+                {
                     j = AcquireWork();
-                } catch(Exception e) {
+                }
+                catch (Exception e)
+                {
                     // Keep trying. The server mght be down.
-                    Console.WriteLine("Error when acquiring Job from server. "+e.Message+";\n"+e.StackTrace);
+                    Console.WriteLine("Error when acquiring Job from server. " + e.Message + ";\n" + e.StackTrace);
                     Thread.Sleep(ACQUIRE_WORK_SLEEP_SECS * 1000);
                     continue;
                 }
-                    
+
                 // If there is nothing to do, sleep and run again. Otherwise keep going.
                 if (j == null)
                 {
@@ -802,13 +821,14 @@ namespace InstallerAnalyzer1_Guest
                 {
                     Console.WriteLine(String.Format("Job acquired from controller. Job ID {0}, file name {1}.", j.Id, j.LocalFullPath));
                 }
-                    
+
                 // Time to play with the installer!
-                try{
+                try
+                {
                     // Start a timeout in order to recover if the process gets stuck
                     _interactionTimer.Elapsed += TimeoutReached;
                     _timeout = false;
-                    
+
                     _interactionTimer.Start();
                     _stuckUiWatcher.Start();
                     proc = ExecuteJob(j, ranker, policy);
@@ -816,10 +836,12 @@ namespace InstallerAnalyzer1_Guest
                     _stuckUiWatcher.Stop();
 
                     Console.WriteLine("Installer process ended. ");
-                } catch(Exception e) {
+                }
+                catch (Exception e)
+                {
                     // I don't know what did it happen. Just report failure.
                     proc.Result = InteractionResult.UnknownError;
-                    Console.WriteLine("Exception occurred when ExecutingJob: "+e.Message+"\n"+e.StackTrace);
+                    Console.WriteLine("Exception occurred when ExecutingJob: " + e.Message + "\n" + e.StackTrace);
                 }
 
                 // Stop listening for events
@@ -828,7 +850,7 @@ namespace InstallerAnalyzer1_Guest
                 // Kill the Injector process if it's still alive
                 if (!proc.Process.HasExited)
                 {
-                    Console.WriteLine("Killing injector process with pid "+proc.Process.Id);
+                    Console.WriteLine("Killing injector process with pid " + proc.Process.Id);
                     proc.Process.Kill();
                 }
 
@@ -836,14 +858,16 @@ namespace InstallerAnalyzer1_Guest
 
                 // Kill any other process spawned by us
                 var pids = ProgramStatus.Instance.Pids;
-                foreach (var p in pids){
+                foreach (var p in pids)
+                {
                     try
                     {
                         var child = Process.GetProcessById((int)p);
                         child.Kill();
                         Console.WriteLine("Killed child process with pid " + child.Id);
                     }
-                    catch (Exception e) { 
+                    catch (Exception e)
+                    {
                         // The process may already be dead. Ignore it.
                         Console.WriteLine("Error: " + e.Message);
                     }
@@ -851,17 +875,21 @@ namespace InstallerAnalyzer1_Guest
 
                 // Collect info of the system and send them to the remote machine
                 var reported = false;
-                while(!reported) {
-                    try {
+                while (!reported)
+                {
+                    try
+                    {
                         Console.WriteLine("Collecting report...");
                         string reportPath = PrepareReport(proc, DEFAULT_REPORT_PATH);
                         Console.WriteLine("Sending report to HostController...");
-                        ReportWork(j,reportPath, Enum.GetName(typeof(InteractionResult), proc.Result));
+                        ReportWork(j, reportPath, Enum.GetName(typeof(InteractionResult), proc.Result));
                         Console.WriteLine("Done.");
                         reported = true;
-                    } catch(Exception e) {
+                    }
+                    catch (Exception e)
+                    {
                         // In this case we want to keep trying. It is important to let the Controller know that the job was not ok.
-                        Console.WriteLine("Cannot report work back to host controller. I will retry in a moment. Error: "+e.Message+". "+e.StackTrace);
+                        Console.WriteLine("Cannot report work back to host controller. I will retry in a moment. Error: " + e.Message + ". " + e.StackTrace);
                         Thread.Sleep(ACQUIRE_WORK_SLEEP_SECS * 1000);
                         reported = false;
                     }
@@ -876,7 +904,7 @@ namespace InstallerAnalyzer1_Guest
                 // reasons it would be nice to start again from a known snapshot
                 // simply reverting the VM instead of full reboot. 
                 // TODO: add a flag to the job-message so the worker knows if it is supposed to reboot automatically or not.
-                
+
                 // The following statement is necessary in case of bare-metal implementations
                 //NativeMethods.Reboot();
                 // This one is necessary with VM-only.
@@ -910,8 +938,9 @@ namespace InstallerAnalyzer1_Guest
                         child.WaitForExit(3000);
                         Console.WriteLine("TimeoutWatcher: Killed child process with pid " + child.Id);
                     }
-                    catch (InvalidOperationException ex) {
-                        Console.WriteLine("TimeoutWatcher: Cannot kill " + p+". Process may be already exited. "+ex.Message);
+                    catch (InvalidOperationException ex)
+                    {
+                        Console.WriteLine("TimeoutWatcher: Cannot kill " + p + ". Process may be already exited. " + ex.Message);
                         // According to the MSDN this happens when the process we want to terminate is already gone.
                         ProgramStatus.Instance.RemovePid(p);
                     }
@@ -922,18 +951,21 @@ namespace InstallerAnalyzer1_Guest
                     }
                 }
             }
-            catch (Exception ex) { 
+            catch (Exception ex)
+            {
                 // Do nothing
                 Console.WriteLine("TimeoutWatcher: Error occurred. " + ex.Message);
             }
 
         }
-        
-        private List<string> CheckNewPrograms() {
+
+        private List<string> CheckNewPrograms()
+        {
             List<string> res = new List<string>();
 
             var current = Program.ListInstalledPrograms();
-            foreach (var c in current) {
+            foreach (var c in current)
+            {
                 if (!_originalList.Contains(c))
                     res.Add(c);
             }
@@ -946,7 +978,8 @@ namespace InstallerAnalyzer1_Guest
         /// </summary>
         /// <param name="o"></param>
         /// <param name="parent"></param>
-        private void DummySerialize(object o, XmlElement parent) {
+        private void DummySerialize(object o, XmlElement parent)
+        {
             if (o == null || parent == null)
                 return;
 
@@ -956,27 +989,32 @@ namespace InstallerAnalyzer1_Guest
             if (props == null)
                 return;
 
-            foreach (var p in props) {
+            foreach (var p in props)
+            {
                 XmlElement e = parent.OwnerDocument.CreateElement(p.Name);
                 object val = null;
                 try
                 {
                     val = p.GetValue(o, null);
                 }
-                catch (Exception ex) {
+                catch (Exception ex)
+                {
                     val = null;
                 }
 
-                if (val != null) {
+                if (val != null)
+                {
                     // Check if this object is an instance of a primitive type. If not, apply recursion.
                     if (val.GetType().IsPrimitive || val.GetType() == typeof(string))
                     {
                         e.InnerText = val.ToString();
                     }
                     // Check if this is a collection of items
-                    else if (val is System.Collections.IEnumerable) {
-                        foreach (var el in val as System.Collections.IEnumerable) {
-                            XmlElement litem = parent.OwnerDocument.CreateElement(p.Name+"_Item");
+                    else if (val is System.Collections.IEnumerable)
+                    {
+                        foreach (var el in val as System.Collections.IEnumerable)
+                        {
+                            XmlElement litem = parent.OwnerDocument.CreateElement(p.Name + "_Item");
                             DummySerialize(el, litem);
                             e.AppendChild(litem);
                         }
@@ -1024,7 +1062,7 @@ namespace InstallerAnalyzer1_Guest
             // Add information about the specific GuestController configuration
             var guestconf = log.OwnerDocument.CreateElement("GuestConfiguration");
             var jobtimeout = log.OwnerDocument.CreateElement("JobTimeout");
-            jobtimeout.InnerText = ""+Settings.Default.EXECUTE_JOB_TIMEOUT;
+            jobtimeout.InnerText = "" + Settings.Default.EXECUTE_JOB_TIMEOUT;
             guestconf.AppendChild(jobtimeout);
             var hostcontrollerip = log.OwnerDocument.CreateElement("HostControllerIp");
             hostcontrollerip.InnerText = "" + Settings.Default.HOST_CONTROLLER_IP;
@@ -1035,10 +1073,12 @@ namespace InstallerAnalyzer1_Guest
             var macaddr = log.OwnerDocument.CreateElement("Mac");
             macaddr.InnerText = GetMACAddr();
             var ipaddrs = log.OwnerDocument.CreateElement("GuestIPs");
-            foreach (var ip in GetNetworkInfo().GetIPProperties().UnicastAddresses) {
+            foreach (var ip in GetNetworkInfo().GetIPProperties().UnicastAddresses)
+            {
                 var ipaddr = log.OwnerDocument.CreateElement("IP");
                 ipaddr.InnerText = ip.Address.ToString();
-                if (ip.Address.AddressFamily == AddressFamily.InterNetwork) {
+                if (ip.Address.AddressFamily == AddressFamily.InterNetwork)
+                {
                     ipaddr.SetAttribute("netmask", ip.IPv4Mask.ToString());
                 }
                 ipaddrs.AppendChild(ipaddr);
@@ -1088,11 +1128,7 @@ namespace InstallerAnalyzer1_Guest
             result.AppendChild(procHierarchy);
 
             // Regsitry access
-            var regAccess = log.OwnerDocument.CreateElement("RegistryAccess");
-            var newKeys = regAccess.OwnerDocument.CreateElement("NewKeys");
-            var editedKeys = regAccess.OwnerDocument.CreateElement("EditedKeys");
-            var deletedKeys = regAccess.OwnerDocument.CreateElement("DeletedKeys");
-            var otherAccessKeys = regAccess.OwnerDocument.CreateElement("OtherAccessKeys");
+            var regAccess = log.OwnerDocument.CreateElement("RegistryWriteAccess");
             var accesses = ProgramStatus.Instance.RegAccessLog;
             foreach (var k in accesses)
             {
@@ -1105,17 +1141,18 @@ namespace InstallerAnalyzer1_Guest
                 fl.SetAttribute("Modified", k.IsModified.ToString());
                 fl.SetAttribute("New", k.IsNew.ToString());
 
-                if (k.IsNew)
+                if (k.IsNew || k.IsModified || k.IsDeleted)
                 {
                     // List all the new VALUES created alongside this key.
-                    var new_values = log.OwnerDocument.CreateElement("Values");
-                    foreach (var kv in k.NewValues) {
+                    var new_values = log.OwnerDocument.CreateElement("NewValues");
+                    foreach (var kv in k.NewValues)
+                    {
                         var key_value = log.OwnerDocument.CreateElement("KeyValue");
                         var k_name = log.OwnerDocument.CreateElement("Name");
                         var k_val = log.OwnerDocument.CreateElement("Value");
                         k_name.InnerText = kv.Key.ToString();
                         k_val.InnerText = kv.Value.ToString();
-                        
+
                         key_value.AppendChild(k_name);
                         key_value.AppendChild(k_val);
                         new_values.AppendChild(key_value);
@@ -1123,7 +1160,7 @@ namespace InstallerAnalyzer1_Guest
                     fl.AppendChild(new_values);
 
                     // List all the new SUBKEYS created alongside this key.
-                    var new_subkeys = log.OwnerDocument.CreateElement("SubKeys");
+                    var new_subkeys = log.OwnerDocument.CreateElement("NewSubKeys");
                     foreach (var kv in k.NewSubeys)
                     {
                         var key_value = log.OwnerDocument.CreateElement("Key");
@@ -1132,11 +1169,7 @@ namespace InstallerAnalyzer1_Guest
                     }
                     fl.AppendChild(new_subkeys);
 
-                    newKeys.AppendChild(fl);
-                }
-                else if (k.IsDeleted)
-                {
-                    var old_values = log.OwnerDocument.CreateElement("PreviousValues");
+                    var old_values = log.OwnerDocument.CreateElement("OldValues");
                     foreach (var kv in k.DeletedValues)
                     {
                         var key_value = log.OwnerDocument.CreateElement("KeyValue");
@@ -1160,12 +1193,7 @@ namespace InstallerAnalyzer1_Guest
                         old_subkeys.AppendChild(key_value);
                     }
                     fl.AppendChild(old_subkeys);
-
-
-                    deletedKeys.AppendChild(fl);
-                }
-                else if (k.IsModified)
-                {
+                
                     var edited_values = log.OwnerDocument.CreateElement("EditedValues");
                     foreach (var kv in k.ModifiedValues)
                     {
@@ -1188,15 +1216,10 @@ namespace InstallerAnalyzer1_Guest
                     var edited_subkeys = log.OwnerDocument.CreateElement("EditedSubKeys");
                     fl.AppendChild(edited_subkeys);
 
-                    editedKeys.AppendChild(fl);
+                    regAccess.AppendChild(fl);
                 }
-                else
-                    otherAccessKeys.AppendChild(fl);
+
             }
-            regAccess.AppendChild(newKeys);
-            regAccess.AppendChild(editedKeys);
-            regAccess.AppendChild(deletedKeys);
-            regAccess.AppendChild(otherAccessKeys);
             result.AppendChild(regAccess);
 
             // New/Modified/Deleted/Renamed files
@@ -1261,49 +1284,49 @@ namespace InstallerAnalyzer1_Guest
                     count++;
                 }
                 fl.AppendChild(history);
-
-                //TODO: intercept intermidiate file strings...
                 if (file.LeftOver())
                 {
-                    /*
-                    // Calculate the strings for that file
-                    Process strings = new Process();
-                    strings.StartInfo.FileName = "strings/strings.exe";
-                    strings.StartInfo.UseShellExecute = false;
-                    strings.StartInfo.Arguments = String.Format("-n {0} {1} /accepteula", Settings.Default.STRINGS_MIN_LEN, file.Path);
-                    strings.StartInfo.RedirectStandardOutput = true;
-                    strings.Start();
-
-                    var stringAnalysis = log.OwnerDocument.CreateElement("Strings");
-                    stringAnalysis.SetAttribute("MinLength", Settings.Default.STRINGS_MIN_LEN.ToString());
-                    using (var r = strings.StandardOutput)
+                    if (Settings.Default.PERFORM_STRING_ANALYSIS)
                     {
-                        // Use an hashset to remove duplicate values
-                        HashSet<string> string_set = new HashSet<string>();
-                        while (!r.EndOfStream)
-                        {
-                            // Truncate to 400 chars each string.
-                            string str = null;
-                            str = r.ReadLine();
-                            if (str.Length > 400)
-                                str = str.Substring(0, 400);
-                            string_set.Add(str);
-                        }
+                        // Calculate the strings for that file
+                        Process strings = new Process();
+                        strings.StartInfo.FileName = "strings/strings.exe";
+                        strings.StartInfo.UseShellExecute = false;
+                        strings.StartInfo.Arguments = String.Format("-n {0} {1} /accepteula", Settings.Default.STRINGS_MIN_LEN, file.Path);
+                        strings.StartInfo.RedirectStandardOutput = true;
+                        strings.Start();
 
-                        // Add the strings into the document
-                        foreach (var s in string_set)
+                        var stringAnalysis = log.OwnerDocument.CreateElement("Strings");
+                        stringAnalysis.SetAttribute("MinLength", Settings.Default.STRINGS_MIN_LEN.ToString());
+                        using (var r = strings.StandardOutput)
                         {
-                            var estr = log.OwnerDocument.CreateElement("String");
-                            estr.InnerText = s;
-                            stringAnalysis.AppendChild(estr);
+                            // Use an hashset to remove duplicate values
+                            HashSet<string> string_set = new HashSet<string>();
+                            while (!r.EndOfStream)
+                            {
+                                // Truncate to 400 chars each string.
+                                string str = null;
+                                str = r.ReadLine();
+                                if (str.Length > 400)
+                                    str = str.Substring(0, 400);
+                                string_set.Add(str);
+                            }
+
+                            // Add the strings into the document
+                            foreach (var s in string_set)
+                            {
+                                var estr = log.OwnerDocument.CreateElement("String");
+                                estr.InnerText = s;
+                                stringAnalysis.AppendChild(estr);
+                            }
                         }
+                        fl.AppendChild(stringAnalysis);
+                        strings.WaitForExit();
+                        // In case the string command failed, remove the nodes.
+                        if (strings.ExitCode != 0)
+                            stringAnalysis.RemoveAll();
                     }
-                    fl.AppendChild(stringAnalysis);
-                    strings.WaitForExit();
-                    // In case the string command failed, remove the nodes.
-                    if (strings.ExitCode != 0)
-                        stringAnalysis.RemoveAll();
-                    */
+
                     newFiles.AppendChild(fl);
                 }
                 else if (deletedfile)
@@ -1327,7 +1350,8 @@ namespace InstallerAnalyzer1_Guest
             var deltaApps = log.OwnerDocument.CreateElement("NewApplications");
             var newProgs = CheckNewPrograms();
             deltaApps.SetAttribute("count", newProgs.Count.ToString());
-            foreach (var s in newProgs) {
+            foreach (var s in newProgs)
+            {
                 var app = log.OwnerDocument.CreateElement("Application");
                 app.InnerText = s;
                 deltaApps.AppendChild(app);
@@ -1339,21 +1363,6 @@ namespace InstallerAnalyzer1_Guest
             var appLog = log.OwnerDocument.CreateElement("AppLog");
             appLog.InnerText = File.ReadAllText(ProgramLogger.Instance.GetLogFile());
             log.AppendChild(appLog);
-            /*
-            // Also collect the last screenshot of the entire desktop. This represents the final state of the machine.
-            using (Bitmap bmpScreenCapture = new Bitmap(Screen.PrimaryScreen.Bounds.Width,
-                                            Screen.PrimaryScreen.Bounds.Height))
-            {
-                using (Graphics g = Graphics.FromImage(bmpScreenCapture))
-                {
-                    g.CopyFromScreen(Screen.PrimaryScreen.Bounds.X,
-                                     Screen.PrimaryScreen.Bounds.Y,
-                                     0, 0,
-                                     bmpScreenCapture.Size,
-                                     CopyPixelOperation.SourceCopy);
-                }
-                bmpScreenCapture.Save(Path.Combine(Settings.Default.INTERACTIONS_SCREEN_PATH, "last.png"));
-            }*/
 
             string f = ZipScreens();
             // Add the zip file to the report
@@ -1389,7 +1398,7 @@ namespace InstallerAnalyzer1_Guest
 
         private string ZipScreens()
         {
-            string fpath = Path.GetTempFileName()+".zip";
+            string fpath = Path.GetTempFileName() + ".zip";
             using (ZipFile zip = new ZipFile())
             {
                 // add this map file into the "images" directory in the zip archive
@@ -1399,20 +1408,22 @@ namespace InstallerAnalyzer1_Guest
             return fpath;
         }
 
-        private string GetMACAddr() {
+        private string GetMACAddr()
+        {
 
             string macAddr = GetNetworkInfo().GetPhysicalAddress().ToString();
 
             // Add separators to the mac
             StringBuilder builder = new StringBuilder();
-            for (int i=0;i<macAddr.Length;i++) {
+            for (int i = 0; i < macAddr.Length; i++)
+            {
                 if ((i % 2) == 0 && i != 0)
                     builder.Append(':');
                 builder.Append(macAddr[i]);
             }
 
             return builder.ToString();
-        
+
         }
 
         private NetworkInterface GetNetworkInfo()
@@ -1454,21 +1465,22 @@ namespace InstallerAnalyzer1_Guest
              * them in a dictionary to detect loops (Abort->Cancel->Abort->Cancel->Abort->Cancel...)
              */
             int LOOP_THRESHOLD = 4;
-            int stableScans=0;
+            int stableScans = 0;
 
             IntPtr prevHandle = IntPtr.Zero;
             Window currentWindow = null;
             Window prevWindow = null;
             string prevHash = null;
             // Use a dictionary to detect possible loops. 
-            Dictionary<string,int> previousHashes = new Dictionary<string,int>();
+            Dictionary<string, int> previousHashes = new Dictionary<string, int>();
 
             // Loop until we reach a minimum number of stable screenshots
             while (stableScans <= LOOP_THRESHOLD && !_timeout)
             {
                 // Check if we are into a loop. For us a loop means stability!
                 bool loopDetected = false;
-                foreach (var k in previousHashes) {
+                foreach (var k in previousHashes)
+                {
                     if (k.Value > LOOP_THRESHOLD)
                     {
                         loopDetected = true;
@@ -1480,7 +1492,7 @@ namespace InstallerAnalyzer1_Guest
 
                 // Guess the UI window handle
                 IntPtr wH = GetProcUIWindowHandle();
-                    
+
                 // If I found no windows, return null immediatly.
                 if (wH == IntPtr.Zero)
                 {
@@ -1530,19 +1542,20 @@ namespace InstallerAnalyzer1_Guest
                     Thread.Sleep(REACTION_TIMEOUT);
                     continue;
                 }
-                   
-                
+
+
                 // Here we have the situation in which prevWindow is not null and currentWindow is neither. 
                 // So I need to check weather there are visual differences between the two windows.
                 string currentHash = UIAnalysis.NativeAndVisualRanker.CalculateHash(currentWindow);
-                if (prevHash == null) {
+                if (prevHash == null)
+                {
                     prevHash = currentHash;
                     stableScans = 0;
                     Thread.Sleep(REACTION_TIMEOUT);
                     continue;
                 }
 
-                if (currentHash!=null && prevHash != currentHash)
+                if (currentHash != null && prevHash != currentHash)
                 {
                     // Something changed
                     prevWindow = currentWindow;
@@ -1554,7 +1567,7 @@ namespace InstallerAnalyzer1_Guest
                     else
                     {
                         previousHashes.Add(currentHash, 1);
-                        
+
                         // Reset all the other counters
                         for (int i = previousHashes.Count - 1; i >= 0; i--)
                         {
@@ -1568,7 +1581,7 @@ namespace InstallerAnalyzer1_Guest
                     Thread.Sleep(REACTION_TIMEOUT);
                     continue;
                 }
-                    
+
                 // Is there any progressbar? if yes, proceed only if it is 100% completed...
                 // What about CPU utilization of the process???
                 // TODO
@@ -1581,7 +1594,7 @@ namespace InstallerAnalyzer1_Guest
 
                 stableScans++;
                 Thread.Sleep(REACTION_TIMEOUT);
-                
+
             }
             // The window looks like stable, return it.
             return currentWindow;
@@ -1595,7 +1608,7 @@ namespace InstallerAnalyzer1_Guest
         private IntPtr GetProcUIWindowHandle()
         {
             var mypids = ProgramStatus.Instance.Pids;
-            
+
             // Proceed using AutomationElement, maybe we find something more.
             AutomationElement winner = null;
             // List all the processes that currently have a non null WindowHandle
@@ -1678,14 +1691,18 @@ namespace InstallerAnalyzer1_Guest
             }
 
             // If we still have no window, try to get them via the WindowsNativeApi
-            if (winner != null) {
+            if (winner != null)
+            {
                 return new IntPtr(winner.Current.NativeWindowHandle);
-            } else {
+            }
+            else {
                 var foreground = NativeMethods.GetForegroundWindow();
                 uint processId = 0;
                 GetWindowThreadProcessId(foreground, out processId);
-                for (int i = 0; i < mypids.Length; i++) {
-                    if (processId == mypids[i]) {
+                for (int i = 0; i < mypids.Length; i++)
+                {
+                    if (processId == mypids[i])
+                    {
                         // This is our main window!
                         return foreground;
                     }
@@ -1707,13 +1724,15 @@ namespace InstallerAnalyzer1_Guest
                 proc.StartInfo.RedirectStandardError = true;
                 proc.StartInfo.RedirectStandardOutput = true;
                 proc.StartInfo.UseShellExecute = false;
-                res = new ProcessContainer(proc,j);
-                Console.WriteLine("UI Bot: \nstarting "+proc.StartInfo.FileName+"\nArgs: "+proc.StartInfo.Arguments);
+                res = new ProcessContainer(proc, j);
+                Console.WriteLine("UI Bot: \nstarting " + proc.StartInfo.FileName + "\nArgs: " + proc.StartInfo.Arguments);
                 res.Start();
                 Console.WriteLine("UI Bot: Started");
-                
-            } catch(Exception ex){
-                Console.WriteLine("Exception: "+ex.Message);
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Exception: " + ex.Message);
                 // Partially handle here. Kill the process if created and dispose the process object. Then raise the exception again.
                 if (res != null)
                 {
@@ -1723,7 +1742,7 @@ namespace InstallerAnalyzer1_Guest
                 }
                 throw ex;
             }
-            
+
             return res;
         }
 
@@ -1759,7 +1778,7 @@ namespace InstallerAnalyzer1_Guest
             NOSIZE = 0x0001
         }
 
-        
+
         #endregion
     }
 

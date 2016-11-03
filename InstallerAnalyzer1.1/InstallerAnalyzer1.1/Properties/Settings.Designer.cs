@@ -77,39 +77,39 @@ namespace InstallerAnalyzer1_Guest.Properties {
             }
         }
         
-        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("600000")]
         public int IDLE_TIMEOUT {
             get {
                 return ((int)(this["IDLE_TIMEOUT"]));
             }
-            set {
-                this["IDLE_TIMEOUT"] = value;
-            }
         }
         
-        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("192.168.56.1")]
         public string HOST_CONTROLLER_IP {
             get {
                 return ((string)(this["HOST_CONTROLLER_IP"]));
             }
-            set {
-                this["HOST_CONTROLLER_IP"] = value;
-            }
         }
         
-        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("9000")]
         public string HOST_CONTROLLER_PORT {
             get {
                 return ((string)(this["HOST_CONTROLLER_PORT"]));
             }
-            set {
-                this["HOST_CONTROLLER_PORT"] = value;
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool PERFORM_STRING_ANALYSIS {
+            get {
+                return ((bool)(this["PERFORM_STRING_ANALYSIS"]));
             }
         }
     }
