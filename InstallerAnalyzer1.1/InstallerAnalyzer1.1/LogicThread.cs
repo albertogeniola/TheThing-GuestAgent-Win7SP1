@@ -1193,7 +1193,7 @@ namespace InstallerAnalyzer1_Guest
                         old_subkeys.AppendChild(key_value);
                     }
                     fl.AppendChild(old_subkeys);
-                
+
                     var edited_values = log.OwnerDocument.CreateElement("EditedValues");
                     foreach (var kv in k.ModifiedValues)
                     {
