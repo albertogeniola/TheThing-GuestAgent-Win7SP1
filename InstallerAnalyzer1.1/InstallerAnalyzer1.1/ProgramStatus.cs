@@ -888,7 +888,7 @@ namespace InstallerAnalyzer1_Guest
                 if (FullName == null)
                     throw new ArgumentException("FullName cannot be null");
 
-                return UpdateDifferences();
+                return _modified;
             }
         }
 
@@ -898,7 +898,8 @@ namespace InstallerAnalyzer1_Guest
         public Dictionary<string, object> DeletedValues;
         public Dictionary<string, object> NewValues;
         public Dictionary<string, object> ModifiedValues;
-        public bool UpdateDifferences() {
+        private bool _modified = false;
+        public void UpdateDifferences() {
             // Obtain actual status
             Dictionary<string, object> new_key_values = GetCurrentKeyValues();
             List<string> new_subs = GetCurrentKeySubkeys();
@@ -952,7 +953,7 @@ namespace InstallerAnalyzer1_Guest
                     
             }
 
-            return NewSubeys.Count > 0 || DeletedSubkeys.Count > 0 || DeletedValues.Count > 0 || NewValues.Count > 0 || ModifiedValues.Count > 0;
+            _modified = NewSubeys.Count > 0 || DeletedSubkeys.Count > 0 || DeletedValues.Count > 0 || NewValues.Count > 0 || ModifiedValues.Count > 0;
         }
 
         private Dictionary<string, object> GetCurrentKeyValues() {
