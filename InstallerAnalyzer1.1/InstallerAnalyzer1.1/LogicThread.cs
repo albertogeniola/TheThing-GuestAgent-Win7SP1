@@ -330,7 +330,7 @@ namespace InstallerAnalyzer1_Guest
             }
 
             // Before entering the check, give some time to the UI to spawn
-            Thread.Sleep(5000);
+            Thread.Sleep(10000);
 
             // Keep interacting until we hit the timeout or the process exits normally.
             while (!_timeout)
