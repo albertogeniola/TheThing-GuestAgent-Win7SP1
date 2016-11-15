@@ -333,7 +333,7 @@ namespace InstallerAnalyzer1_Guest
             Thread.Sleep(10000);
 
             // Keep interacting until we hit the timeout or the process exits normally.
-            while (!_timeout)
+            while (!_timeout && !ProgramStatus.Instance.MitmSucceded)
             {
                 try
                 {
@@ -348,7 +348,6 @@ namespace InstallerAnalyzer1_Guest
 
                     if (waitingWindnow == null)
                     {
-
                         // No window has been found. Let the loop check again if there still are processes running, otherwise we are done!
                         Console.WriteLine("UI Bot: No windows found. Check again wether any process is running...");
                         if (ProgramStatus.Instance.Pids.Length == 0 && ProgramStatus.Instance.LogsPerSec == 0)
@@ -609,7 +608,7 @@ namespace InstallerAnalyzer1_Guest
             {
                 proc.Result = InteractionResult.TimeOut;
             }
-
+            
             j.EndTime = DateTime.Now;
 
             // Return the result to the parent.
@@ -1112,6 +1111,12 @@ namespace InstallerAnalyzer1_Guest
             injector.AppendChild(retcode);
             result.AppendChild(injector);
 
+            // Add the MITM info
+            var mitm = log.OwnerDocument.CreateElement("MitmAttack");
+            var mitm_res = log.OwnerDocument.CreateElement("Success");
+            mitm_res.InnerText = ProgramStatus.Instance.MitmSucceded.ToString();
+            mitm.AppendChild(mitm_res);
+            result.AppendChild(mitm);
 
             // UIBot results
             var uiResult = log.OwnerDocument.CreateElement("UiBot");
@@ -1370,6 +1375,7 @@ namespace InstallerAnalyzer1_Guest
             screens.InnerText = Convert.ToBase64String(File.ReadAllBytes(f)); // This Kills memory!!! //TODO //FIXME
             log.AppendChild(screens);
 
+            
             // Write the collected info to a local report.xml file.
             using (var fs = File.Create(outfile))
             {

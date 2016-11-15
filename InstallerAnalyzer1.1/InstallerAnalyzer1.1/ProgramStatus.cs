@@ -55,7 +55,16 @@ namespace InstallerAnalyzer1_Guest
         // made by the logged program(s) to the Filesystem.
         private Dictionary<string, FileAccessInfo> _fileMap;
         private Dictionary<string, RegAccessInfo> _regMap;
-        
+
+        /// <summary>
+        /// This property is used as mean of synchronization method to check whether a Man in the middle attack was successful.
+        /// Set and Get are 1 clock operations, so there is no need to synchronize anything here as Microsoft claims assignments are atomic.
+        /// </summary>
+        public bool MitmSucceded
+        {
+            get; set;
+        }
+
         public void NotifyFileRename(string oPath, string nPath)
         {
             ProgramStatus.Instance.IncFileAccessRate();

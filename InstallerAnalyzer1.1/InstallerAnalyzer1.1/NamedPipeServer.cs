@@ -54,6 +54,8 @@ namespace InstallerAnalyzer1_Guest
         public const string WK_KEY_OPENED = "Open";
         public const string WK_KEY_CREATED = "Create";
 
+        public const string WK_MITM = "wk_mitm_event";
+
         /// <summary>
         /// Single private instance implementing the singleton pattern.
         /// </summary>
@@ -78,6 +80,7 @@ namespace InstallerAnalyzer1_Guest
         //private Thread _eventT = null;
         private Thread[] _pipeServers = null;
         private PipeSecurity _pipeSa = null;
+        private Thread _mitm_waiter = null;
 
         // The boolean type is atomic, but we need to skip compiler optimizations in order to be consistent
         volatile private bool _shouldRun = false;
@@ -106,6 +109,9 @@ namespace InstallerAnalyzer1_Guest
             _pipeServers[1] = new Thread(EventSrv);
             _pipeServers[2] = new Thread(LoggerSrv);
             _pipeServers[3] = new Thread(LoggerSrv);
+
+            // Create the MITM waiter thread
+            _mitm_waiter = new Thread(MitmWaiter);
         }
 
         public void Start() {
@@ -116,9 +122,27 @@ namespace InstallerAnalyzer1_Guest
                 //_eventT.Start();
                 foreach (Thread t in _pipeServers)
                     t.Start();
+
+                // Let's start the MITM waiter...
+                _mitm_waiter.Start();
             }
         }
 
+        private void MitmWaiter() {
+            // Let's now create an event handler for itercepting MITM attacks. We simply allow anyone to access this event
+            bool created;
+            EventWaitHandleSecurity sec = new EventWaitHandleSecurity();
+
+            EventWaitHandleAccessRule rule = new EventWaitHandleAccessRule("Everyone", EventWaitHandleRights.Synchronize | EventWaitHandleRights.Modify, AccessControlType.Allow);
+            sec.AddAccessRule(rule);
+
+            EventWaitHandle handle = new EventWaitHandle(false, EventResetMode.ManualReset, WK_MITM, out created, sec);
+
+            while (!handle.WaitOne()) { }; // Dirty synch may happen according to microsoft, so we need to remain in the loop until don't get any notification
+
+            // At this point we assume something has happened. MAN IN THE MIDDLE WAS SUCCESSFUL!
+            ProgramStatus.Instance.MitmSucceded = true;
+        }
 
         private static string ProcessSingleReceivedMessage(NamedPipeServerStream namedPipeServer)
         {
@@ -209,110 +233,110 @@ namespace InstallerAnalyzer1_Guest
             srv.Close();
         }
 
-            /*
-            private void RunEventLooper()
+        /*
+        private void RunEventLooper()
+        {
+            NamedPipeServerStream eventPipeServer = null;
+            while (_shouldRun)
             {
-                NamedPipeServerStream eventPipeServer = null;
-                while (_shouldRun)
-                {
-                    // Allocate the named pipe endpoint
-                    eventPipeServer = new NamedPipeServerStream(EVENT_PIPE, PipeDirection.InOut, -1, PipeTransmissionMode.Message, PipeOptions.None, INBUFFSIZE, OUTBUFFSIZE, _pipeSa);
+                // Allocate the named pipe endpoint
+                eventPipeServer = new NamedPipeServerStream(EVENT_PIPE, PipeDirection.InOut, -1, PipeTransmissionMode.Message, PipeOptions.None, INBUFFSIZE, OUTBUFFSIZE, _pipeSa);
 
-                    // Wait for a client to connect
-                    eventPipeServer.WaitForConnection();
+                // Wait for a client to connect
+                eventPipeServer.WaitForConnection();
 
-                    //Spawn a new thread for each request and continue waiting
-                    Thread t = new Thread(ProcessEvent);
-                    t.Start(eventPipeServer);
-                }
-                eventPipeServer.Close();
+                //Spawn a new thread for each request and continue waiting
+                Thread t = new Thread(ProcessEvent);
+                t.Start(eventPipeServer);
             }
-            */
-            void ProcessEvent(NamedPipeServerStream eventPipeServer) {
+            eventPipeServer.Close();
+        }
+        */
+        void ProcessEvent(NamedPipeServerStream eventPipeServer) {
 
-                //NamedPipeServerStream eventPipeServer = o as NamedPipeServerStream;
+            //NamedPipeServerStream eventPipeServer = o as NamedPipeServerStream;
+            try
+            {
+                // Read the request from the client. Once the client has
+                // written to the pipe its security token will be available.
+                var msg = ProcessSingleReceivedMessage(eventPipeServer);
+
+                // The received data must be in XML format
+                XmlDocument xml_doc = new XmlDocument();
+                var xmlReaderSettings = new XmlReaderSettings { CheckCharacters = false };
+                using (var stringReader = new StringReader(msg))
+                {
+                    using (var xmlReader = XmlReader.Create(stringReader, xmlReaderSettings))
+                    {
+                        xml_doc.Load(xmlReader);
+                    }
+                }
+                var xml = xml_doc.DocumentElement;
+                    
+                ProgramStatus.Instance.IncLogRate();
+
+                // Handle differently depending on the ElementName
+                switch (xml.Name)
+                {
+                    case WK_PROCESS_EVENT:
+                        var type = xml.Attributes[WK_PROCESS_EVENT_TYPE].InnerText;
+
+                        if (type == WK_PROCESS_EVENT_TYPE_SPAWNED)
+                        {
+                            var parentPid = uint.Parse(xml.Attributes[WK_PROCESS_EVENT_PARENT_PID].InnerText);
+                            var pid = uint.Parse(xml.Attributes[WK_PROCESS_EVENT_PID].InnerText);
+                            ProgramStatus.Instance.AddPid(parentPid, pid);
+                        }
+                        else if (type == WK_PROCESS_EVENT_TYPE_DEAD)
+                        {
+                            var pid = uint.Parse(xml.Attributes[WK_PROCESS_EVENT_PID].InnerText);
+                            ProgramStatus.Instance.RemovePid(pid);
+                        }
+
+                        break;
+                    case WK_FILE_EVENT:
+                        var mode = xml.Attributes[WK_FILE_EVENT_MODE].InnerText;
+                        if (mode == WK_FILE_CREATED || mode == WK_FILE_OPENED || mode == WK_FILE_DELETED)
+                            ProgramStatus.Instance.NotifyFileAccess(xml.Attributes[WK_FILE_EVENT_PATH].InnerText);
+                        else if (mode == WK_FILE_RENAMED)
+                        {
+                            // Convert raw bytes received by the message pump into a conveniente struct and parse the strings
+                            var oldPath = xml.Attributes[WK_FILE_EVENT_OLD_PATH].InnerText;
+                            var newPath = xml.Attributes[WK_FILE_EVENT_NEW_PATH].InnerText;
+                            // Now notify the file rename
+                            ProgramStatus.Instance.NotifyFileRename(oldPath, newPath);
+                        }
+                        break;
+                    case WK_REGISTRY_EVENT:
+                        mode = xml.Attributes[WK_REGISTRY_EVENT_MODE].InnerText;
+                        if (mode == WK_KEY_OPENED || mode == WK_KEY_CREATED)
+                        {
+                            var path = xml.Attributes[WK_REGISTRY_EVENT_PATH].InnerText;
+                            ProgramStatus.Instance.NotifyRegistryAccess(path);
+                        }
+                        break;
+                }
+
+                // Send the ACK ( ACK = 1 )
+                eventPipeServer.Write(ENCODED_ACK, 0, ENCODED_ACK.Length);
+                eventPipeServer.Flush();
+                //eventPipeServer.WaitForPipeDrain();
+                eventPipeServer.Disconnect();
+
+            }
+            catch (Exception e)
+            {
                 try
                 {
-                    // Read the request from the client. Once the client has
-                    // written to the pipe its security token will be available.
-                    var msg = ProcessSingleReceivedMessage(eventPipeServer);
-
-                    // The received data must be in XML format
-                    XmlDocument xml_doc = new XmlDocument();
-                    var xmlReaderSettings = new XmlReaderSettings { CheckCharacters = false };
-                    using (var stringReader = new StringReader(msg))
-                    {
-                        using (var xmlReader = XmlReader.Create(stringReader, xmlReaderSettings))
-                        {
-                            xml_doc.Load(xmlReader);
-                        }
-                    }
-                    var xml = xml_doc.DocumentElement;
-                    
-                    ProgramStatus.Instance.IncLogRate();
-
-                    // Handle differently depending on the ElementName
-                    switch (xml.Name)
-                    {
-                        case WK_PROCESS_EVENT:
-                            var type = xml.Attributes[WK_PROCESS_EVENT_TYPE].InnerText;
-
-                            if (type == WK_PROCESS_EVENT_TYPE_SPAWNED)
-                            {
-                                var parentPid = uint.Parse(xml.Attributes[WK_PROCESS_EVENT_PARENT_PID].InnerText);
-                                var pid = uint.Parse(xml.Attributes[WK_PROCESS_EVENT_PID].InnerText);
-                                ProgramStatus.Instance.AddPid(parentPid, pid);
-                            }
-                            else if (type == WK_PROCESS_EVENT_TYPE_DEAD)
-                            {
-                                var pid = uint.Parse(xml.Attributes[WK_PROCESS_EVENT_PID].InnerText);
-                                ProgramStatus.Instance.RemovePid(pid);
-                            }
-
-                            break;
-                        case WK_FILE_EVENT:
-                            var mode = xml.Attributes[WK_FILE_EVENT_MODE].InnerText;
-                            if (mode == WK_FILE_CREATED || mode == WK_FILE_OPENED || mode == WK_FILE_DELETED)
-                                ProgramStatus.Instance.NotifyFileAccess(xml.Attributes[WK_FILE_EVENT_PATH].InnerText);
-                            else if (mode == WK_FILE_RENAMED)
-                            {
-                                // Convert raw bytes received by the message pump into a conveniente struct and parse the strings
-                                var oldPath = xml.Attributes[WK_FILE_EVENT_OLD_PATH].InnerText;
-                                var newPath = xml.Attributes[WK_FILE_EVENT_NEW_PATH].InnerText;
-                                // Now notify the file rename
-                                ProgramStatus.Instance.NotifyFileRename(oldPath, newPath);
-                            }
-                            break;
-                        case WK_REGISTRY_EVENT:
-                            mode = xml.Attributes[WK_REGISTRY_EVENT_MODE].InnerText;
-                            if (mode == WK_KEY_OPENED || mode == WK_KEY_CREATED)
-                            {
-                                var path = xml.Attributes[WK_REGISTRY_EVENT_PATH].InnerText;
-                                ProgramStatus.Instance.NotifyRegistryAccess(path);
-                            }
-                            break;
-                    }
-
-                    // Send the ACK ( ACK = 1 )
-                    eventPipeServer.Write(ENCODED_ACK, 0, ENCODED_ACK.Length);
-                    eventPipeServer.Flush();
-                    //eventPipeServer.WaitForPipeDrain();
-                    eventPipeServer.Disconnect();
-
+                    if (eventPipeServer.IsConnected)
+                        eventPipeServer.Disconnect();
                 }
-                catch (Exception e)
+                catch (Exception e1)
                 {
-                    try
-                    {
-                        if (eventPipeServer.IsConnected)
-                            eventPipeServer.Disconnect();
-                    }
-                    catch (Exception e1)
-                    {
-                        // GIVEUP
-                    }
+                    // GIVEUP
                 }
             }
+        }
         /*
             private void RunLoggerLooper() {
 
