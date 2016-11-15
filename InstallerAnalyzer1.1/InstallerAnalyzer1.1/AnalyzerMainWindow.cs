@@ -64,6 +64,7 @@ namespace InstallerAnalyzer1_Guest
                     fileAccessCounter.Text = ""+ProgramStatus.Instance.FileAccessCounter;
                     regAccessCounter.Text = ""+ProgramStatus.Instance.RegAccessCounter;
                     busy.Text = ProgramStatus.Instance.IsBusy() ? "!!!" : "";
+                    mitm_icon.Visible = ProgramStatus.Instance.MitmSucceded;
                 }));
             }
             else {
@@ -72,6 +73,7 @@ namespace InstallerAnalyzer1_Guest
                 fileAccessCounter.Text = "" + ProgramStatus.Instance.FileAccessCounter;
                 regAccessCounter.Text = "" + ProgramStatus.Instance.RegAccessCounter;
                 busy.Text = ProgramStatus.Instance.IsBusy() ? "!!!" : "";
+                mitm_icon.Visible = ProgramStatus.Instance.MitmSucceded;
             }
         }
 
@@ -156,7 +158,19 @@ namespace InstallerAnalyzer1_Guest
 
         }
 
-        
+        private void elapsedTime_Click(object sender, EventArgs e)
+        {
 
+        }
+
+        private void fileAccessCounter_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void regAccessCounter_Click(object sender, EventArgs e)
+        {
+
+        }
     }
 }
