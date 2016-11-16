@@ -4,12 +4,16 @@
 //
 
 #pragma once
+#pragma comment(lib, "Shlwapi.lib")
 
 #include "targetver.h"
-
 #include <stdio.h>
 #include <tchar.h>
-#include <Windows.h>
 
 
 // TODO: reference additional headers your program requires here
+#include <iostream>
+#include <fstream>
+#include <windows.h>
+#include <string>
+#include "Shlwapi.h"
