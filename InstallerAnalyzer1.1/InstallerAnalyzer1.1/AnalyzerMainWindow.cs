@@ -151,11 +151,9 @@ namespace InstallerAnalyzer1_Guest
 
         private void AnalyzerMainWindow_Shown_1(object sender, EventArgs e)
         {
-            var wa = Screen.FromHandle(this.Handle).WorkingArea;
+            var wa = Screen.FromHandle(Handle).WorkingArea;
             NativeMethods.RECT r = new NativeMethods.RECT(0, this.Height, wa.Right, wa.Bottom);
             NativeMethods.SetWorkspace(r);
-
-
         }
 
         private void elapsedTime_Click(object sender, EventArgs e)
