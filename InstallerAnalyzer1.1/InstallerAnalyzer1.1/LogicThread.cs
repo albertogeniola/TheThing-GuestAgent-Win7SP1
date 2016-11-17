@@ -1156,7 +1156,7 @@ namespace InstallerAnalyzer1_Guest
                 // mitm.log
                 s = File.OpenText(Path.Combine(Path.GetTempPath(), "mitm.log"));
                 var mitm_network_log = log.OwnerDocument.CreateElement("NetworkInfo");
-                mitm_network_log.InnerText = s.ReadToEnd();
+                mitm_network_log.InnerXml = s.ReadToEnd();
                 mitm.AppendChild(mitm_network_log);
                 s.Close();
 
