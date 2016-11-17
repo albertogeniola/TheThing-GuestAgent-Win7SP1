@@ -1116,6 +1116,57 @@ namespace InstallerAnalyzer1_Guest
             var mitm_res = log.OwnerDocument.CreateElement("Success");
             mitm_res.InnerText = ProgramStatus.Instance.MitmSucceded.ToString();
             mitm.AppendChild(mitm_res);
+
+            // Retrieve info from the logged files as well...
+            // local_info.log
+            int? process_id = null;
+            bool? elevated = null;
+            string image_path = null;
+            string image_sha1 = null;
+
+            if (ProgramStatus.Instance.MitmSucceded) {
+
+                // local_info.log
+                var s = File.OpenText(Path.Combine(Path.GetTempPath(), "local_info.log"));
+                process_id = int.Parse(s.ReadLine());
+                elevated = int.Parse(s.ReadLine()) == 1;
+                image_path = s.ReadLine();
+                s.Close();
+
+                if (File.Exists(image_path)) {
+                    image_sha1 = Utils.CalculateHash(image_path).sha1;
+                }
+
+                var mitm_proc_id = log.OwnerDocument.CreateElement("ProcessId");
+                mitm_proc_id.InnerText = process_id == null ? "" : process_id.ToString();
+                mitm.AppendChild(mitm_proc_id);
+
+                var mitm_proc_elevated = log.OwnerDocument.CreateElement("ProcessElevated");
+                mitm_proc_elevated.InnerText = elevated == null ? "" : elevated.ToString();
+                mitm.AppendChild(mitm_proc_elevated);
+
+                var mitm_proc_path = log.OwnerDocument.CreateElement("ProcessPath");
+                mitm_proc_path.InnerText = image_path == null ? "" : image_path.ToString();
+                mitm.AppendChild(mitm_proc_path);
+
+                var mitm_proc_sha1 = log.OwnerDocument.CreateElement("ProcessImageSha1");
+                mitm_proc_sha1.InnerText = image_sha1 == null ? "" : image_sha1.ToString();
+                mitm.AppendChild(mitm_proc_sha1);
+
+                // mitm.log
+                s = File.OpenText(Path.Combine(Path.GetTempPath(), "mitm.log"));
+                var mitm_network_log = log.OwnerDocument.CreateElement("NetworkInfo");
+                mitm_network_log.InnerText = s.ReadToEnd();
+                mitm.AppendChild(mitm_network_log);
+                s.Close();
+
+                process_id = int.Parse(s.ReadLine());
+                elevated = int.Parse(s.ReadLine()) == 1;
+                image_path = s.ReadLine();
+                s.Close();
+            }
+
+
             result.AppendChild(mitm);
 
             // UIBot results
