@@ -62,6 +62,9 @@ bool UnHook(Type* realFunction, void* hookingFunction, const char* function_name
 	}
 }
 
+// Define this to skip Hooking
+//#define MITM
+
 /*
  * This is the Main DLL Entry. Detours will execute this code after the DLL has been injected.
  * In this function we will get real function addresses and store them into relatives static
@@ -105,6 +108,10 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
 		_set_abort_behavior(0, _WRITE_ABORT_MSG);
 
+
+		Hook(&realCreateProcessInternalW, MyCreateProcessInternalW, kern32dllmod, "CreateProcessInternalW");
+
+#ifndef MITM
 		// The following is needed for performing the lookup of opened query keys
 		realNtQueryKey = (pNtQueryKey)(GetProcAddress(ntdllmod, "NtQueryKey"));
 
@@ -117,11 +124,8 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		Hook(&realNtOpenKeyEx, MyNtOpenKeyEx, ntdllmod, "NtOpenKeyEx");
 		Hook(&realNtSetInformationFile, MyNtSetInformationFile,ntdllmod, "NtSetInformationFile");
 		Hook(&realNtClose, MyNtClose,ntdllmod, "NtClose");
-		Hook(&realCreateProcessInternalW, MyCreateProcessInternalW,kern32dllmod, "CreateProcessInternalW");
 		Hook(&realExitProcess, MyExitProcess, kern32dllmod, "ExitProcess");
-		
-
-		
+#endif		
 		// Supplementay Hooks
 		//Hook(&realNtOpenDirectoryObject,MyNtOpenDirectoryObject,ntdllmod, "NtOpenDirectoryObject");
 		//Hook(&realNtDeleteKey, MyNtDeleteKey,ntdllmod, "NtDeleteKey");
@@ -370,7 +374,10 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		OutputDebugString(_T("PROCESS DETACHED FROM DLL."));
 		
 		DisableThreadLibraryCalls(hDLL);
-		
+
+		UnHook(&realCreateProcessInternalW, MyCreateProcessInternalW, "CreateProcessInternalW");
+	
+#ifndef MITM
 		UnHook(&realNtCreateFile, MyNtCreateFile, "NtCreateFile");
 		UnHook(&realNtOpenFile, MyNtOpenFile, "NtOpenFile");
 		UnHook(&realNtDeleteFile, MyNtDeleteFile, "NtDeleteFile");
@@ -380,9 +387,8 @@ INT APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 		UnHook(&realNtOpenKeyEx, MyNtOpenKeyEx, "NtOpenKeyEx");
 		UnHook(&realNtSetInformationFile, MyNtSetInformationFile, "NtSetInformationFile");
 		UnHook(&realNtClose, MyNtClose, "NtClose");
-		UnHook(&realCreateProcessInternalW, MyCreateProcessInternalW, "CreateProcessInternalW");
 		UnHook(&realExitProcess, MyExitProcess, "ExitProcess");
-
+#endif
 		// Supplementay Hooks
 		//UnHook(&realNtSetValueKey, MyNtSetValueKey, "NtSetValueKey");
 		//UnHook(&realNtTerminateProcess, MyNtTerminateProcess, "NtTerminateProcess");
