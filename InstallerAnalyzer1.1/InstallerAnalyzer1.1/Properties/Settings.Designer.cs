@@ -112,5 +112,23 @@ namespace InstallerAnalyzer1_Guest.Properties {
                 return ((bool)(this["PERFORM_STRING_ANALYSIS"]));
             }
         }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool LOG_FS {
+            get {
+                return ((bool)(this["LOG_FS"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool LOG_REG {
+            get {
+                return ((bool)(this["LOG_REG"]));
+            }
+        }
     }
 }

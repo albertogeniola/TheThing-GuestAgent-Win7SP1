@@ -1,4 +1,5 @@
-﻿using System;
+﻿using InstallerAnalyzer1_Guest.Properties;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -274,6 +275,7 @@ namespace InstallerAnalyzer1_Guest
                 var xml = xml_doc.DocumentElement;
                     
                 ProgramStatus.Instance.IncLogRate();
+                string mode;
 
                 // Handle differently depending on the ElementName
                 switch (xml.Name)
@@ -295,24 +297,30 @@ namespace InstallerAnalyzer1_Guest
 
                         break;
                     case WK_FILE_EVENT:
-                        var mode = xml.Attributes[WK_FILE_EVENT_MODE].InnerText;
-                        if (mode == WK_FILE_CREATED || mode == WK_FILE_OPENED || mode == WK_FILE_DELETED)
-                            ProgramStatus.Instance.NotifyFileAccess(xml.Attributes[WK_FILE_EVENT_PATH].InnerText);
-                        else if (mode == WK_FILE_RENAMED)
+                        if (Settings.Default.LOG_FS)
                         {
-                            // Convert raw bytes received by the message pump into a conveniente struct and parse the strings
-                            var oldPath = xml.Attributes[WK_FILE_EVENT_OLD_PATH].InnerText;
-                            var newPath = xml.Attributes[WK_FILE_EVENT_NEW_PATH].InnerText;
-                            // Now notify the file rename
-                            ProgramStatus.Instance.NotifyFileRename(oldPath, newPath);
+                            mode = xml.Attributes[WK_FILE_EVENT_MODE].InnerText;
+                            if (mode == WK_FILE_CREATED || mode == WK_FILE_OPENED || mode == WK_FILE_DELETED)
+                                ProgramStatus.Instance.NotifyFileAccess(xml.Attributes[WK_FILE_EVENT_PATH].InnerText);
+                            else if (mode == WK_FILE_RENAMED)
+                            {
+                                // Convert raw bytes received by the message pump into a conveniente struct and parse the strings
+                                var oldPath = xml.Attributes[WK_FILE_EVENT_OLD_PATH].InnerText;
+                                var newPath = xml.Attributes[WK_FILE_EVENT_NEW_PATH].InnerText;
+                                // Now notify the file rename
+                                ProgramStatus.Instance.NotifyFileRename(oldPath, newPath);
+                            }
                         }
                         break;
                     case WK_REGISTRY_EVENT:
-                        mode = xml.Attributes[WK_REGISTRY_EVENT_MODE].InnerText;
-                        if (mode == WK_KEY_OPENED || mode == WK_KEY_CREATED)
+                        if (Settings.Default.LOG_REG)
                         {
-                            var path = xml.Attributes[WK_REGISTRY_EVENT_PATH].InnerText;
-                            ProgramStatus.Instance.NotifyRegistryAccess(path);
+                            mode = xml.Attributes[WK_REGISTRY_EVENT_MODE].InnerText;
+                            if (mode == WK_KEY_OPENED || mode == WK_KEY_CREATED)
+                            {
+                                var path = xml.Attributes[WK_REGISTRY_EVENT_PATH].InnerText;
+                                ProgramStatus.Instance.NotifyRegistryAccess(path);
+                            }
                         }
                         break;
                 }
