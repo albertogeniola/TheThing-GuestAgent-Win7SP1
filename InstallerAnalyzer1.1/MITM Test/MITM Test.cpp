@@ -39,6 +39,20 @@ int _tmain(int argc, _TCHAR* argv[]) {
 	unsigned int file_len = 0;
 	int i = 0;
 	bool simple_mode = false;
+	TCHAR request_file_path[MAX_PATH];
+
+	i = GetModuleFileName(NULL, module_path, MAX_PATH);
+	module_path[i] = '\0';
+
+	i = GetTempPath(MAX_PATH, tempdir);
+	tempdir[i] = '\0';
+
+	/*
+	std::wstring t = std::wstring();
+	t.append(std::to_wstring(GetCurrentProcessId()));
+	
+	MessageBox(NULL, t.c_str(), L"TEST", MB_OK);
+	*/
 
 	// Check if the "simple" switch was specified
 	for (int j = 1; j < argc; j++) {
@@ -49,8 +63,7 @@ int _tmain(int argc, _TCHAR* argv[]) {
 	}
 
 	if (!simple_mode) {
-		i = GetModuleFileName(NULL, module_path, MAX_PATH);
-		module_path[i] = '\0';
+		
 
 		f = _tfopen(module_path, _T("rb"));
 		if (f == NULL) {
@@ -85,11 +98,7 @@ int _tmain(int argc, _TCHAR* argv[]) {
 		data[data_len] = '\0';
 		fclose(f);
 
-		i = GetTempPath(MAX_PATH, tempdir);
-		tempdir[i] = '\0';
-
 		// Now just write the buffer into a local file that will be used by GuestController as "source of info"
-		TCHAR request_file_path[MAX_PATH];
 		PathCombine(request_file_path, tempdir, REQUEST_FILE_NAME);
 		f = _tfopen(request_file_path, _T("wb"));
 		fwrite(data, data_len, 1, f);
@@ -97,21 +106,20 @@ int _tmain(int argc, _TCHAR* argv[]) {
 		fclose(f);
 
 		delete data;
-
-		// Now fill other info, such as permissions owned by this process and other stuff.
-		request_file_path[0] = '\0';
-		PathCombine(request_file_path, tempdir, LOCAL_LOG_FILE_NAME);
-		f = _tfopen(request_file_path, _T("wb"));
-		std::wofstream ofs = std::wofstream(request_file_path, std::ofstream::out);
-		// First line: get our current pid
-		ofs << std::to_wstring(GetCurrentProcessId()) << std::endl;
-		// Second line: check whether we are running under elevated privileges.
-		ofs << IsElevated() << std::endl;
-		// Third line: filename/path used by the executable
-		ofs << module_path << std::endl;
-		ofs.close();
-	
 	}
+
+	// Now fill other info, such as permissions owned by this process and other stuff.
+	request_file_path[0] = '\0';
+	PathCombine(request_file_path, tempdir, LOCAL_LOG_FILE_NAME);
+	f = _tfopen(request_file_path, _T("wb"));
+	std::wofstream ofs = std::wofstream(request_file_path, std::ofstream::out);
+	// First line: get our current pid
+	ofs << std::to_wstring(GetCurrentProcessId()) << std::endl;
+	// Second line: check whether we are running under elevated privileges.
+	ofs << IsElevated() << std::endl;
+	// Third line: filename/path used by the executable
+	ofs << module_path << std::endl;
+	ofs.close();
 
 	// Finally notify the GuestController that we are done, by simply rising the relative AutoresetEvent.
 	HANDLE evt = NULL;
