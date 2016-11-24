@@ -2,7 +2,9 @@
 #define WK_MITM_EVENT _T("wk_mitm_event")
 #define REQUEST_FILE_NAME _T("mitm.log")
 #define LOCAL_LOG_FILE_NAME _T("local_info.log")
+#define SIMPLE_MODE_SWITCH _T("--WK_SIMPLE_MODE")
 
+static std::wstring simple_switch = std::wstring(SIMPLE_MODE_SWITCH);
 
 BOOL IsElevated() {
 	BOOL fRet = FALSE;
@@ -49,15 +51,15 @@ int _tmain(int argc, _TCHAR* argv[]) {
 
 	/*
 	std::wstring t = std::wstring();
-	t.append(std::to_wstring(GetCurrentProcessId()));
-	
+	t.append(std::to_wstring(GetCurrentProcessId()));	
 	MessageBox(NULL, t.c_str(), L"TEST", MB_OK);
 	*/
 
 	// Check if the "simple" switch was specified
 	for (int j = 1; j < argc; j++) {
-		std::wstring input(argv[j]);
-		if (input.compare(_T("-s")) == 0 || input.compare(_T("-S"))) {
+		std::wstring input = std::wstring(argv[j]);
+
+		if (input.compare(simple_switch)==0) {
 			simple_mode = true;
 		}
 	}
