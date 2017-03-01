@@ -158,6 +158,17 @@ namespace InstallerAnalyzer1_Guest
             r.WorkId = workId;
             r.Status = status;
 
+            var info = GetNetworkInfo();
+            var default_gw = info.GetIPProperties().GatewayAddresses.FirstOrDefault().Address.ToString();
+            var my_addr = info.GetIPProperties().UnicastAddresses.ToString();
+            // We also need to specify our current network configuration.
+            r.NetworkConf = new NetworkConf() {
+                DefaultGw = default_gw,
+                GuestIp = my_addr,
+                HcIp = Settings.Default.HOST_CONTROLLER_IP,
+                HcPort = int.Parse(Settings.Default.HOST_CONTROLLER_PORT)
+            };
+
             _send_message(ns, JsonConvert.SerializeObject(r));
             return JsonConvert.DeserializeObject<ResponseReportWork>(_recv_message(ns));
         }

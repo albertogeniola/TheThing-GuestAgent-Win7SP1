@@ -30,14 +30,16 @@ namespace UiAnalysisTest
         }
 
         private Pen _marker = new Pen(Color.Red,3);
-        private Brush _b = new SolidBrush(Color.Red);
-        private Font _f = new Font(FontFamily.GenericSerif, 10);
+        private Pen _marker2 = new Pen(Color.White, 1);
+        private Brush _b = new SolidBrush(Color.FromArgb(128,Color.Black));
+        private Brush _b2 = new SolidBrush(Color.Yellow);
+        private Font _f = new Font(FontFamily.GenericSerif, 20,FontStyle.Bold);
 
 
         private void process_image(PictureBox box, bool toinvert) {
 
             Bitmap original = (Bitmap)Bitmap.FromFile(_fname);
-            //original.Save("C:\\users\\alberto geniola\\desktop\\dbg\\original_"+toinvert+".bmp");
+            original.Save("C:\\users\\alberto geniola\\desktop\\dbg\\original_"+toinvert+".bmp");
 
             // Setup the Blob counter
             BlobCounter blobCounter = new BlobCounter();
@@ -60,8 +62,6 @@ namespace UiAnalysisTest
                     invert.ApplyInPlace(grey_scaled);
                 }
 
-                //grey_scaled.Save("C:\\users\\alberto geniola\\desktop\\dbg\\gray_scaled_" + toinvert + ".bmp");
-
                 using (Bitmap t1 = new Threshold(64).Apply(grey_scaled))
                 {
                     using (var tmp = new Bitmap(t1.Width, t1.Height))
@@ -70,6 +70,8 @@ namespace UiAnalysisTest
                         {
                             g.DrawImage(t1, 0, 0);
                         }
+
+                        tmp.Save("C:\\users\\alberto geniola\\desktop\\dbg\\filtered_" + toinvert + ".bmp");
 
                         // The blob counter will analyze the bitmap looking for shapes
                         blobCounter.ProcessImage(tmp);
@@ -96,7 +98,7 @@ namespace UiAnalysisTest
                             }
                         }
 
-                        //tmp.Save("C:\\users\\alberto geniola\\desktop\\dbg\\t1_" + toinvert + ".bmp");
+                        tmp.Save("C:\\users\\alberto geniola\\desktop\\dbg\\processed_" + toinvert + ".bmp");
 
                     }
                 }
@@ -109,7 +111,7 @@ namespace UiAnalysisTest
                         {
                             g.DrawImage(t2, 0, 0);
                         }
-                        //tmp.Save("C:\\users\\alberto geniola\\desktop\\dbg\\t2_" + toinvert + ".bmp");
+                        tmp.Save("C:\\users\\alberto geniola\\desktop\\dbg\\t2_" + toinvert + ".bmp");
                         // The blob counter will analyze the bitmap looking for shapes
                         blobCounter.ProcessImage(tmp);
                         var tmparr = blobCounter.GetObjectsInformation();
@@ -135,7 +137,7 @@ namespace UiAnalysisTest
                             }
                         }
 
-                        //tmp.Save("C:\\users\\alberto geniola\\desktop\\dbg\\t1_" + toinvert + ".bmp");
+                        tmp.Save("C:\\users\\alberto geniola\\desktop\\dbg\\t1_" + toinvert + ".bmp");
                     }
                 }
             }
@@ -204,10 +206,32 @@ namespace UiAnalysisTest
                         {
                             using (var g = Graphics.FromImage(test))
                             {
-                                g.FillRectangle(new SolidBrush(Color.White), r);
-                                g.DrawString(txt, _f, _b, r.X, r.Y);
+
+                                int SPACING = 5;
+                                double angle = 45 * 2 * Math.PI / 360; // 45 degrees to radiants
+                                for (int x = 0; x < r.Width; x+=SPACING) {
+                                    PointF start = new PointF(r.X+x, r.Y);
+                                    PointF end = new PointF((float)(r.X+x+r.Height*Math.Tan(angle)), r.Y + r.Height);
+                                    if (end.X > (r.X + r.Width)) {
+                                        // Calculate midpoint
+                                        var delta = end.X - r.Width;
+                                        end.X = r.X + r.Width;
+                                        end.Y = r.Y + (float)(Math.Tan(angle) * r.Width)-x;
+
+                                        // Draw the overflow line
+                                        g.DrawLine(_marker2, r.X, end.Y, delta, r.Y+r.Height);
+                                    }
+
+                                    g.DrawLine(_marker2, start, end);
+                                }
+
+                                g.FillRectangle(_b, r);
+                                var dim = g.MeasureString(txt.Trim(), _f);
+                                g.DrawString(txt.Trim().ToUpper(), _f,_b2, r.X+(r.Width-dim.Width)/2, r.Y+(r.Height-dim.Height)/2);
                             }
                         }
+
+                        test.Save("C:\\users\\alberto geniola\\desktop\\dbg\\processed_" + toinvert + ".bmp");
                             
                         /*
                         // At this point we should have a result. Add it to list if it does not overlap any UIAutomated element

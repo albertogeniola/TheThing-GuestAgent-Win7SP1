@@ -7,6 +7,22 @@ using Newtonsoft.Json;
 
 namespace InstallerAnalyzer1_Guest.Protocol
 {
+    public class NetworkConf
+    {
+        [JsonProperty("guest_ip")]
+        public string GuestIp { get; set; }
+
+        [JsonProperty("default_gw")]
+        public string DefaultGw { get; set; }
+
+        [JsonProperty("hc_ip")]
+        public string HcIp { get; set; }
+
+        [JsonProperty("hc_port")]
+        public int HcPort { get; set; }
+        
+    }
+
     public class RequestReportWork
     {
         [JsonProperty(PropertyName="command")]
@@ -37,6 +53,12 @@ namespace InstallerAnalyzer1_Guest.Protocol
 
         [JsonProperty(PropertyName = "work_id")]
         public long WorkId
+        {
+            get;
+            set;
+        }
+        [JsonProperty(PropertyName = "network_conf")]
+        public NetworkConf NetworkConf
         {
             get;
             set;
