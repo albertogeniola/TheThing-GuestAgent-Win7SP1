@@ -29,8 +29,6 @@ namespace InstallerAnalyzer1_Guest
                 Microsoft.Win32.SystemEvents.SessionEnding += new Microsoft.Win32.SessionEndingEventHandler(SystemEvents_SessionEnded);
 
                 Console.WriteLine("Bootstrap: Starting.");
-                IPAddress _remoteIp;
-                int _remotePort;
 
                 _xmlLog = new XmlDocument();
                 _xmlRoot = _xmlLog.CreateElement("InstallerAnalyzerReport");
@@ -41,25 +39,12 @@ namespace InstallerAnalyzer1_Guest
 
                 // Argument checking...
                 #region Arguments checking
-
-                if (String.IsNullOrEmpty(Properties.Settings.Default.INJECTOR_PATH) || !File.Exists(Properties.Settings.Default.INJECTOR_PATH))
-                {
-                    throw new ApplicationException("Error: You must configure INJECTOR_PATH constant into the project to a valid path. I was unable to find \"" + Properties.Settings.Default.INJECTOR_PATH + "\" on this system.");
-                }
-
-                if (String.IsNullOrEmpty(Properties.Settings.Default.HOST_CONTROLLER_IP) )
-                {
-                    throw new ApplicationException("Error: You must configure HOST_CONTROLLER_IP constant into the executable manifest/XML.");
-                }
-
-                if (String.IsNullOrEmpty(Properties.Settings.Default.HOST_CONTROLLER_PORT))
-                {
-                    throw new ApplicationException("Error: You must configure HOST_CONTROLLER_PORT constant into the executable manifest/XML.");
-                }
-
+                if (args.Length != 2)
+                    throw new ArgumentException("Missing arguments. Please specify HostControllerIP and Port.");
+                
                 try
                 {
-                    _remoteIp = Dns.GetHostAddresses(Properties.Settings.Default.HOST_CONTROLLER_IP).Where(ip => ip.AddressFamily == AddressFamily.InterNetwork).ElementAt(0);
+                    ProgramStatus.Instance.HostControllerAddr = Dns.GetHostAddresses(args[0]).Where(ip => ip.AddressFamily == AddressFamily.InterNetwork).ElementAt(0);
                 }
                 catch (Exception e)
                 {
@@ -68,15 +53,21 @@ namespace InstallerAnalyzer1_Guest
 
                 try
                 {
-                    _remotePort = int.Parse(Properties.Settings.Default.HOST_CONTROLLER_PORT);
+                    int _remotePort = int.Parse(args[1]);
                     if (_remotePort < 1 || _remotePort > 65535)
                         throw new ArgumentException("Invalid HOST_CONTROLLER_PORT Specified.");
+                    else
+                        ProgramStatus.Instance.HostControllerPort = _remotePort;
                 }
                 catch (Exception e)
                 {
                     throw new ArgumentException("Invalid HOST_CONTROLLER_PORT Specified.");
                 }
 
+                if (String.IsNullOrEmpty(Properties.Settings.Default.INJECTOR_IMAGE_NAME) || !File.Exists(Properties.Settings.Default.INJECTOR_IMAGE_NAME))
+                {
+                    throw new ApplicationException("Error: You must configure INJECTOR_PATH constant into the project to a valid path. I was unable to find \"" + Properties.Settings.Default.INJECTOR_IMAGE_NAME + "\" on this system.");
+                }
                 #endregion
 
                 Console.WriteLine("Bootstrap: Args checks ok");
@@ -85,7 +76,7 @@ namespace InstallerAnalyzer1_Guest
                 Application.SetCompatibleTextRenderingDefault(false);
 
                 // Prepare main window
-                mw = new AnalyzerMainWindow(_remoteIp, _remotePort);
+                mw = new AnalyzerMainWindow(ProgramStatus.Instance.HostControllerAddr, ProgramStatus.Instance.HostControllerPort);
                 mw.TopMost = true;
 
                 Console.WriteLine("Bootstrap: Building logger");

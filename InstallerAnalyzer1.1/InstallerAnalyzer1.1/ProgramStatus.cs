@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Management;
+using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -47,6 +48,9 @@ namespace InstallerAnalyzer1_Guest
         }
         
         #endregion
+
+        public IPAddress HostControllerAddr { get; set; }
+        public int HostControllerPort { get; set; }
 
         #region AccessedFiles: lock on _fileMap.
         private static object _filesLock = new object();

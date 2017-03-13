@@ -17,7 +17,7 @@ namespace InstallerAnalyzer1_Guest
         {
             get {
                 if (_instance == null)
-                    _instance = new ProgramLogger(Settings.Default.ApplicationLogFile);
+                    _instance = new ProgramLogger(Settings.Default.APPLICATION_LOG_FILE);
                 return _instance;
             }
         }

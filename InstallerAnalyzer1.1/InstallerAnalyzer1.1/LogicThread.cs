@@ -165,8 +165,8 @@ namespace InstallerAnalyzer1_Guest
             r.NetworkConf = new NetworkConf() {
                 DefaultGw = default_gw,
                 GuestIp = my_addr,
-                HcIp = Settings.Default.HOST_CONTROLLER_IP,
-                HcPort = int.Parse(Settings.Default.HOST_CONTROLLER_PORT)
+                HcIp = ProgramStatus.Instance.HostControllerAddr.Address.ToString(),
+                HcPort = ProgramStatus.Instance.HostControllerPort
             };
 
             _send_message(ns, JsonConvert.SerializeObject(r));
@@ -1075,10 +1075,10 @@ namespace InstallerAnalyzer1_Guest
             jobtimeout.InnerText = "" + Settings.Default.EXECUTE_JOB_TIMEOUT;
             guestconf.AppendChild(jobtimeout);
             var hostcontrollerip = log.OwnerDocument.CreateElement("HostControllerIp");
-            hostcontrollerip.InnerText = "" + Settings.Default.HOST_CONTROLLER_IP;
+            hostcontrollerip.InnerText = "" + ProgramStatus.Instance.HostControllerAddr.Address.ToString();
             guestconf.AppendChild(hostcontrollerip);
             var hostcontrollerport = log.OwnerDocument.CreateElement("HostControllerPort");
-            hostcontrollerport.InnerText = "" + Settings.Default.HOST_CONTROLLER_PORT;
+            hostcontrollerport.InnerText = "" + ProgramStatus.Instance.HostControllerPort;
             guestconf.AppendChild(hostcontrollerport);
             var macaddr = log.OwnerDocument.CreateElement("Mac");
             macaddr.InnerText = GetMACAddr();
@@ -1790,7 +1790,7 @@ namespace InstallerAnalyzer1_Guest
             try
             {
                 var proc = new Process();
-                proc.StartInfo.FileName = Properties.Settings.Default.INJECTOR_PATH;
+                proc.StartInfo.FileName = Properties.Settings.Default.INJECTOR_IMAGE_NAME;
                 proc.StartInfo.Arguments = "\"" + j.LocalFullPath + "\"";
                 proc.StartInfo.RedirectStandardError = true;
                 proc.StartInfo.RedirectStandardOutput = true;

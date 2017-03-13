@@ -25,25 +25,25 @@ namespace InstallerAnalyzer1_Guest.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("C:\\GuestController\\Injector.exe")]
-        public string INJECTOR_PATH {
+        [global::System.Configuration.DefaultSettingValueAttribute("Injector.exe")]
+        public string INJECTOR_IMAGE_NAME {
             get {
-                return ((string)(this["INJECTOR_PATH"]));
+                return ((string)(this["INJECTOR_IMAGE_NAME"]));
             }
         }
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("C:\\GuestController\\AppOutput.log")]
-        public string ApplicationLogFile {
+        [global::System.Configuration.DefaultSettingValueAttribute("AppOutput.log")]
+        public string APPLICATION_LOG_FILE {
             get {
-                return ((string)(this["ApplicationLogFile"]));
+                return ((string)(this["APPLICATION_LOG_FILE"]));
             }
         }
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("C:\\GuestController\\stable")]
+        [global::System.Configuration.DefaultSettingValueAttribute("stable")]
         public string STABLE_SCREEN_PATH {
             get {
                 return ((string)(this["STABLE_SCREEN_PATH"]));
@@ -52,7 +52,7 @@ namespace InstallerAnalyzer1_Guest.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("C:\\GuestController\\interaction")]
+        [global::System.Configuration.DefaultSettingValueAttribute("interaction")]
         public string INTERACTIONS_SCREEN_PATH {
             get {
                 return ((string)(this["INTERACTIONS_SCREEN_PATH"]));
@@ -83,24 +83,6 @@ namespace InstallerAnalyzer1_Guest.Properties {
         public int IDLE_TIMEOUT {
             get {
                 return ((int)(this["IDLE_TIMEOUT"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("192.168.56.1")]
-        public string HOST_CONTROLLER_IP {
-            get {
-                return ((string)(this["HOST_CONTROLLER_IP"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("9000")]
-        public string HOST_CONTROLLER_PORT {
-            get {
-                return ((string)(this["HOST_CONTROLLER_PORT"]));
             }
         }
         

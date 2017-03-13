@@ -2,17 +2,17 @@
 <SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="InstallerAnalyzer1_Guest.Properties" GeneratedClassName="Settings">
   <Profiles />
   <Settings>
-    <Setting Name="INJECTOR_PATH" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">C:\GuestController\Injector.exe</Value>
+    <Setting Name="INJECTOR_IMAGE_NAME" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">Injector.exe</Value>
     </Setting>
-    <Setting Name="ApplicationLogFile" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">C:\GuestController\AppOutput.log</Value>
+    <Setting Name="APPLICATION_LOG_FILE" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">AppOutput.log</Value>
     </Setting>
     <Setting Name="STABLE_SCREEN_PATH" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">C:\GuestController\stable</Value>
+      <Value Profile="(Default)">stable</Value>
     </Setting>
     <Setting Name="INTERACTIONS_SCREEN_PATH" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">C:\GuestController\interaction</Value>
+      <Value Profile="(Default)">interaction</Value>
     </Setting>
     <Setting Name="EXECUTE_JOB_TIMEOUT" Type="System.Int32" Scope="Application">
       <Value Profile="(Default)">1200000</Value>
@@ -22,12 +22,6 @@
     </Setting>
     <Setting Name="IDLE_TIMEOUT" Type="System.Int32" Scope="Application">
       <Value Profile="(Default)">600000</Value>
-    </Setting>
-    <Setting Name="HOST_CONTROLLER_IP" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">192.168.56.1</Value>
-    </Setting>
-    <Setting Name="HOST_CONTROLLER_PORT" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">9000</Value>
     </Setting>
     <Setting Name="PERFORM_STRING_ANALYSIS" Type="System.Boolean" Scope="Application">
       <Value Profile="(Default)">False</Value>
