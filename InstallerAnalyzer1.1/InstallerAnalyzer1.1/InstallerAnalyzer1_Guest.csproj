@@ -164,6 +164,7 @@
     <Compile Include="ProcessHierarchy.cs" />
     <Compile Include="ProgramStatus.cs" />
     <Compile Include="ProtocolException.cs" />
+    <Compile Include="Protocol\RequestGetWorkFileReceived - Copy.cs" />
     <Compile Include="UIAnalysis\IUIRanker.cs" />
     <Compile Include="UIAnalysis\NativeAndVisualRanker.cs" />
     <Compile Include="UIAnalysis\RankingPolicy\IRankingPolicy.cs" />
@@ -197,7 +198,7 @@
     <Compile Include="Protocol\RequestReportWork.cs" />
     <Compile Include="Protocol\RequestGetWork.cs" />
     <Compile Include="Protocol\RequestGetWorkFile.cs" />
-    <Compile Include="Protocol\RequestGetWorkFileReceived.cs" />
+    <Compile Include="Protocol\ResponseGetWorkStartAnalysis.cs" />
     <Compile Include="Protocol\ResponseReportWork.cs" />
     <Compile Include="Protocol\ResponseGetWork.cs" />
     <Compile Include="UIAnalysis\NoMoreCandidateException.cs" />

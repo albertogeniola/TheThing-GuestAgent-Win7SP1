@@ -245,9 +245,9 @@ namespace InstallerAnalyzer1_Guest
                 if (!res.isValid(out err))
                     throw new ProtocolException("Received response by Host Controller was not valid. " + err);
 
+                // This means the server has nothing to do atm. Let the caller decide what to do.
                 if (res.WorkId == null)
                 {
-                    // This means the server has nothing to do atm. Let the caller decide what to do.
                     return null;
                 }
 
@@ -276,16 +276,15 @@ namespace InstallerAnalyzer1_Guest
                 fs.Close();
                 fs.Dispose();
 
-                // File received. Let the HostController we will work on it
-                RequestGetWorkFileReceived rr = new RequestGetWorkFileReceived();
+                // File received. Let the HostController we are now waiting for START MESSAGE
+                ResponseGetWorkStartAnalysis rr = new ResponseGetWorkStartAnalysis();
                 _send_message(ns, JsonConvert.SerializeObject(rr));
+                
+                Console.WriteLine("File received. Waiting for start signal from server...");
+                var clearance = JsonConvert.DeserializeObject<ResponseGetWorkStartAnalysis>(_recv_message(ns));
 
-                // In case there was nothing to do, the server responds with a null work_id. We handle this possibility here, by returning
-                // null in case it happens.
-                Job j = null;
-                if (res.WorkId != null)
-                    j = new Job((long)res.WorkId, path);
-
+                Console.WriteLine("Ready to go!");
+                Job j = new Job((long)res.WorkId, path);
                 return j;
             }
             finally

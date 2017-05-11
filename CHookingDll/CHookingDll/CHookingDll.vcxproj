@@ -92,6 +92,7 @@
     <CustomBuildAfterTargets>
     </CustomBuildAfterTargets>
     <TargetName>$(ProjectName)</TargetName>
+    <OutDir>..\..\..\..\..\..\..\VMs\GuestController</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Publish|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -102,7 +103,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RemoteDebug|Win32'">
     <CustomBuildAfterTargets />
     <TargetName>$(ProjectName)</TargetName>
-    <OutDir>D:\ProductionOutputDir\GuestController\</OutDir>
+    <OutDir>C:\VMs\GuestController\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Only Injector|Win32'">
     <LinkIncremental>false</LinkIncremental>
