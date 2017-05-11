@@ -277,7 +277,7 @@ namespace InstallerAnalyzer1_Guest
                 fs.Dispose();
 
                 // File received. Let the HostController we are now waiting for START MESSAGE
-                ResponseGetWorkStartAnalysis rr = new ResponseGetWorkStartAnalysis();
+                RequestGetWorkFileReceived rr = new RequestGetWorkFileReceived();
                 _send_message(ns, JsonConvert.SerializeObject(rr));
                 
                 Console.WriteLine("File received. Waiting for start signal from server...");
